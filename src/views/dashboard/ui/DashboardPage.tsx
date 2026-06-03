@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Button,
   Card,
@@ -22,9 +22,13 @@ export function DashboardPage() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  // 동기 in-flight 가드: 상태 업데이트(setBusy)는 비동기라 연속 호출(한글 IME의
+  // Enter 더블 fire, 빠른 더블클릭)을 막지 못한다. ref로 즉시 차단해 중복 생성 방지.
+  const creatingRef = useRef(false);
 
   async function handleCreate() {
-    if (!title.trim()) return;
+    if (creatingRef.current || !title.trim()) return;
+    creatingRef.current = true;
     setBusy(true);
     try {
       const project = await createProject({ title: title.trim() });
@@ -34,6 +38,7 @@ export function DashboardPage() {
     } catch {
       toast("작품 생성에 실패했어요.", "error");
     } finally {
+      creatingRef.current = false;
       setBusy(false);
     }
   }
@@ -103,7 +108,10 @@ export function DashboardPage() {
           placeholder="예) 회귀한 검사는 멈추지 않는다"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+          onKeyDown={(e) => {
+            // 한글 등 IME 조합 중 Enter는 '조합 확정'이므로 무시(중복 제출 방지).
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) handleCreate();
+          }}
         />
       </Modal>
     </main>
