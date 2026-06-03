@@ -2,9 +2,11 @@
 
 웹소설 집필 에디터 사이트. 레퍼런스는 스크리브너이되 **진입장벽을 낮춘** 도구.
 
-**스택:** Next.js 풀스택(App Router) · Postgres + Prisma · Auth.js · Tiptap(ProseMirror) · **Tailwind + 원티드 디자인 토큰**(Pretendard 폰트). 원티드 컴포넌트 패키지(`@wanteddev/wds`)는 쓰지 않고 토큰 값만 차용(컬러·스페이싱은 공개 소스 실값).
+**스택(로컬 우선 / local-first):** Next.js(App Router) · **IndexedDB**(클라이언트 저장, `idb`) · Tiptap(ProseMirror) · **Tailwind + 원티드 디자인 토큰**(Pretendard 폰트). 원티드 컴포넌트 패키지(`@wanteddev/wds`)는 쓰지 않고 토큰 값만 차용. **백엔드·DB·로그인 없음** — 모든 데이터는 브라우저 IndexedDB에 보관.
 
-**MVP-1 범위:** 문서 트리 + 에디터 + 자동저장 (User·Project·Document). Character·Snapshot은 백로그.
+**MVP-1 범위:** 문서 트리 + 에디터 + 자동저장 (Project·Document, 로컬). 로그인/User·Character·Snapshot 없음. 데이터 계층은 `src/shared/db`(idb) + entities 훅(SWR).
+
+> 참고: 백엔드 하네스 에이전트/스킬(backend-engineer·data-modeler, nextjs-api·prisma-data-model)과 오케스트레이터 Phase 3는 현재 **휴면**(local-first 전환으로 미사용). 추후 동기화/서버 도입 시 재가동.
 
 **프론트 컨벤션:** Feature-Sliced Design(FSD). Next `app/`은 라우팅 전용 얇은 래퍼, 화면 로직은 `src/`(views·widgets·features·entities·shared). 별칭 `@views @widgets @features @entities @shared @app`. 서버 인프라(`lib/`·`app/api`·`middleware`)는 FSD 밖.
 
@@ -26,3 +28,4 @@
 | 2026-06-03 | MVP-1 범위 축소 (Character·Snapshot 백로그) | product-spec, prisma-data-model, nextjs-api, tiptap-editor, orchestrator, 관련 에이전트 | 사용자 피드백: 문서트리+에디터+자동저장만 시작 |
 | 2026-06-03 | 디자인 시스템 = Tailwind + 원티드 토큰(공개 소스 실값) + Pretendard 확정. WDS 컴포넌트 패키지 미사용 | wanted-design-system(스킬+레퍼런스), design-system-specialist, nextjs-frontend | 사용자 명확화: 토큰만 차용, 컴포넌트는 Tailwind 자체 구현 |
 | 2026-06-03 | 프론트 FSD 컨벤션 채택 + 기존 프론트 src/ 레이어로 리팩터링 | nextjs-frontend 스킬, 프론트 전체(src/), tsconfig paths | 사용자 요청: FSD 컨벤션 사용 |
+| 2026-06-03 | **로컬 우선 전환**: 로그인·백엔드·Postgres/Prisma 제거, IndexedDB(idb)로 데이터 저장 | 인증/api/prisma/middleware 삭제, shared/db 신설, entities 훅 재작성 | 사용자 결정: 로그인 없애고 IndexedDB 사용 (인증 진입장벽 제거) |

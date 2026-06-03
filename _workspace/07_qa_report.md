@@ -44,3 +44,11 @@
 - **바인더 드래그 재정렬**: `features/reorder-document`(순수 `planReorder`) + 네이티브 HTML5 DnD. 폴더 위 드롭=안으로(into), 문서 위 드롭=앞에(before, 형제 그룹 0..n 정수 재인덱싱). 순환(자기/자손) 이동은 client(planReorder) + server(move API 409) 이중 차단. `next build` 성공·tsc 0.
 - **시놉시스 편집**: `widgets/inspector` + entity `updateSynopsis`(PATCH documents). 인스펙터 Textarea, 문서 전환 시 리셋(key), blur 시 변경분만 저장. `next build` 성공·tsc 0.
 - **다크 테마**: `next-themes`(attribute=class, system) + `globals.css`의 `.dark` 시맨틱 변수 오버라이드(원티드 neutral 다크 스케일) → 토큰 유틸 전체 자동 반영. `features/toggle-theme` 토글(대시보드·작업실 헤더), `<html suppressHydrationWarning>`로 FOUC 방지. `next build` 성공·tsc 0.
+
+## 🔄 로컬 우선(local-first) 전환 — 위 백엔드/인증 검증은 SUPERSEDED
+사용자 결정으로 **로그인·백엔드·Postgres/Prisma 전부 제거**, 데이터는 IndexedDB(`idb`)로 저장. 따라서 위 "Phase 3 백엔드"·인증 관련 통과/수정 항목은 더 이상 적용되지 않는다(코드 삭제됨).
+- **제거**: `app/api/**`, `lib/{prisma,auth,api,documents}`, `auth.config.ts`, `middleware.ts`, `types/next-auth.d.ts`, `prisma/`, `src/shared/api`, login 화면.
+- **신설/변경**: `src/shared/db`(idb 래퍼), `entities/*/api` 훅을 IndexedDB 기반으로 재작성, `useAutosave(documentId, projectId)`.
+- **경계면 검증(신규)**: 훅↔저장소 — useProjects/useDocuments가 idb store와 일치, 삭제 시 하위 cascade 수동 구현, reorderSiblings가 parentId+order 통일. 라우팅 — /login·/api 제거 후 깨진 링크 없음(landing→/dashboard, 보호 미들웨어 제거). 
+- **빌드/런타임 검증**: tsc 0, `next build` 성공(4 라우트). dev 서버: / 200, /dashboard 200(리다이렉트 없음), /projects/[id] 200, /login 404, /api/projects 404.
+- **한계**: 데이터가 단일 브라우저 IndexedDB에만 — 기기 간 동기화·백업 없음(향후 서버 도입 시 백엔드 하네스 재가동).

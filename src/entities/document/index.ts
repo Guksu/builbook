@@ -1,2 +1,2 @@
 export type { DocumentNode, DocType } from "./model/types";
-export { useDocuments } from "./api/useDocuments";
+export { useDocuments, documentsKey, saveDocumentContent } from "./api/useDocuments";

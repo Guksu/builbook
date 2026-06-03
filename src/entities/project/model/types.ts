@@ -1,9 +1,8 @@
-// Project 엔티티 모델. API 계약(_workspace/03)과 1:1 일치.
+// Project 엔티티 모델 (로컬 우선 · IndexedDB 저장). 로그인 없음 → owner 개념 없음.
 export interface Project {
   id: string;
   title: string;
   description: string | null;
-  ownerId: string;
   createdAt: string;
   updatedAt: string;
 }

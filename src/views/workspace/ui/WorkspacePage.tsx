@@ -130,6 +130,7 @@ export function WorkspacePage() {
             <Editor
               key={selected.id}
               documentId={selected.id}
+              projectId={id}
               initialContent={(selected.content as JSONContent | null) ?? null}
               title={selected.title}
             />

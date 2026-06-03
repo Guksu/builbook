@@ -16,13 +16,14 @@ const EMPTY_DOC: JSONContent = { type: "doc", content: [{ type: "paragraph" }] }
 
 interface EditorProps {
   documentId: string;
+  projectId: string;
   initialContent: JSONContent | null;
   title: string;
 }
 
 // Tiptap 에디터 코어. 최소 확장 세트 + 자동저장. 집중 글쓰기 단일 컬럼.
-export function Editor({ documentId, initialContent, title }: EditorProps) {
-  const { status, schedule } = useAutosave(documentId);
+export function Editor({ documentId, projectId, initialContent, title }: EditorProps) {
+  const { status, schedule } = useAutosave(documentId, projectId);
 
   const editor = useEditor({
     extensions: [StarterKit],

@@ -1,16 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiSend } from "@shared/api";
+import { mutate } from "swr";
+import { saveDocumentContent, documentsKey } from "@entities/document";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 const DEBOUNCE_MS = 800;
 const backupKey = (id: string) => `builbook:doc-backup:${id}`;
 
-// 자동저장 훅. 저장 상태표(idle/saving/saved/error)를 관리하고,
-// 실패 시 로컬(localStorage)에 백업하여 데이터 손실을 막는다.
-export function useAutosave(documentId: string) {
+// 자동저장 훅(로컬 우선 · IndexedDB). 저장 상태표(idle/saving/saved/error)를 관리하고,
+// 실패 시 localStorage에 백업하여 데이터 손실을 막는다.
+export function useAutosave(documentId: string, projectId: string) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<{ content: unknown; wordCount: number } | null>(null);
@@ -21,9 +22,11 @@ export function useAutosave(documentId: string) {
     pending.current = null;
     setStatus("saving");
     try {
-      await apiSend(`/api/documents/${documentId}/content`, "PUT", payload);
+      await saveDocumentContent(documentId, payload.content, payload.wordCount);
       setStatus("saved");
       localStorage.removeItem(backupKey(documentId));
+      // 문서 목록 캐시 무효화 → 다른 문서로 전환해도 최신 content 반영.
+      void mutate(documentsKey(projectId));
     } catch {
       // 실패 → 로컬 백업 + error 상태. 다음 입력/언마운트 시 재시도.
       try {
@@ -33,7 +36,7 @@ export function useAutosave(documentId: string) {
       }
       setStatus("error");
     }
-  }, [documentId]);
+  }, [documentId, projectId]);
 
   // 입력마다 호출: 예약된 저장을 debounce.
   const schedule = useCallback(
