@@ -37,8 +37,9 @@
 ## ⚠️ 잔여 (사용자 액션)
 - 실행: `.env`에 실제 `DATABASE_URL`·`AUTH_SECRET`·(GitHub OAuth) 설정 → `npx prisma migrate dev --name init` → `npm run db:seed` → `npm run dev`.
 - 현재 `.env`는 빌드용 placeholder(gitignore로 미커밋). 실제 값으로 교체 필요.
-- 미구현(백로그/refinement): 시놉시스 편집(현재 읽기 전용 표시), 다크 테마, Character/Snapshot.
+- 미구현(백로그/refinement): 다크 테마, Character/Snapshot.
 
 ## ✅ 추가 구현 (FSD 리팩터링 후)
 - **FSD 구조 전환**: 프론트를 `src/`(views·widgets·features·entities·shared)로 재배치. Next `app/`은 라우팅 전용. `next build` 성공(동일 산출물)·tsc 0.
 - **바인더 드래그 재정렬**: `features/reorder-document`(순수 `planReorder`) + 네이티브 HTML5 DnD. 폴더 위 드롭=안으로(into), 문서 위 드롭=앞에(before, 형제 그룹 0..n 정수 재인덱싱). 순환(자기/자손) 이동은 client(planReorder) + server(move API 409) 이중 차단. `next build` 성공·tsc 0.
+- **시놉시스 편집**: `widgets/inspector` + entity `updateSynopsis`(PATCH documents). 인스펙터 Textarea, 문서 전환 시 리셋(key), blur 시 변경분만 저장. `next build` 성공·tsc 0.

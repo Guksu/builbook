@@ -44,6 +44,11 @@ export function useDocuments(projectId: string) {
       await mutate();
     },
 
+    async updateSynopsis(id: string, synopsis: string) {
+      await apiSend(`/api/documents/${id}`, "PATCH", { synopsis });
+      await mutate();
+    },
+
     async moveDocument(id: string, parentId: string | null, order: number) {
       await apiSend(`/api/documents/${id}/move`, "PATCH", { parentId, order });
       await mutate();

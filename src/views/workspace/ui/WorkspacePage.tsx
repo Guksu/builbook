@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { Binder } from "@widgets/binder";
 import { Editor } from "@widgets/editor";
+import { Inspector } from "@widgets/inspector";
 import { planReorder } from "@features/reorder-document";
 import { useDocuments } from "@entities/document";
 import { useToast } from "@shared/ui";
@@ -22,6 +23,7 @@ export function WorkspacePage() {
     deleteDocument,
     moveDocument,
     reorderSiblings,
+    updateSynopsis,
   } = useDocuments(id);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -134,20 +136,7 @@ export function WorkspacePage() {
         {inspectorOpen && (
           <aside className="w-[280px] shrink-0 border-l border-border bg-surface p-16">
             <h2 className="mb-12 text-caption font-medium text-fg-weak">인스펙터</h2>
-            {selected ? (
-              <dl className="flex flex-col gap-12 text-body-sm">
-                <div>
-                  <dt className="text-fg-weak">단어 수</dt>
-                  <dd className="text-fg">{selected.wordCount}</dd>
-                </div>
-                <div>
-                  <dt className="text-fg-weak">시놉시스</dt>
-                  <dd className="text-fg">{selected.synopsis || "—"}</dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="text-body-sm text-fg-weak">문서를 선택하세요.</p>
-            )}
+            <Inspector doc={selected} onSaveSynopsis={updateSynopsis} />
           </aside>
         )}
       </div>
