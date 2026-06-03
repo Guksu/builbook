@@ -22,10 +22,11 @@ export async function isDescendantOrSelf(
   // 부모 체인을 거슬러 올라가며 documentId를 만나면 순환.
   const guard = new Set<string>();
   while (cursor) {
-    if (guard.has(cursor)) break; // 안전장치
-    guard.add(cursor);
+    const currentId: string = cursor; // string으로 좁힘
+    if (guard.has(currentId)) break; // 안전장치
+    guard.add(currentId);
     const node = await prisma.document.findUnique({
-      where: { id: cursor },
+      where: { id: currentId },
       select: { parentId: true },
     });
     if (!node) break;

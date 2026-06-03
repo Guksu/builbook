@@ -93,3 +93,47 @@
     outline-offset: 2px;
   }
 }
+
+/* ── Tiptap 에디터 콘텐츠 (.prose-editor) — 집필 가독성 ── */
+.prose-editor > * + * {
+  margin-top: var(--space-12);
+}
+.prose-editor h1 {
+  font-size: var(--font-size-h2);
+  font-weight: 700;
+  line-height: var(--line-height-heading);
+}
+.prose-editor h2 {
+  font-size: var(--font-size-h3);
+  font-weight: 600;
+  line-height: var(--line-height-heading);
+}
+.prose-editor p {
+  line-height: var(--line-height-relaxed);
+}
+.prose-editor ul,
+.prose-editor ol {
+  padding-left: var(--space-20);
+}
+.prose-editor ul {
+  list-style: disc;
+}
+.prose-editor ol {
+  list-style: decimal;
+}
+.prose-editor blockquote {
+  border-left: 3px solid var(--color-border-strong);
+  padding-left: var(--space-12);
+  color: var(--color-fg-weak);
+}
+.prose-editor strong {
+  font-weight: 700;
+}
+.prose-editor em {
+  font-style: italic;
+}
+/* 빈 첫 문단에 placeholder 안내 (StarterKit 단독 시 시각적 힌트) */
+.prose-editor:focus {
+  outline: none;
+}
+

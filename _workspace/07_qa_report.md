@@ -19,7 +19,22 @@
 - **인증 프로바이더**: GitHub OAuth(`AUTH_GITHUB_ID/SECRET`) 또는 대체 로그인 설정 필요. 미설정 시 로그인 동작 불가.
 - **Prisma Json 타입**: `content`(z.any → Prisma Json) 런타임은 정상, install 후 타입 경고 여부 확인.
 
-## 다음 (Phase 4 검증 항목 예고)
-- frontend 훅이 컬렉션을 `.items` unwrap 하는지.
-- href/router.push 경로 ↔ 실제 page 경로 매칭(route group 접두사).
-- 에디터 자동저장 body(`{ content, wordCount }`) ↔ `PUT content` 기대 일치.
+## ✅ 통과 (Phase 4 프론트 + 에디터)
+- **훅 ↔ API shape**: `useProjects`/`useDocuments`가 컬렉션을 `data?.items ?? []`로 unwrap → 배열 보장(`.filter is not a function` 차단). ✓
+- **라우팅 정합**: `href`/`router.push`(`/dashboard`, `/projects/[id]`, `/login`)가 실제 page 파일과 매칭. route group 미사용으로 접두사 이슈 없음. middleware matcher와 일치. ✓
+- **자동저장 경계면**: 에디터 `schedule(getJSON(), wordCount)` → `useAutosave` payload `{ content, wordCount }` → `PUT content` 기대와 일치. ✓
+- **DELETE 204 처리**: fetcher가 204에서 `res.json()` 호출 안 함(null 반환). ✓
+
+## 🔧 발견 → 수정 완료 (Phase 4)
+- **[런타임 경계면] 미들웨어 Edge에서 Prisma 사용 불가** — `middleware`가 `lib/auth`(PrismaAdapter) import 시 Edge 런타임 크래시. → NextAuth v5 표준 분리(`auth.config.ts` edge-safe + JWT 세션 전략)로 수정. 미들웨어는 authConfig만 사용.
+- **[타입] 세션/JWT `id` 누락** — `types/next-auth.d.ts`에 Session·JWT 증강 추가.
+- **[타입] `isDescendantOrSelf`의 `where:{id:cursor}` cursor가 string|null** → 루프 내 string narrowing으로 수정(TS7022 해결).
+
+## ✅ 빌드 검증 (실측)
+- `npm install`(466 pkg) → `prisma generate` → `npx tsc --noEmit` **타입 오류 0** → `npm run build` **성공**.
+- 결과: 7 페이지(`/`, `/login`, `/dashboard`, `/projects/[id]` + API 7개) 컴파일·린트·타입체크 통과, 정적 생성 7/7, 미들웨어 87.5kB edge 번들.
+
+## ⚠️ 잔여 (사용자 액션)
+- 실행: `.env`에 실제 `DATABASE_URL`·`AUTH_SECRET`·(GitHub OAuth) 설정 → `npx prisma migrate dev --name init` → `npm run db:seed` → `npm run dev`.
+- 현재 `.env`는 빌드용 placeholder(gitignore로 미커밋). 실제 값으로 교체 필요.
+- 미구현(백로그/refinement): 바인더 **드래그 재정렬**(move API는 존재, UI는 생성/이름변경/삭제/선택만), 시놉시스 편집(현재 읽기 전용 표시), 다크 테마, Character/Snapshot.
