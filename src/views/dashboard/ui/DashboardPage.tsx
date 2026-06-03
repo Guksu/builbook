@@ -13,6 +13,7 @@ import {
   useToast,
 } from "@shared/ui";
 import { useProjects } from "@entities/project";
+import { ThemeToggle } from "@features/toggle-theme";
 
 export function DashboardPage() {
   const { projects, isLoading, error, createProject } = useProjects();
@@ -41,7 +42,10 @@ export function DashboardPage() {
     <main className="mx-auto max-w-[960px] px-24 py-32">
       <header className="mb-24 flex items-center justify-between">
         <h1 className="text-h1 text-fg">내 작품</h1>
-        <Button onClick={() => setOpen(true)}>+ 새 작품</Button>
+        <div className="flex items-center gap-8">
+          <ThemeToggle />
+          <Button onClick={() => setOpen(true)}>+ 새 작품</Button>
+        </div>
       </header>
 
       {isLoading && <p className="text-body text-fg-weak">불러오는 중…</p>}

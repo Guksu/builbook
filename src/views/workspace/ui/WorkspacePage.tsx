@@ -8,6 +8,7 @@ import { Binder } from "@widgets/binder";
 import { Editor } from "@widgets/editor";
 import { Inspector } from "@widgets/inspector";
 import { planReorder } from "@features/reorder-document";
+import { ThemeToggle } from "@features/toggle-theme";
 import { useDocuments } from "@entities/document";
 import { useToast } from "@shared/ui";
 
@@ -83,13 +84,16 @@ export function WorkspacePage() {
         <Link href="/dashboard" className="text-body-sm text-fg-weak hover:text-fg">
           ← 작품 목록
         </Link>
-        <button
-          type="button"
-          className="text-caption text-fg-weak hover:text-fg"
-          onClick={() => setInspectorOpen((v) => !v)}
-        >
-          {inspectorOpen ? "인스펙터 닫기" : "인스펙터"}
-        </button>
+        <div className="flex items-center gap-8">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setInspectorOpen((v) => !v)}
+          >
+            {inspectorOpen ? "인스펙터 닫기" : "인스펙터"}
+          </button>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1">

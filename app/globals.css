@@ -74,6 +74,41 @@
 
   /* ── 포커스 링 ── */
   --color-ring: var(--blue-50);
+
+  color-scheme: light;
+}
+
+/* ── 다크 테마: 시맨틱 변수만 오버라이드 → 모든 토큰 유틸 자동 반영 ── */
+/* next-themes(attribute="class")가 <html>에 .dark 를 토글한다. */
+.dark {
+  --color-primary: var(--blue-50);
+  --color-primary-hover: #4f95ff; /* blue-65 — 어두운 배경에서 호버 대비 */
+  --color-primary-active: #69a5ff; /* blue-70 */
+  --color-primary-weak: rgba(0, 102, 255, 0.18); /* 다크용 연한 블루 틴트 */
+  --color-primary-fg: var(--white);
+
+  --color-fg: var(--neutral-99); /* #f7f7f7 */
+  --color-fg-weak: #9b9b9b; /* neutral-70 */
+  --color-fg-muted: #737373; /* neutral-50 */
+
+  --color-bg: #171717; /* neutral-10 */
+  --color-surface: #1f1f1f; /* 카드/패널 */
+  --color-border: #2f2f2f;
+  --color-border-strong: #474747; /* neutral-30 */
+
+  --color-success: var(--green-50);
+  --color-success-strong: var(--green-50);
+  --color-success-weak: rgba(0, 191, 64, 0.18);
+  --color-warning: var(--orange-50);
+  --color-warning-strong: var(--orange-50);
+  --color-warning-weak: rgba(255, 146, 0, 0.18);
+  --color-error: var(--red-50);
+  --color-error-strong: var(--red-50);
+  --color-error-weak: rgba(255, 66, 66, 0.18);
+
+  --color-ring: var(--blue-50);
+
+  color-scheme: dark;
 }
 
 @layer base {
