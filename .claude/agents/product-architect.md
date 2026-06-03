@@ -21,11 +21,12 @@ model: opus
 - 기능 스펙에는 반드시 **상태(state)와 전이**를 명시한다 — 저장 안 됨/저장 중/저장됨 같은 상태가 누락되면 후속 에이전트가 경계면 버그를 만든다.
 
 ## 표준 도메인 모델 (전 에이전트 공유 — 변경 시 반드시 브로드캐스트)
-- **User** — 작가 계정.
-- **Project** — 하나의 작품(웹소설). title, description, owner.
-- **Document** — 바인더 트리 노드. 자기참조 트리(parentId nullable), type(`FOLDER` | `DOC`), title, order, content(Tiptap JSON), synopsis, wordCount.
-- **Character** — 작품 내 인물 카드. projectId, name, description, fields(JSON).
-- **Snapshot** — 문서 버전 기록(자동저장 안전망). documentId, content(JSON), createdAt.
+**MVP-1 = User·Project·Document 만 빌드.** Character·Snapshot은 백로그(추후).
+- **User** — 작가 계정. · [MVP-1]
+- **Project** — 하나의 작품(웹소설). title, description, owner. · [MVP-1]
+- **Document** — 바인더 트리 노드. 자기참조 트리(parentId nullable), type(`FOLDER` | `DOC`), title, order, content(Tiptap JSON), synopsis, wordCount. · [MVP-1]
+- **Character** — 작품 내 인물 카드. projectId, name, description, fields(JSON). · [백로그]
+- **Snapshot** — 문서 버전 기록(자동저장 안전망). documentId, content(JSON), createdAt. · [백로그]
 
 ## 입력/출력 프로토콜
 - 입력: 사용자의 제품 컨셉, 스택 결정(Next.js 풀스택, Postgres+Prisma, Tiptap, 원티드 DS).

@@ -2,7 +2,9 @@
 
 웹소설 집필 에디터 사이트. 레퍼런스는 스크리브너이되 **진입장벽을 낮춘** 도구.
 
-**스택:** Next.js 풀스택(App Router) · Postgres + Prisma · Auth.js · Tiptap(ProseMirror) · 원티드 디자인 시스템(wanted-sans).
+**스택:** Next.js 풀스택(App Router) · Postgres + Prisma · Auth.js · Tiptap(ProseMirror) · **Tailwind + 원티드 디자인 토큰**(Pretendard 폰트). 원티드 컴포넌트 패키지(`@wanteddev/wds`)는 쓰지 않고 토큰 값만 차용(컬러·스페이싱은 공개 소스 실값).
+
+**MVP-1 범위:** 문서 트리 + 에디터 + 자동저장 (User·Project·Document). Character·Snapshot은 백로그.
 
 ## 하네스: 웹소설 에디터 빌드
 
@@ -19,3 +21,5 @@
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-06-03 | 초기 구성 (에이전트 7 + 스킬 7 + 오케스트레이터) | 전체 | - |
+| 2026-06-03 | MVP-1 범위 축소 (Character·Snapshot 백로그) | product-spec, prisma-data-model, nextjs-api, tiptap-editor, orchestrator, 관련 에이전트 | 사용자 피드백: 문서트리+에디터+자동저장만 시작 |
+| 2026-06-03 | 디자인 시스템 = Tailwind + 원티드 토큰(공개 소스 실값) + Pretendard 확정. WDS 컴포넌트 패키지 미사용 | wanted-design-system(스킬+레퍼런스), design-system-specialist, nextjs-frontend | 사용자 명확화: 토큰만 차용, 컴포넌트는 Tailwind 자체 구현 |

@@ -25,11 +25,14 @@ description: "웹소설 집필 에디터의 제품 스펙·정보구조(IA)·진
 4. **도메인 모델 확정** — 아래 표준 모델을 스펙에 포함하고, 변경 시 data-modeler에 통지.
 
 ## 표준 도메인 모델 (전 에이전트 공유)
-- **User** — 작가 계정
-- **Project** — 하나의 작품. title, description, owner
-- **Document** — 바인더 트리 노드. parentId(자기참조), type(FOLDER|DOC), title, order, content(Tiptap JSON), synopsis, wordCount
-- **Character** — 인물 카드. projectId, name, description, fields(JSON)
-- **Snapshot** — 문서 버전 기록. documentId, content, createdAt
+**MVP-1 범위(현재 빌드 대상) = User · Project · Document 만.** Character·Snapshot은 백로그(추후).
+- **User** — 작가 계정 · [MVP-1]
+- **Project** — 하나의 작품. title, description, owner · [MVP-1]
+- **Document** — 바인더 트리 노드. parentId(자기참조), type(FOLDER|DOC), title, order, content(Tiptap JSON), synopsis, wordCount · [MVP-1]
+- **Character** — 인물 카드. projectId, name, description, fields(JSON) · [백로그]
+- **Snapshot** — 문서 버전 기록. documentId, content, createdAt · [백로그]
+
+> MVP-1은 "문서 트리 + 에디터 + 자동저장"에 집중한다. 자동저장은 `PUT content`만으로 충분하고, 서버 버전 기록(Snapshot)은 백로그다(자동저장 실패 시 클라이언트 로컬 백업은 유지).
 
 ## 출력 형식: `_workspace/01_product_spec.md`
 ```

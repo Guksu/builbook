@@ -1,200 +1,170 @@
-# 원티드 디자인 시스템 토큰 레퍼런스
+# 원티드 디자인 토큰 레퍼런스 (Tailwind 매핑용)
 
-> **출처 신뢰도 라벨:**
-> - **[학습기반-확인]** = 공개 사실로 알려져 있으나 라이브 소스 미재검증. 사용 전 출처 URL 확인 권장.
-> - **[추정]** = 공개 자료가 없어 합리적으로 추정한 값. 디자인 확정 전 반드시 검증.
+> 출처: `github.com/wanteddev/montage-web` 의 `packages/wds-theme/src/theme/atomic` + `/spacing` (공개 저장소, 2026-06-03 추출). **컬러·스페이싱은 실제 원티드 토큰 값 [확인].** 타이포는 해당 토큰 디렉토리에 없어 Pretendard 기반으로 프로젝트가 정의 [프로젝트 정의].
 >
-> ⚠️ 이 문서 작성 시점에 네트워크 접근(WebSearch/WebFetch/curl)이 차단되어 라이브 재검증을 못 했다. 특히 컬러·타이포·스페이싱은 대부분 [추정]이다. **부록의 검증 체크리스트를 먼저 수행**해 실제 원티드 값으로 교체하라.
+> **방침:** WDS **컴포넌트 패키지(`@wanteddev/wds`)는 쓰지 않는다.** 원티드의 **디자인 토큰 값만** Tailwind 테마 + CSS 변수로 가져와 쓰고, 컴포넌트는 Tailwind로 직접 만든다. → GitHub Packages 인증 불필요(토큰은 공개 소스에서 추출, Pretendard는 공개 CDN).
 
 ## 목차
-1. 폰트 (wanted-sans)
-2. 컬러 토큰
-3. 타이포그래피 스케일
+1. 폰트 (Pretendard)
+2. 원시 컬러 팔레트 (atomic)
+3. 시맨틱 컬러 별칭 (역할 매핑)
 4. 스페이싱 / 라운드 / 섀도우
-5. 공개 컴포넌트 라이브러리
-6. 적용 가이드 (Next.js + Tailwind)
-7. 부록: 검증 체크리스트
+5. 타이포그래피 스케일
+6. globals.css (CSS 변수)
+7. tailwind.config (theme.extend 매핑)
 
 ---
 
-## 1. 폰트 (wanted-sans)
+## 1. 폰트 (Pretendard) [확인 — WDS 기본 폰트]
 
-**[학습기반-확인]** Wanted Sans는 원티드랩이 공개한 오픈소스 한글/라틴 산세리프 폰트. SIL Open Font License(OFL) 1.1. Variable(가변 weight) + 정적 weight 제공.
-
-- **GitHub:** `wanteddev/wanted-sans` (org 명이 `wantedlab/` 등 변형일 수 있으니 확인)
-- **npm:** `wanted-sans` **[학습기반-확인]**
-- **weight:** 100(Thin)~900(Black), Variable은 100~900 연속 **[학습기반-확인]**
-
-### font-family + fallback 스택
+원티드 디자인 시스템 기본 폰트는 **Pretendard**. 공개 CDN(인증 불필요).
 
 ```css
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css");
 :root {
-  --font-sans:
-    "Wanted Sans Variable", "Wanted Sans",
-    -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
-    "Pretendard", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
 }
-body { font-family: var(--font-sans); }
 ```
-
-출처: https://github.com/wanteddev/wanted-sans · https://www.npmjs.com/package/wanted-sans · https://www.jsdelivr.com/package/npm/wanted-sans
+> self-host를 원하면 `pretendard` npm 패키지 + `next/font/local`도 가능. 버전 고정 권장.
 
 ---
 
-## 2. 컬러 토큰
+## 2. 원시 컬러 팔레트 (atomic) [확인]
 
-> 원티드는 공개 컬러 토큰 명세를 배포하지 않음(인지 기준). 시그니처 블루만 신뢰도 상대적으로 높고, 나머지는 [추정].
+원티드는 색조별 10단계(5/10~99, 숫자가 클수록 밝음) 팔레트를 쓴다.
 
-```css
-:root {
-  /* Brand / Primary */
-  --color-primary:        #3366FF; /* [추정] 시그니처 블루 — 실측 교체 필요 */
-  --color-primary-hover:  #1F4FE0; /* [추정] */
-  --color-primary-active: #1A43C2; /* [추정] */
-  --color-primary-weak:   #EBF1FF; /* [추정] */
-
-  /* Gray scale [추정] */
-  --color-gray-50:  #F8F9FA;
-  --color-gray-100: #F1F3F5;
-  --color-gray-200: #E9ECEF;
-  --color-gray-300: #DEE2E6;
-  --color-gray-400: #CED4DA;
-  --color-gray-500: #ADB5BD;
-  --color-gray-600: #868E96;
-  --color-gray-700: #495057;
-  --color-gray-800: #343A40;
-  --color-gray-900: #212529;
-
-  /* Base */
-  --color-bg:      #FFFFFF; /* [추정] */
-  --color-fg:      #212529; /* [추정] */
-  --color-fg-weak: #868E96; /* [추정] */
-  --color-border:  #E9ECEF; /* [추정] */
-
-  /* Semantic [추정] */
-  --color-success: #16A34A;
-  --color-warning: #F59E0B;
-  --color-error:   #EF4444;
-  --color-info:    #3366FF;
-  --color-success-weak: #DCFCE7;
-  --color-warning-weak: #FEF3C7;
-  --color-error-weak:   #FEE2E2;
-  --color-info-weak:    #EBF1FF;
-}
 ```
+blue   (primary 계열)
+ 10 #001536  20 #002966  30 #003E9C  40 #0054D1  45 #005EEB  50 #0066FF
+ 55 #1A75FF  60 #3385FF  65 #4F95FF  70 #69A5FF  80 #9EC5FF  90 #C9DEFE
+ 95 #EAF2FE  99 #F7FBFF
 
-**검증:** wanted.co.kr → DevTools로 CTA 버튼/링크 색 실측 → `--color-primary` 계열 교체.
+neutral (gray 계열)
+ 5 #0F0F0F  10 #171717  15 #1C1C1C  20 #2A2A2A  22 #303030  30 #474747
+ 40 #5C5C5C  50 #737373  60 #8A8A8A  70 #9B9B9B  80 #B0B0B0  90 #C4C4C4
+ 95 #DCDCDC  99 #F7F7F7
+
+common   0 #000000   100 #FFFFFF
+
+red    (error 계열)
+ 10 #3B0101  20 #730303  30 #B00C0C  40 #E52222  50 #FF4242  60 #FF6363
+ 70 #FF8C8C  80 #FFB5B5  90 #FED5D5  95 #FEECEC  99 #FFFAFA
+
+green  (success 계열)
+ 10 #00240C  20 #004517  30 #006E25  40 #009632  50 #00BF40  60 #1ED45A
+ 70 #49E57D  80 #7DF5A5  90 #ACFCC7  95 #D9FFE6  99 #F2FFF6
+
+orange (warning 계열)
+ 10 #361E00  20 #663A00  30 #9C5800  40 #D47800  50 #FF9200  60 #FFA938
+ 70 #FFC06E  80 #FFD49C  90 #FEE6C6  95 #FEF4E6  99 #FFFCF7
+```
+> 추가 색조(coolNeutral, cyan, lightBlue, lime, pink, purple, violet, redOrange)도 저장소에 있다. 필요 시 같은 경로(`atomic/{hue}.ts`)에서 추출.
 
 ---
 
-## 3. 타이포그래피 스케일
+## 3. 시맨틱 컬러 별칭 (역할 매핑) [프로젝트 정의 — 위 원시값 참조]
 
-> **[추정]** wanted-sans에 맞춘 8/4pt 기반 모던 스케일 제안.
+라이트 테마 기준 역할 매핑(원시 토큰 → 의미):
 
-| 역할 | size | line-height | weight |
-|------|------|-------------|--------|
-| display | 2.5rem | 1.2 | 700 |
-| h1 | 2rem | 1.25 | 700 |
-| h2 | 1.75rem | 1.3 | 700 |
-| h3 | 1.5rem | 1.35 | 600 |
-| h4 | 1.25rem | 1.4 | 600 |
-| body-lg | 1.125rem | 1.6 | 400 |
-| body | 1rem | 1.6 | 400 |
-| body-sm | 0.875rem | 1.55 | 400 |
-| caption | 0.8125rem | 1.5 | 400 |
-| label | 0.75rem | 1.4 | 500 |
+| 역할 | 값 | 근거 |
+|------|-----|------|
+| primary | blue.50 `#0066FF` | 시그니처 블루 |
+| primary-hover | blue.45 `#005EEB` | 한 단계 진하게 |
+| primary-active | blue.40 `#0054D1` | |
+| primary-weak | blue.95 `#EAF2FE` | 연한 배경 |
+| fg (본문) | neutral.10 `#171717` | |
+| fg-weak (보조) | neutral.50 `#737373` | |
+| bg | common.100 `#FFFFFF` | |
+| surface | neutral.99 `#F7F7F7` | 카드/패널 |
+| border | neutral.95 `#DCDCDC` | |
+| success | green.50 `#00BF40` / green.40 `#009632`(강조) | |
+| warning | orange.50 `#FF9200` / orange.40 `#D47800` | |
+| error | red.50 `#FF4242` / red.40 `#E52222` | |
 
-```css
-:root {
-  --font-size-display: 2.5rem; --font-size-h1: 2rem; --font-size-h2: 1.75rem;
-  --font-size-h3: 1.5rem; --font-size-h4: 1.25rem; --font-size-body-lg: 1.125rem;
-  --font-size-body: 1rem; --font-size-body-sm: 0.875rem;
-  --font-size-caption: 0.8125rem; --font-size-label: 0.75rem;
-  --line-height-tight: 1.2; --line-height-heading: 1.3;
-  --line-height-normal: 1.5; --line-height-relaxed: 1.6;
-  --font-weight-regular: 400; --font-weight-medium: 500;
-  --font-weight-semibold: 600; --font-weight-bold: 700;
-}
-```
+> 다크 테마는 neutral 방향을 반전(fg=neutral.99, bg=neutral.10 등). MVP-1은 라이트만으로 시작 가능.
 
 ---
 
 ## 4. 스페이싱 / 라운드 / 섀도우
 
-> **[추정]** 4px 베이스 스케일.
+### 스페이싱 [확인 — 원티드 실제 스케일, px]
+`0, 0.5, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 56, 64, 72, 80` (px)
+
+### 라운드 / 섀도우 [프로젝트 정의]
+radius: sm 4 / md 8 / lg 12 / xl 16 / full 9999 (px)
+shadow: sm `0 1px 2px rgba(0,0,0,.06)` / md `0 4px 12px rgba(0,0,0,.08)` / lg `0 8px 24px rgba(0,0,0,.12)`
+
+---
+
+## 5. 타이포그래피 스케일 [프로젝트 정의 — Pretendard 기반]
+WDS 토큰 디렉토리에 폰트 스케일이 없어 프로젝트가 정의(8/4pt 기반):
+
+| 역할 | size | line-height | weight |
+|------|------|-------------|--------|
+| display | 2.5rem | 1.2 | 700 |
+| h1 | 2rem | 1.25 | 700 |
+| h2 | 1.5rem | 1.3 | 700 |
+| h3 | 1.25rem | 1.4 | 600 |
+| body-lg | 1.125rem | 1.6 | 400 |
+| body | 1rem | 1.6 | 400 |
+| body-sm | 0.875rem | 1.55 | 400 |
+| caption | 0.75rem | 1.4 | 500 |
+
+---
+
+## 6. globals.css (CSS 변수) — SSOT
 
 ```css
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css");
+
 :root {
-  /* spacing */
-  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem;
-  --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem; --space-10: 2.5rem;
-  --space-12: 3rem; --space-16: 4rem; --space-20: 5rem;
-  /* radius */
-  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 12px;
-  --radius-xl: 16px; --radius-2xl: 24px; --radius-full: 9999px;
-  /* shadow */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.06);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
-  --shadow-xl: 0 16px 40px rgba(0,0,0,0.16);
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+
+  /* 원시 — 원티드 실제 값 */
+  --blue-40:#0054D1; --blue-45:#005EEB; --blue-50:#0066FF; --blue-95:#EAF2FE;
+  --neutral-10:#171717; --neutral-50:#737373; --neutral-95:#DCDCDC; --neutral-99:#F7F7F7;
+  --green-40:#009632; --green-50:#00BF40; --orange-40:#D47800; --orange-50:#FF9200;
+  --red-40:#E52222; --red-50:#FF4242; --white:#FFFFFF; --black:#000000;
+
+  /* 시맨틱 */
+  --color-primary:var(--blue-50); --color-primary-hover:var(--blue-45); --color-primary-active:var(--blue-40);
+  --color-primary-weak:var(--blue-95);
+  --color-fg:var(--neutral-10); --color-fg-weak:var(--neutral-50);
+  --color-bg:var(--white); --color-surface:var(--neutral-99); --color-border:var(--neutral-95);
+  --color-success:var(--green-50); --color-warning:var(--orange-50); --color-error:var(--red-50);
 }
+body { font-family: var(--font-sans); color: var(--color-fg); background: var(--color-bg); }
 ```
 
 ---
 
-## 5. 공개 컴포넌트 라이브러리
+## 7. tailwind.config (theme.extend) — CSS 변수를 가리킴
 
-**결론: 원티드가 npm에 공개 배포한 범용 React 컴포넌트 라이브러리는 확인되지 않음.** 공개된 것은 폰트(wanted-sans) 중심. **→ wanted-sans + 위 토큰 기반 자체 컴포넌트 구현(Radix UI/shadcn 등과 토큰 조합) 권장.** 검증: `npmjs.com/search?q=wanted`.
-
----
-
-## 6. 적용 가이드 (Next.js + Tailwind)
-
-### 6-1. 폰트 — `next/font/local` (권장, self-host)
-
-```bash
-npm install wanted-sans
-```
-
-```ts
-// app/fonts.ts
-import localFont from "next/font/local";
-export const wantedSans = localFont({
-  src: [{ path: "../node_modules/wanted-sans/fonts/webfonts/variable/complete/WantedSansVariable.woff2", weight: "100 900", style: "normal" }],
-  display: "swap",
-  variable: "--font-sans",
-  fallback: ["-apple-system","BlinkMacSystemFont","Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic","system-ui","sans-serif"],
-});
-```
-> 폰트 파일 경로는 설치된 패키지의 실제 dist 구조로 검증 후 수정.
-
-```tsx
-// app/layout.tsx
-import { wantedSans } from "./fonts";
-import "./globals.css";
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="ko" className={wantedSans.variable}><body>{children}</body></html>;
-}
-```
-
-### 6-2. Tailwind theme.extend 매핑 (요지)
-
-CSS 변수를 SSOT로 두고 Tailwind가 참조:
 ```js
-theme: { extend: {
-  fontFamily: { sans: "var(--font-sans)" },
-  colors: { primary: { DEFAULT: "var(--color-primary)", hover: "var(--color-primary-hover)", weak: "var(--color-primary-weak)" }, /* gray-50~900, semantic ... */ },
-  borderRadius: { md: "var(--radius-md)", lg: "var(--radius-lg)" },
-  boxShadow: { md: "var(--shadow-md)" },
-}}
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
+  theme: { extend: {
+    fontFamily: { sans: "var(--font-sans)" },
+    colors: {
+      primary: { DEFAULT: "var(--color-primary)", hover: "var(--color-primary-hover)", active: "var(--color-primary-active)", weak: "var(--color-primary-weak)" },
+      fg: { DEFAULT: "var(--color-fg)", weak: "var(--color-fg-weak)" },
+      bg: "var(--color-bg)", surface: "var(--color-surface)", border: "var(--color-border)",
+      success: "var(--color-success)", warning: "var(--color-warning)", error: "var(--color-error)",
+      // 필요 시 원시 팔레트도: blue: { 50: "var(--blue-50)", ... }
+    },
+    spacing: { 0.5:"0.5px",1:"1px",2:"2px",4:"4px",6:"6px",8:"8px",10:"10px",12:"12px",14:"14px",16:"16px",20:"20px",24:"24px",32:"32px",40:"40px",48:"48px",56:"56px",64:"64px",72:"72px",80:"80px" },
+    borderRadius: { sm:"4px", md:"8px", lg:"12px", xl:"16px" },
+    boxShadow: { sm:"0 1px 2px rgba(0,0,0,.06)", md:"0 4px 12px rgba(0,0,0,.08)", lg:"0 8px 24px rgba(0,0,0,.12)" },
+  }},
+  plugins: [],
+};
 ```
-> Tailwind v4면 `tailwind.config` 대신 `globals.css`의 `@theme` 블록에 동일 변수를 선언.
+> Tailwind v4면 `tailwind.config` 대신 `globals.css`의 `@theme` 블록에 `--color-*`, `--spacing-*` 규칙으로 동일 선언.
 
 ---
 
-## 7. 부록: 검증 체크리스트 (사용 전 필수)
-
-1. `github.com/wanteddev/wanted-sans`(또는 `wantedlab/`) → org 명·dist 폴더·정확한 폰트 파일명 확인.
-2. `npmjs.com/package/wanted-sans` → 최신 버전·exports 경로 확인 후 CDN/로컬 경로 교체.
-3. **wanted.co.kr** DevTools로 시그니처 블루·그레이·보더 색 실측 → 2번 컬러 교체.
-4. `npmjs.com/search?q=wanted` → 공개 컴포넌트 패키지 부재 재확인.
+## 부록: 검증 메모
+- 컬러·스페이싱 = 원티드 공개 소스 실값. 타이포·radius·shadow = 프로젝트 정의(원티드 공개 토큰에 없음).
+- 추가 색조/다크 테마 매핑이 필요하면 `atomic/{hue}.ts` 및 `theme/semantic/`에서 추가 추출.

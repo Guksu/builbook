@@ -13,6 +13,9 @@ description: "Postgres + Prisma 데이터 모델을 설계하는 스킬. schema.
 - **모든 조회 키에 인덱스**: projectId, parentId, documentId, ownerId에 `@@index`.
 - **content는 Json 타입** — Tiptap ProseMirror 문서. editor-engineer가 기대하는 doc 구조와 합의 후 확정.
 
+## MVP-1 범위
+현재 빌드는 **User · Project · Document** 만 마이그레이션한다. 아래 골격의 **Character·Snapshot 모델과 그 관계(`Project.characters`, `Document.snapshots`)는 백로그**이므로 초기 `migrate`에서 제외한다(스키마는 미래 참고용으로 함께 기록).
+
 ## 표준 스키마 골격
 ```prisma
 enum DocType { FOLDER DOC }

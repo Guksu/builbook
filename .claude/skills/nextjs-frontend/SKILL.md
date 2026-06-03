@@ -37,7 +37,8 @@ export function useProjects() {
 - 인증 가드: 미인증 시 로그인으로 redirect. 보호 레이아웃에서 세션 확인.
 
 ## 디자인 적용
-- `wanted-design-system` 스킬의 토큰·기본 컴포넌트를 사용한다. 색·간격을 하드코딩하지 않는다.
+- `wanted-design-system` 스킬이 구축한 **원티드 토큰 + Tailwind**와 토큰 기반 기본 컴포넌트(`components/ui/**`)를 사용한다.
+- 스타일링은 **Tailwind 유틸리티**로 하고, 색·간격·폰트는 토큰 유틸(`bg-primary`, `text-fg`, `p-16` 등)로만 표현한다. hex/px 하드코딩 금지.
 
 ## 출력
 - `app/**/page.tsx`, `app/**/layout.tsx`, `hooks/use*.ts`, `_workspace/05_frontend_notes.md`(라우트 맵 + 훅↔API 매핑표).

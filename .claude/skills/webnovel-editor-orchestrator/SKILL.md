@@ -39,7 +39,8 @@ description: "웹소설 집필 에디터 사이트(스크리브너 레퍼런스,
 ### Phase 1: 준비
 1. 사용자 입력 분석 — 제품 컨셉, 이번 작업 범위(전체 빌드 / 특정 기능).
 2. `_workspace/` 생성(초기) 또는 보관 이동 후 재생성(새 빌드).
-3. 스택 결정 사항을 `_workspace/00_input/decisions.md`에 기록(Next.js 풀스택, Postgres+Prisma, Auth.js, Tiptap, 원티드 DS).
+3. 스택 결정 사항을 `_workspace/00_input/decisions.md`에 기록(Next.js 풀스택, Postgres+Prisma, Auth.js, Tiptap, 원티드 DS `@wanteddev/wds`).
+4. **MVP-1 범위 명시**: 문서 트리 + 에디터 + 자동저장(User·Project·Document만). Character·Snapshot은 백로그 — 각 에이전트 프롬프트에 이 범위를 전달해 과잉 구현을 막는다.
 
 ### Phase 2: 기반 설계 (팀)
 **실행 모드:** 에이전트 팀
@@ -78,6 +79,16 @@ description: "웹소설 집필 에디터 사이트(스크리브너 레퍼런스,
 1. qa-inspector가 전체 코드를 가로질러 최종 통합 정합성 검증 → `07_qa_report.md` 완성(통과/실패/미검증).
 2. 실패 항목이 있으면 해당 에이전트를 부분 재호출(Phase 0 부분 재실행 경로)하여 수정 → 재검증(최대 2회 루프).
 3. `_workspace/` 보존. 사용자에게 결과 요약(완성 범위·실행 방법·미해결/추정 항목, 특히 디자인 토큰의 `[추정]` 값 검증 필요 여부) 보고.
+
+## Phase 종료 시 커밋 & 푸시 (필수)
+
+각 Phase가 **완전히 끝날 때마다**(팀원 전원 완료 + TeamDelete 후) 그 Phase 산출물을 커밋하고 push한다. 단계별로 히스토리를 남겨 추적·롤백을 쉽게 하기 위함이다.
+
+- **타이밍:** Phase 중간(팀원이 파일을 쓰는 중)에는 커밋하지 않는다 — 반쯤 쓰인 파일을 캡처할 위험. 반드시 해당 Phase의 모든 쓰기가 끝난 뒤 커밋한다.
+- **브랜치:** 이 프로젝트는 사용자 요청에 따라 `main`에 직접 커밋·푸시한다.
+- **절차:** `git add -A` → `git commit` → `git push origin main`. 커밋 실패(충돌 등) 시 사용자에게 보고하고 임의로 force push 하지 않는다.
+- **커밋 메시지:** `feat: Phase N — {요약}` 또는 `chore:` 형식. 본문 마지막에 `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
+- **메시지 예시:** `feat: Phase 2 기반 설계 (제품 스펙·Prisma 스키마·원티드 토큰/Tailwind)`
 
 ## 데이터 흐름
 ```

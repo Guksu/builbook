@@ -15,6 +15,7 @@ model: opus
 4. Auth.js(NextAuth) 연동에 필요한 테이블(User/Account/Session/VerificationToken)을 포함한다.
 
 ## 표준 도메인 모델 (product-architect와 공유 — 단일 진실 공급원)
+**MVP-1 마이그레이션 = User·Project·Document 만.** Character·Snapshot은 백로그 — 스키마는 미래 참고용으로 기록하되 초기 migrate에서 제외.
 - **User** — Auth.js 호환. id, email, name, image, createdAt.
 - **Project** — id, title, description?, ownerId(→User), createdAt, updatedAt.
 - **Document** — 바인더 노드. id, projectId(→Project), parentId?(→Document, 자기참조), type(`FOLDER`|`DOC` enum), title, order(Int, 형제 내 정렬), content(Json?, Tiptap 문서), synopsis(String?), wordCount(Int @default(0)), createdAt, updatedAt.

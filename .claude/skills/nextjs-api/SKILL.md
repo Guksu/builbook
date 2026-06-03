@@ -29,9 +29,10 @@ GET/POST   /api/projects/[id]/documents      # 트리 조회 / 노드 생성
 PATCH/DELETE /api/documents/[id]
 PATCH      /api/documents/[id]/move           # 트리 이동·재정렬 (순환 참조 차단)
 PUT        /api/documents/[id]/content        # 에디터 자동저장 (가볍게)
-POST       /api/documents/[id]/snapshots      # 버전 저장
-GET/POST   /api/projects/[id]/characters
-PATCH/DELETE /api/characters/[id]
+# ── 아래는 백로그 (MVP-1 제외) ──
+POST       /api/documents/[id]/snapshots      # 버전 저장 [백로그]
+GET/POST   /api/projects/[id]/characters       # [백로그]
+PATCH/DELETE /api/characters/[id]              # [백로그]
 ```
 
 ## 구현 패턴 (예시)
