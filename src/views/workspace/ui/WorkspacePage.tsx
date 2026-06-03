@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { Binder } from "@widgets/binder";
 import { Editor } from "@widgets/editor";
+import { planReorder } from "@features/reorder-document";
 import { useDocuments } from "@entities/document";
 import { useToast } from "@shared/ui";
 
@@ -19,6 +20,8 @@ export function WorkspacePage() {
     createDocument,
     renameDocument,
     deleteDocument,
+    moveDocument,
+    reorderSiblings,
   } = useDocuments(id);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -53,6 +56,24 @@ export function WorkspacePage() {
     }
   }
 
+  async function handleMove(
+    dragId: string,
+    targetId: string,
+    mode: "into" | "before",
+  ) {
+    const plan = planReorder(documents, dragId, targetId, mode);
+    if (!plan) return; // 순환·무의미 이동은 무시
+    try {
+      if (plan.kind === "move") {
+        await moveDocument(plan.id, plan.parentId, plan.order);
+      } else {
+        await reorderSiblings(plan.parentId, plan.orderedIds);
+      }
+    } catch {
+      toast("이동에 실패했어요.", "error");
+    }
+  }
+
   return (
     <div className="flex h-screen flex-col">
       {/* 상단 바 */}
@@ -79,6 +100,7 @@ export function WorkspacePage() {
             onCreate={handleCreate}
             onRename={renameDocument}
             onDelete={deleteDocument}
+            onMove={handleMove}
           />
         </aside>
 

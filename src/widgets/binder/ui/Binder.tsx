@@ -11,6 +11,8 @@ interface BinderProps {
   onCreate: (input: { title: string; type: "FOLDER" | "DOC"; parentId: string | null }) => void;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
+  // 드래그 재정렬: 폴더 위 드롭=into(안으로), 문서 위 드롭=before(앞에).
+  onMove?: (dragId: string, targetId: string, mode: "into" | "before") => void;
 }
 
 // 평면 배열(documents)을 parentId 기준 트리로 구성.
@@ -32,20 +34,61 @@ export function Binder({
   onCreate,
   onRename,
   onDelete,
+  onMove,
 }: BinderProps) {
   const tree = buildTree(documents);
   const [deleteTarget, setDeleteTarget] = useState<DocumentNode | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{
+    id: string;
+    mode: "into" | "before";
+  } | null>(null);
 
   const renderNodes = (parentId: string | null, depth: number) => {
     const nodes = tree.get(parentId) ?? [];
     return nodes.map((node) => (
       <div key={node.id}>
         <div
+          draggable
+          onDragStart={(e) => {
+            e.dataTransfer.setData("text/plain", node.id);
+            e.dataTransfer.effectAllowed = "move";
+            setDragId(node.id);
+          }}
+          onDragEnd={() => {
+            setDragId(null);
+            setDropTarget(null);
+          }}
+          onDragOver={(e) => {
+            if (!dragId || dragId === node.id) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setDropTarget({
+              id: node.id,
+              mode: node.type === "FOLDER" ? "into" : "before",
+            });
+          }}
+          onDragLeave={() =>
+            setDropTarget((t) => (t?.id === node.id ? null : t))
+          }
+          onDrop={(e) => {
+            e.preventDefault();
+            const dragged = e.dataTransfer.getData("text/plain") || dragId;
+            const mode = node.type === "FOLDER" ? "into" : "before";
+            if (dragged && dragged !== node.id) onMove?.(dragged, node.id, mode);
+            setDropTarget(null);
+            setDragId(null);
+          }}
           className={cn(
-            "group flex items-center gap-6 rounded-md px-8 py-6 text-body-sm",
+            "group flex cursor-grab items-center gap-6 rounded-md px-8 py-6 text-body-sm active:cursor-grabbing",
             selectedId === node.id
               ? "bg-primary-weak text-primary"
               : "text-fg hover:bg-surface",
+            dragId === node.id && "opacity-50",
+            dropTarget?.id === node.id &&
+              (dropTarget.mode === "into"
+                ? "ring-2 ring-inset ring-primary"
+                : "border-t-2 border-primary"),
           )}
           style={{ paddingLeft: depth * 12 + 8 }}
         >
