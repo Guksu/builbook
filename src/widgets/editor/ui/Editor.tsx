@@ -3,8 +3,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect } from "react";
-import { useAutosave } from "@/hooks/useAutosave";
-import { SaveStatus } from "./SaveStatus";
+import { useAutosave, SaveStatusBadge } from "@features/autosave-document";
 import type { JSONContent } from "@tiptap/react";
 
 // 단어 수: 텍스트를 공백 기준으로 셈(한글/영문 혼용 근사치).
@@ -53,7 +52,7 @@ export function Editor({ documentId, initialContent, title }: EditorProps) {
     <div className="mx-auto flex h-full w-full max-w-[720px] flex-col px-24 py-16">
       <header className="mb-12 flex items-center justify-between">
         <h1 className="text-h3 text-fg">{title}</h1>
-        <SaveStatus status={status} />
+        <SaveStatusBadge status={status} />
       </header>
       <EditorContent editor={editor} className="flex-1" />
     </div>

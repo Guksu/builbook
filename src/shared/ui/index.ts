@@ -1,4 +1,4 @@
-// 토큰 기반 기본 UI 컴포넌트 배럴 — `import { Button, Input } from "@/components/ui"`
+// 토큰 기반 기본 UI 컴포넌트 배럴 — `import { Button, Input } from "@shared/ui"`
 export { cn } from "./cn";
 export { Button, type ButtonProps } from "./Button";
 export { Input, type InputProps } from "./Input";

@@ -1,8 +1,8 @@
 "use client";
 
 import useSWR from "swr";
-import { fetcher, apiSend } from "./fetcher";
-import type { Project } from "./types";
+import { fetcher, apiSend } from "@shared/api";
+import type { Project } from "../model/types";
 
 // GET /api/projects → { items: Project[] } — 반드시 .items unwrap.
 export function useProjects() {

@@ -1,14 +1,5 @@
-// API 계약(_workspace/03_api_contract.md)과 1:1 일치하는 프론트 타입.
+// Document(바인더 노드) 엔티티 모델. API 계약(_workspace/03)과 1:1 일치.
 export type DocType = "FOLDER" | "DOC";
-
-export interface Project {
-  id: string;
-  title: string;
-  description: string | null;
-  ownerId: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export interface DocumentNode {
   id: string;

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Button, ConfirmModal, cn } from "@/components/ui";
-import type { DocumentNode } from "@/hooks/types";
+import { Button, ConfirmModal, cn } from "@shared/ui";
+import type { DocumentNode } from "@entities/document";
 
 interface BinderProps {
   documents: DocumentNode[];

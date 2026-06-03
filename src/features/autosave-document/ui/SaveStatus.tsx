@@ -1,6 +1,6 @@
 "use client";
 
-import type { SaveStatus as Status } from "@/hooks/useAutosave";
+import type { SaveStatus as Status } from "../model/useAutosave";
 
 const LABEL: Record<Status, string> = {
   idle: "저장됨",

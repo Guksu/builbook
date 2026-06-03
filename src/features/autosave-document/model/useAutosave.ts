@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiSend } from "./fetcher";
+import { apiSend } from "@shared/api";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
