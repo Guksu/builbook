@@ -52,3 +52,15 @@
 - **경계면 검증(신규)**: 훅↔저장소 — useProjects/useDocuments가 idb store와 일치, 삭제 시 하위 cascade 수동 구현, reorderSiblings가 parentId+order 통일. 라우팅 — /login·/api 제거 후 깨진 링크 없음(landing→/dashboard, 보호 미들웨어 제거). 
 - **빌드/런타임 검증**: tsc 0, `next build` 성공(4 라우트). dev 서버: / 200, /dashboard 200(리다이렉트 없음), /projects/[id] 200, /login 404, /api/projects 404.
 - **한계**: 데이터가 단일 브라우저 IndexedDB에만 — 기기 간 동기화·백업 없음(향후 서버 도입 시 백엔드 하네스 재가동).
+
+## ✅ E2E 테스트 (Playwright, 실제 브라우저)
+`e2e/`에 Chromium 기반 E2E 5개 — 로컬 우선 앱이라 실제 브라우저로 IndexedDB·자동저장·영속성까지 검증. `npm run test:e2e`. 각 테스트는 깨끗한 컨텍스트(빈 IndexedDB)에서 독립 실행.
+| 스펙 | 검증 |
+|------|------|
+| landing | 히어로 렌더 + "시작하기"→/dashboard |
+| project | 빈 상태→작품 생성→작업실 이동→**새로고침 후 유지(IndexedDB)** |
+| document(집필) | +문서(prompt)→에디터 입력→debounce 자동저장→**새로고침 후 내용 유지** |
+| document(삭제) | ✕→확인 모달→바인더에서 제거 |
+| theme | 토글이 html 테마 클래스 전환 |
+
+결과: **5 passed**. (drag 재정렬은 네이티브 DnD라 E2E 신뢰도 낮아 제외 — planReorder 순수 로직으로 대체 검증 권장.)
