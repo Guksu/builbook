@@ -64,3 +64,11 @@
 | theme | 토글이 html 테마 클래스 전환 |
 
 결과: **5 passed**. (drag 재정렬은 네이티브 DnD라 E2E 신뢰도 낮아 제외 — planReorder 순수 로직으로 대체 검증 권장.)
+
+## ✅ 엣지케이스 보강 (여러 각도 점검)
+- **작품 중복 생성(IME)**: handleCreate 동기 ref 가드 + Enter isComposing 가드. 회귀 `create-guard`(Enter 2회·더블클릭).
+- **공백 제목 방어**: createProject/createDocument/renameDocument trim, 빈 값 no-op. Binder prompt도 trim. 회귀 `edge-cases`.
+- **작품 삭제 cascade**: deleteProject가 해당 작품 문서까지 함께 삭제(고아 방지). 대시보드 카드 ✕+ConfirmModal. 회귀 `edge-cases`.
+- **order 충돌**: createDocument의 order를 SWR 스냅샷이 아닌 IndexedDB 최신 형제 max+1로 계산(빠른 연속 생성 시 충돌 방지).
+- **dev/build .next 충돌(운영 교훈)**: dev 서버 구동 중 `npm run build` 금지 — `.next` 손상으로 전 라우트 500. build 전 dev 정지.
+- 전체 E2E **9 passed**, tsc 0, next build 성공.

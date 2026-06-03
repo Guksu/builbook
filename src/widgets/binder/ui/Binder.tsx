@@ -107,7 +107,7 @@ export function Binder({
             type="button"
             className="opacity-0 group-hover:opacity-100 text-caption text-fg-weak hover:text-fg"
             onClick={() => {
-              const next = prompt("새 이름", node.title);
+              const next = prompt("새 이름", node.title)?.trim();
               if (next && next !== node.title) onRename(node.id, next);
             }}
             aria-label="이름 변경"
@@ -137,7 +137,7 @@ export function Binder({
             size="sm"
             variant="ghost"
             onClick={() => {
-              const title = prompt("문서 제목");
+              const title = prompt("문서 제목")?.trim();
               if (title) onCreate({ title, type: "DOC", parentId: null });
             }}
           >
@@ -147,7 +147,7 @@ export function Binder({
             size="sm"
             variant="ghost"
             onClick={() => {
-              const title = prompt("폴더 이름");
+              const title = prompt("폴더 이름")?.trim();
               if (title) onCreate({ title, type: "FOLDER", parentId: null });
             }}
           >

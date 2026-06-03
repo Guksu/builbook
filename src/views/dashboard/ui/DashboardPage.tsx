@@ -8,20 +8,23 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  ConfirmModal,
   Input,
   Modal,
   useToast,
 } from "@shared/ui";
-import { useProjects } from "@entities/project";
+import { useProjects, type Project } from "@entities/project";
 import { ThemeToggle } from "@features/toggle-theme";
 
 export function DashboardPage() {
-  const { projects, isLoading, error, createProject } = useProjects();
+  const { projects, isLoading, error, createProject, deleteProject } =
+    useProjects();
   const router = useRouter();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   // 동기 in-flight 가드: 상태 업데이트(setBusy)는 비동기라 연속 호출(한글 IME의
   // Enter 더블 fire, 빠른 더블클릭)을 막지 못한다. ref로 즉시 차단해 중복 생성 방지.
   const creatingRef = useRef(false);
@@ -32,6 +35,7 @@ export function DashboardPage() {
     setBusy(true);
     try {
       const project = await createProject({ title: title.trim() });
+      if (!project) return;
       setOpen(false);
       setTitle("");
       router.push(`/projects/${project.id}`);
@@ -72,7 +76,19 @@ export function DashboardPage() {
               key={p.id}
               interactive
               onClick={() => router.push(`/projects/${p.id}`)}
+              className="group relative"
             >
+              <button
+                type="button"
+                aria-label="작품 삭제"
+                className="absolute right-8 top-8 opacity-0 transition-opacity group-hover:opacity-100 text-fg-weak hover:text-error"
+                onClick={(e) => {
+                  e.stopPropagation(); // 카드 네비게이션 막기
+                  setDeleteTarget(p);
+                }}
+              >
+                ✕
+              </button>
               <CardHeader>
                 <CardTitle>{p.title}</CardTitle>
                 <CardDescription>
@@ -114,6 +130,19 @@ export function DashboardPage() {
           }}
         />
       </Modal>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={async () => {
+          if (deleteTarget) await deleteProject(deleteTarget.id);
+          setDeleteTarget(null);
+        }}
+        title={`'${deleteTarget?.title}' 삭제`}
+        description="작품과 그 안의 모든 문서가 삭제됩니다. 되돌릴 수 없습니다."
+        danger
+        confirmText="삭제"
+      />
     </main>
   );
 }

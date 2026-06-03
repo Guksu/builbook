@@ -53,7 +53,7 @@ export function WorkspacePage() {
   }) {
     try {
       const doc = await createDocument(input);
-      if (doc.type === "DOC") setSelectedId(doc.id);
+      if (doc?.type === "DOC") setSelectedId(doc.id);
     } catch {
       toast("문서 생성에 실패했어요.", "error");
     }

@@ -67,15 +67,27 @@ export function useDocuments(projectId: string) {
       type?: DocType;
       parentId?: string | null;
     }) {
+      const title = input.title.trim();
+      if (!title) return null; // 공백 제목 방어
       const type = input.type ?? "DOC";
+      const parentId = input.parentId ?? null;
       const ts = now();
+      // order는 IndexedDB의 최신 형제들에서 max+1로 계산한다.
+      // (SWR 스냅샷 documents는 빠른 연속 생성 시 stale → order 충돌 가능)
+      const siblings = await dbGetAllByProject<DocumentNode>(
+        STORES.documents,
+        projectId,
+      );
+      const order = siblings
+        .filter((d) => d.parentId === parentId)
+        .reduce((max, d) => Math.max(max, d.order + 1), 0);
       const doc: DocumentNode = {
         id: crypto.randomUUID(),
         projectId,
-        parentId: input.parentId ?? null,
+        parentId,
         type,
-        title: input.title,
-        order: documents.filter((d) => d.parentId === (input.parentId ?? null)).length,
+        title,
+        order,
         content: type === "DOC" ? EMPTY_DOC : null,
         synopsis: null,
         wordCount: 0,
@@ -88,9 +100,11 @@ export function useDocuments(projectId: string) {
     },
 
     async renameDocument(id: string, title: string) {
+      const next = title.trim();
+      if (!next) return; // 공백 제목 방어
       const doc = await dbGet<DocumentNode>(STORES.documents, id);
       if (!doc) return;
-      await dbPut(STORES.documents, { ...doc, title, updatedAt: now() });
+      await dbPut(STORES.documents, { ...doc, title: next, updatedAt: now() });
       await mutate();
     },
 
