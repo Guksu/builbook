@@ -1,0 +1,95 @@
+/* ── Pretendard (원티드 기본 폰트) · 공개 CDN, 인증 불필요 [확인] ── */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@latest/dist/web/static/pretendard.css");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  디자인 토큰 SSOT (Single Source of Truth)
+  구조: 원시 토큰(원티드 실제 hex/px) → 시맨틱 별칭(역할)
+  - 컴포넌트는 시맨틱 별칭(--color-primary 등)만 사용한다.
+  - Tailwind theme.extend 는 이 변수를 var() 로 가리킨다 (값 중복 정의 금지).
+  - 출처: wanteddev/montage-web · wds-theme/atomic (컬러·스페이싱 [확인]),
+          타이포·radius·shadow 는 프로젝트 정의 [프로젝트 정의].
+*/
+:root {
+  /* ── 폰트 ── */
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont,
+    "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+
+  /* ── 원시 컬러 — 원티드 실제 값 [확인] ── */
+  /* blue (primary 계열) */
+  --blue-40: #0054d1;
+  --blue-45: #005eeb;
+  --blue-50: #0066ff;
+  --blue-95: #eaf2fe;
+  /* neutral (gray 계열) */
+  --neutral-10: #171717;
+  --neutral-30: #474747;
+  --neutral-50: #737373;
+  --neutral-80: #b0b0b0;
+  --neutral-90: #c4c4c4;
+  --neutral-95: #dcdcdc;
+  --neutral-99: #f7f7f7;
+  /* status */
+  --green-40: #009632;
+  --green-50: #00bf40;
+  --green-95: #d9ffe6;
+  --orange-40: #d47800;
+  --orange-50: #ff9200;
+  --orange-95: #fef4e6;
+  --red-40: #e52222;
+  --red-50: #ff4242;
+  --red-95: #feecec;
+  /* common */
+  --white: #ffffff;
+  --black: #000000;
+
+  /* ── 시맨틱 컬러 별칭 (역할) [프로젝트 정의 — 위 원시값 참조] ── */
+  --color-primary: var(--blue-50);
+  --color-primary-hover: var(--blue-45);
+  --color-primary-active: var(--blue-40);
+  --color-primary-weak: var(--blue-95);
+  --color-primary-fg: var(--white); /* primary 배경 위 텍스트 */
+
+  --color-fg: var(--neutral-10); /* 본문 */
+  --color-fg-weak: var(--neutral-50); /* 보조/플레이스홀더 */
+  --color-fg-muted: var(--neutral-80); /* 비활성 */
+
+  --color-bg: var(--white);
+  --color-surface: var(--neutral-99); /* 카드/패널 배경 */
+  --color-border: var(--neutral-95);
+  --color-border-strong: var(--neutral-90);
+
+  --color-success: var(--green-50);
+  --color-success-strong: var(--green-40);
+  --color-success-weak: var(--green-95);
+  --color-warning: var(--orange-50);
+  --color-warning-strong: var(--orange-40);
+  --color-warning-weak: var(--orange-95);
+  --color-error: var(--red-50);
+  --color-error-strong: var(--red-40);
+  --color-error-weak: var(--red-95);
+
+  /* ── 포커스 링 ── */
+  --color-ring: var(--blue-50);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-fg);
+    background: var(--color-bg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* 토큰 기반 공통 포커스 가시성 (접근성) */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
