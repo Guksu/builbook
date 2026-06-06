@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "./cn";
 import { Button } from "./Button";
+import { Input } from "./Input";
 
 export interface ModalProps {
   open: boolean;
@@ -126,5 +127,91 @@ export function ConfirmModal({
         </>
       }
     />
+  );
+}
+
+/**
+ * 텍스트 한 줄을 입력받는 다이얼로그 헬퍼.
+ * 네이티브 `prompt()` 대체용 — 토큰 기반 UI + IME 안전한 Enter 제출.
+ */
+export interface PromptModalProps {
+  open: boolean;
+  onClose: () => void;
+  /** 공백 trim 후 비어있지 않은 값만 전달된다 */
+  onSubmit: (value: string) => void;
+  title: string;
+  description?: string;
+  label?: string;
+  placeholder?: string;
+  /** 열릴 때 채워둘 초깃값 (이름 변경 등) */
+  initialValue?: string;
+  confirmText?: string;
+  cancelText?: string;
+}
+
+export function PromptModal({
+  open,
+  onClose,
+  onSubmit,
+  title,
+  description,
+  label,
+  placeholder,
+  initialValue = "",
+  confirmText = "확인",
+  cancelText = "취소",
+}: PromptModalProps) {
+  const [value, setValue] = useState(initialValue);
+  const inputId = useId();
+
+  // 모달이 열릴 때마다 초깃값으로 리셋 — 이전 입력 잔존/다른 항목 값 노출 방지.
+  useEffect(() => {
+    if (open) setValue(initialValue);
+  }, [open, initialValue]);
+
+  const submit = () => {
+    const v = value.trim();
+    if (!v) return;
+    onSubmit(v);
+    onClose();
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={title}
+      description={description}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            {cancelText}
+          </Button>
+          <Button onClick={submit} disabled={!value.trim()}>
+            {confirmText}
+          </Button>
+        </>
+      }
+    >
+      {label && (
+        <label
+          htmlFor={inputId}
+          className="mb-6 block text-body-sm text-fg-weak"
+        >
+          {label}
+        </label>
+      )}
+      <Input
+        id={inputId}
+        autoFocus
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          // 한글 등 IME 조합 중 Enter는 '조합 확정'이므로 무시(중복 제출 방지).
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) submit();
+        }}
+      />
+    </Modal>
   );
 }

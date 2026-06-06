@@ -1,8 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Button, ConfirmModal, cn } from "@shared/ui";
+import { Button, ConfirmModal, PromptModal, cn } from "@shared/ui";
 import type { DocumentNode } from "@entities/document";
+
+// 네이티브 prompt() 대신 인앱 입력 다이얼로그로 처리할 작업 종류.
+type PromptState =
+  | { kind: "rename"; node: DocumentNode }
+  | { kind: "new-doc" }
+  | { kind: "new-folder" }
+  | null;
+
+const PROMPT_COPY = {
+  rename: { title: "이름 변경", label: "새 이름", confirm: "변경" },
+  "new-doc": { title: "새 문서", label: "문서 제목", confirm: "만들기" },
+  "new-folder": { title: "새 폴더", label: "폴더 이름", confirm: "만들기" },
+} as const;
 
 interface BinderProps {
   documents: DocumentNode[];
@@ -38,6 +51,7 @@ export function Binder({
 }: BinderProps) {
   const tree = buildTree(documents);
   const [deleteTarget, setDeleteTarget] = useState<DocumentNode | null>(null);
+  const [prompt, setPrompt] = useState<PromptState>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{
     id: string;
@@ -106,10 +120,7 @@ export function Binder({
           <button
             type="button"
             className="opacity-0 group-hover:opacity-100 text-caption text-fg-weak hover:text-fg"
-            onClick={() => {
-              const next = prompt("새 이름", node.title)?.trim();
-              if (next && next !== node.title) onRename(node.id, next);
-            }}
+            onClick={() => setPrompt({ kind: "rename", node })}
             aria-label="이름 변경"
           >
             ✎
@@ -136,20 +147,14 @@ export function Binder({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => {
-              const title = prompt("문서 제목")?.trim();
-              if (title) onCreate({ title, type: "DOC", parentId: null });
-            }}
+            onClick={() => setPrompt({ kind: "new-doc" })}
           >
             + 문서
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => {
-              const title = prompt("폴더 이름")?.trim();
-              if (title) onCreate({ title, type: "FOLDER", parentId: null });
-            }}
+            onClick={() => setPrompt({ kind: "new-folder" })}
           >
             + 폴더
           </Button>
@@ -167,6 +172,25 @@ export function Binder({
           renderNodes(null, 0)
         )}
       </div>
+
+      <PromptModal
+        open={!!prompt}
+        onClose={() => setPrompt(null)}
+        title={prompt ? PROMPT_COPY[prompt.kind].title : ""}
+        label={prompt ? PROMPT_COPY[prompt.kind].label : undefined}
+        confirmText={prompt ? PROMPT_COPY[prompt.kind].confirm : undefined}
+        initialValue={prompt?.kind === "rename" ? prompt.node.title : ""}
+        onSubmit={(value) => {
+          if (!prompt) return;
+          if (prompt.kind === "rename") {
+            if (value !== prompt.node.title) onRename(prompt.node.id, value);
+          } else if (prompt.kind === "new-doc") {
+            onCreate({ title: value, type: "DOC", parentId: null });
+          } else {
+            onCreate({ title: value, type: "FOLDER", parentId: null });
+          }
+        }}
+      />
 
       <ConfirmModal
         open={!!deleteTarget}

@@ -14,7 +14,9 @@ export {
 export {
   Modal,
   ConfirmModal,
+  PromptModal,
   type ModalProps,
   type ConfirmModalProps,
+  type PromptModalProps,
 } from "./Modal";
 export { ToastProvider, useToast } from "./Toast";
