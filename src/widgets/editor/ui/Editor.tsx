@@ -2,7 +2,7 @@
 
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAutosave, SaveStatusBadge } from "@features/autosave-document";
 import type { JSONContent } from "@tiptap/react";
 
@@ -24,6 +24,7 @@ interface EditorProps {
 // Tiptap 에디터 코어. 최소 확장 세트 + 자동저장. 집중 글쓰기 단일 컬럼.
 export function Editor({ documentId, projectId, initialContent, title }: EditorProps) {
   const { status, schedule } = useAutosave(documentId, projectId);
+  const [words, setWords] = useState(0);
 
   const editor = useEditor({
     extensions: [StarterKit],
@@ -36,24 +37,32 @@ export function Editor({ documentId, projectId, initialContent, title }: EditorP
       },
     },
     onUpdate({ editor }) {
-      schedule(editor.getJSON(), countWords(editor.getText()));
+      const w = countWords(editor.getText());
+      setWords(w);
+      schedule(editor.getJSON(), w);
     },
   });
 
-  // 문서 전환 시 content 교체.
+  // 문서 전환 시 content 교체 + 단어 수 초기화.
   useEffect(() => {
     if (editor && initialContent) {
       editor.commands.setContent(initialContent);
     }
+    if (editor) setWords(countWords(editor.getText()));
     // documentId 변경 시에만 — initialContent는 그 시점 값 사용.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentId]);
+  }, [documentId, editor]);
 
   return (
     <div className="mx-auto flex h-full w-full max-w-[720px] flex-col px-24 py-16">
       <header className="mb-12 flex items-center justify-between">
         <h1 className="text-h3 text-fg">{title}</h1>
-        <SaveStatusBadge status={status} />
+        <div className="flex items-center gap-12">
+          <span className="text-caption tabular-nums text-fg-weak">
+            {words.toLocaleString("ko-KR")}단어
+          </span>
+          <SaveStatusBadge status={status} />
+        </div>
       </header>
       <EditorContent editor={editor} className="flex-1" />
     </div>
