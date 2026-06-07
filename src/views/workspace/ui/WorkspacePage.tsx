@@ -7,8 +7,10 @@ import type { JSONContent } from "@tiptap/react";
 import { Binder } from "@widgets/binder";
 import { Editor } from "@widgets/editor";
 import { Inspector } from "@widgets/inspector";
+import { AiAssistant } from "@widgets/ai-assistant";
 import { planReorder } from "@features/reorder-document";
 import { ThemeToggle } from "@features/toggle-theme";
+import { useAiChat } from "@features/ai-chat";
 import { useDocuments } from "@entities/document";
 import { useToast } from "@shared/ui";
 
@@ -29,6 +31,9 @@ export function WorkspacePage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  // view 레벨에 둬서 패널을 닫았다 열어도 다운로드한 모델/대화가 유지된다.
+  const ai = useAiChat();
 
   // 첫 DOC 자동 선택. 선택 문서가 사라지면 해제.
   useEffect(() => {
@@ -89,6 +94,13 @@ export function WorkspacePage() {
           <button
             type="button"
             className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setAiOpen((v) => !v)}
+          >
+            {aiOpen ? "AI 문답 닫기" : "AI 문답"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
             onClick={() => setInspectorOpen((v) => !v)}
           >
             {inspectorOpen ? "인스펙터 닫기" : "인스펙터"}
@@ -142,6 +154,13 @@ export function WorkspacePage() {
           <aside className="w-[280px] shrink-0 border-l border-border bg-surface p-16">
             <h2 className="mb-12 text-caption font-medium text-fg-weak">인스펙터</h2>
             <Inspector doc={selected} onSaveSynopsis={updateSynopsis} />
+          </aside>
+        )}
+
+        {/* 우: AI 문답 (기본 접힘, 인스펙터처럼 토글) */}
+        {aiOpen && (
+          <aside className="w-[340px] shrink-0 border-l border-border bg-surface p-16">
+            <AiAssistant ai={ai} />
           </aside>
         )}
       </div>

@@ -1,13 +1,15 @@
 ---
 name: webnovel-editor-orchestrator
-description: "웹소설 집필 에디터 사이트(스크리브너 레퍼런스, 진입장벽 낮춤, Next.js 풀스택 + Postgres/Prisma + Tiptap + 원티드 디자인 시스템)를 빌드하는 에이전트 팀을 조율하는 오케스트레이터. 제품 기획·데이터 모델·백엔드 API·에디터·프론트·디자인 적용·QA를 단계적으로 진행. 에디터 사이트 만들기·기능 추가·화면 구현·API 추가 시 사용. 후속 작업: 결과 수정, 부분 재실행, 업데이트, 보완, 다시 실행, 이전 결과 개선, 'OO 기능만 다시', '에디터/대시보드만 수정' 요청 시에도 반드시 이 스킬을 사용."
+description: "웹소설 집필 에디터 사이트(스크리브너 레퍼런스, 진입장벽 낮춤, Next.js App Router + local-first IndexedDB + Tiptap + 원티드 디자인 시스템, 백엔드 없음)를 빌드하는 에이전트 팀을 조율하는 오케스트레이터. 제품 기획·로컬 데이터 모델·에디터·프론트·디자인 적용·브라우저 온디바이스 AI 문답(Transformers.js/Web Worker)·QA를 단계적으로 진행. 에디터 사이트 만들기·기능 추가·화면 구현·AI 문답/Transformers.js/모델 다운로드/토큰 스트리밍 기능 추가 시 사용. 후속 작업: 결과 수정, 부분 재실행, 업데이트, 보완, 다시 실행, 이전 결과 개선, 'OO 기능만 다시', '에디터/대시보드/AI 패널만 수정' 요청 시에도 반드시 이 스킬을 사용."
 ---
 
 # 웹소설 에디터 빌드 오케스트레이터
 
 스크리브너를 레퍼런스로 하되 **진입장벽이 낮은** 웹소설 집필 에디터를 빌드하는 에이전트 팀을 조율한다.
 
-**스택:** Next.js 풀스택(App Router) · Postgres + Prisma · Auth.js · Tiptap(ProseMirror) · 원티드 디자인 시스템.
+**스택(local-first):** Next.js(App Router) · **IndexedDB(idb)** 클라이언트 저장 · Tiptap(ProseMirror) · Tailwind+원티드 토큰 · **백엔드·DB·로그인 없음**. AI 문답은 **Transformers.js를 Web Worker에서 구동하는 브라우저 온디바이스 추론**(서버/SSE 없음, postMessage 스트리밍).
+
+> 휴면: `backend-engineer`·`data-modeler`(+`nextjs-api`·`prisma-data-model`)는 local-first 전환으로 기본 미사용. 데이터 계층은 `src/shared/db`(idb) + entities 훅(SWR). 서버 도입(예: 클라우드 LLM SSE) 시에만 재가동.
 
 ## 실행 모드: 에이전트 팀 + Phase별 팀 재구성
 
@@ -18,14 +20,14 @@ description: "웹소설 집필 에디터 사이트(스크리브너 레퍼런스,
 | 팀원 | 타입 | 역할 | 스킬 | 출력 |
 |------|------|------|------|------|
 | product-architect | 커스텀 | 제품 스펙·IA·진입장벽 UX | product-spec | `_workspace/01_product_spec.md` |
-| data-modeler | 커스텀 | Prisma 스키마·트리 모델 | prisma-data-model | `prisma/schema.prisma`, `_workspace/02_data_model.md` |
-| backend-engineer | 커스텀 | Route Handler·Auth·CRUD | nextjs-api | `app/api/**`, `_workspace/03_api_contract.md` |
-| editor-engineer | 커스텀 | Tiptap 코어·바인더·자동저장 | tiptap-editor | `components/editor/**`, `_workspace/04_editor_notes.md` |
-| frontend-engineer | 커스텀 | 화면·라우팅·연결 훅 | nextjs-frontend, wanted-design-system | `app/**`, `hooks/**`, `_workspace/05_frontend_notes.md` |
-| design-system-specialist | 커스텀 | 원티드 토큰·기본 컴포넌트·검수 | wanted-design-system | `globals.css`, `components/ui/**`, `_workspace/06_design_system.md` |
+| editor-engineer | 커스텀 | Tiptap 코어·바인더·자동저장 | tiptap-editor | `src/widgets/editor/**`, `src/features/autosave-document/**` |
+| frontend-engineer | 커스텀 | 화면·라우팅·연결 훅·entities(idb 훅) | nextjs-frontend, wanted-design-system | `app/**`, `src/views/**`, `src/entities/**` |
+| design-system-specialist | 커스텀 | 원티드 토큰·기본 컴포넌트·검수 | wanted-design-system | `app/globals.css`, `src/shared/ui/**` |
+| **ai-inference-engineer** | 커스텀 | 브라우저 온디바이스 AI 추론(Transformers.js·Web Worker·스트리밍) | **client-ai-inference** | `src/shared/ai/**`, `src/features/ai-chat/**`, `_workspace/08_ai_inference_notes.md` |
 | qa-inspector | general-purpose | 경계면 통합 정합성 검증 | integration-qa | `_workspace/07_qa_report.md` |
+| ~~data-modeler~~ / ~~backend-engineer~~ | 커스텀 | (휴면) Prisma·API — local-first에서 미사용, 서버 도입 시 재가동 | prisma-data-model / nextjs-api | — |
 
-> 모든 Agent/TeamCreate 호출에 `model: "opus"`를 명시한다.
+> 모든 Agent/TeamCreate 호출에 `model: "opus"`를 명시한다. local-first 빌드에서 데이터 모델은 별도 백엔드 Phase 없이 frontend-engineer가 `src/shared/db`(idb) + entities 훅으로 처리한다.
 
 ## 워크플로우
 
@@ -80,7 +82,23 @@ description: "웹소설 집필 에디터 사이트(스크리브너 레퍼런스,
 2. 실패 항목이 있으면 해당 에이전트를 부분 재호출(Phase 0 부분 재실행 경로)하여 수정 → 재검증(최대 2회 루프).
 3. `_workspace/` 보존. 사용자에게 결과 요약(완성 범위·실행 방법·미해결/추정 항목, 특히 디자인 토큰의 `[추정]` 값 검증 필요 여부) 보고.
 
-## Phase 종료 시 커밋 & 푸시 (필수)
+## AI 문답 기능 빌드 (Transformers.js 온디바이스)
+
+전체 사이트 빌드와 독립적으로 실행될 수 있는 add-on 도메인. "AI 문답·Transformers.js·모델 다운로드·스트리밍 사이드바" 요청 시 이 흐름을 쓴다.
+
+**실행 모드:** 에이전트 팀 (`ai-build`). 기존 `_workspace/01_product_spec.md`가 있으면 Read해 제품 톤을 맞춘다.
+
+1. **스펙(product-architect)** — AI 문답의 진입장벽 낮춤 UX 정의: "기능 사용" 게이팅 카피, 다운로드 진행 표현, 사이드바 배치, 빈/로딩/에러/생성 상태, 모델 선택지 트레이드오프(한국어 품질 vs 다운로드 크기). → `_workspace/01_product_spec.md` 보강.
+2. **엔진(ai-inference-engineer)** — `client-ai-inference` 스킬로 `src/shared/ai/{worker,engine,messages,models}.ts` + `src/features/ai-chat`(상태 훅) 구현. 메시지 계약(SSOT)·게이팅·진행률·스트리밍·취소·엣지케이스. `@huggingface/transformers` 설치. → `_workspace/08_ai_inference_notes.md`.
+3. **UI(frontend-engineer + design-system-specialist)** — `src/widgets/ai-assistant` 사이드바 패널을 `useAiChat`만 소비해 구성. 워크스페이스 레이아웃(`src/views/workspace`)에 패널 토글로 결합. 진행 바·버튼·말풍선은 `src/shared/ui` 토큰 컴포넌트로.
+4. **점진 QA(qa-inspector)** — worker↔메인 메시지 타입 일치(`messages.ts` SSOT 양쪽 import), 상태 누락(멈춘 UI) 여부, 게이팅 우회(자동 다운로드) 여부, 별칭 경로(`@shared/ai`·`@features/ai-chat`·`@widgets/ai-assistant`) tsconfig 등록 여부를 교차 검증. → `07_qa_report.md` 보강.
+
+**경계면 핵심:** Worker↔메인 메시지 타입은 `src/shared/ai/messages.ts` 한 곳에서만 정의하고 양쪽이 import한다(리터럴 중복 금지). UI는 엔진 내부가 아니라 `useAiChat`의 공개 API만 소비한다.
+
+## Phase 종료 시 커밋 & 푸시 (기본 — 사용자가 직접 커밋하면 생략)
+
+> **사용자가 "커밋은 내가 한다"고 지시하면, 오케스트레이터는 커밋·푸시를 하지 않고 변경된 파일만 남긴 채 작업 요약을 보고한다.** 아래 정책은 사용자가 커밋을 위임한 경우에만 적용한다.
+
 
 각 Phase가 **완전히 끝날 때마다**(팀원 전원 완료 + TeamDelete 후) 그 Phase 산출물을 커밋하고 push한다. 단계별로 히스토리를 남겨 추적·롤백을 쉽게 하기 위함이다.
 
