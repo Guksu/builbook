@@ -45,8 +45,12 @@ export function AiAssistant({ ai }: AiAssistantProps) {
         <div className="flex flex-1 flex-col items-center justify-center gap-12 text-center">
           <p className="text-body text-fg">집필을 돕는 AI에게 물어보세요.</p>
           <p className="text-body-sm text-fg-weak">
-            처음 한 번 <b className="text-fg">{MODEL_LABEL}</b> 모델(약 {MODEL_APPROX_MB}MB)을
-            브라우저에 내려받아요. 이후엔 인터넷 없이도, 내 글이 서버로 가지 않고 기기 안에서만 동작합니다.
+            처음 한 번 <b className="text-fg">{MODEL_LABEL}</b> 모델(약{" "}
+            {MODEL_APPROX_MB >= 1000
+              ? `${(MODEL_APPROX_MB / 1000).toFixed(1)}GB`
+              : `${MODEL_APPROX_MB}MB`}
+            )을 브라우저에 내려받아요. 이후엔 인터넷 없이도, 내 글이 서버로 가지 않고 기기 안에서만
+            동작합니다.
           </p>
           <Button onClick={enable}>기능 사용</Button>
         </div>

@@ -72,3 +72,37 @@
 - **order 충돌**: createDocument의 order를 SWR 스냅샷이 아닌 IndexedDB 최신 형제 max+1로 계산(빠른 연속 생성 시 충돌 방지).
 - **dev/build .next 충돌(운영 교훈)**: dev 서버 구동 중 `npm run build` 금지 — `.next` 손상으로 전 라우트 500. build 전 dev 정지.
 - 전체 E2E **9 passed**, tsc 0, next build 성공.
+
+---
+
+## AI 문답 도메인 — 모델 교체·파라미터 변경 검증 (2026-06-09)
+
+> 검증: qa-inspector. integration-qa 스킬. 변경: MODEL_ID=onnx-community/Qwen2.5-0.5B-Instruct, MODEL_DTYPE="q4" 단일 상수, GEN에 repetitionPenalty 1.15 + temperature 0.6. **경계면 교차 비교만 수행(기능 재구현 없음).** 실제 브라우저 추론 품질(코히런스/한국어)은 정적 검증 범위 밖 — 런타임 확인 필요.
+
+### ✅ 통과
+1. **GEN 계약 ↔ worker generate 1:1 매핑** — `models.ts:33-39` GEN(maxNewTokens/doSample/temperature/topP/repetitionPenalty) → `worker.ts:127-131`에서 max_new_tokens/do_sample/temperature/top_p/repetition_penalty로 정확히 매핑. 누락·오타·미사용 키 없음. (GEN의 5개 키 전부 소비, transformers.js snake_case 파라미터명 정확.)
+2. **dtype SSOT** — `MODEL_DTYPE="q4"` 단일 상수(`models.ts:23`)만 존재. `modelDtype` 함수 잔재 0건(grep). worker는 `MODEL_DTYPE`만 import(`worker.ts:13`)해 `dtype:`에 사용(`worker.ts:65`). 코드상 `q4f16` 참조 0건 — 남은 `q4f16` 히트(`models.ts:8,20,22`)는 전부 주석(이력·금지 경고)이라 동작 무관.
+3. **메시지 계약 SSOT** — worker↔메인 타입이 `messages.ts` 한 곳에서만 정의. worker.ts(`:14`)·engine.ts(`:4`)·useAiChat(via `@shared/ai`)이 동일 타입 import, 리터럴 중복 정의 없음. worker가 실제 post하는 메시지(ready/progress/token/done/error/aborted)가 FromWorker 유니온과 전부 일치, engine.ts switch가 6종 모두 처리(`:25-44`). ToWorker(load/generate/abort)도 worker onmessage switch(`:150-160`)와 일치.
+4. **UI 소비 일치** — `AiAssistant.tsx`는 `UseAiChat` 공개 API(status/percent/messages/streaming/error/enable/send/stop/retry)만 소비(`:14`), 엔진 내부 비접근. `MODEL_LABEL`·`MODEL_APPROX_MB`는 `@shared/ai` 배럴(`:5`)에서 정상 import. 표시 경로(`:48-52`): 790 < 1000 → "약 790MB" 분기 정확. (≥1000일 때만 GB 변환.)
+5. **별칭/import** — tsconfig paths에 `@shared/* @features/* @widgets/*` 모두 등록. 모든 AI import 경로 해석됨.
+6. **타입체크** — `npx tsc --noEmit` → EXIT=0, 오류 0건.
+
+### 결론
+**경계면 통과.** GEN↔worker, dtype SSOT, messages 계약, UI↔훅 공개 API, 별칭, 타입체크 모두 정합. 불일치 0건. 추론 품질은 런타임 검증 영역.
+
+---
+
+## AI 문답 도메인 — Qwen3-0.6B 교체 검증 (2026-06-09)
+
+> 검증: qa-inspector. integration-qa 스킬. 변경: MODEL_ID=onnx-community/Qwen3-0.6B-ONNX, MODEL_LABEL="Qwen3 0.6B", MODEL_APPROX_MB=919, ENABLE_THINKING=false 신규, GEN에 topK 20 신규(temperature 0.7/topP 0.8/repetitionPenalty 1.1). **경계면 교차 비교만(기능 재구현 없음).** 실제 추론 품질·thinking 비활성 실동작(빈 <think> 삽입)은 런타임 확인 영역.
+
+### ✅ 통과
+1. **GEN 계약 ↔ worker generate 1:1 매핑** — `models.ts:43-50` GEN 6개 키 → `worker.ts:127-132` 정확 매핑: maxNewTokens→max_new_tokens, doSample→do_sample, temperature, topP→top_p, **topK→top_k(신규)**, repetitionPenalty→repetition_penalty. 누락·오타·미사용 키 없음. 신규 topK→top_k(`worker.ts:131`) 확인.
+2. **ENABLE_THINKING 연결 무결** — `models.ts:38` export → `worker.ts:13` import → `worker.ts:137` tokenizer_encode_kwargs.enable_thinking 전달. import 누락/오타 없음, 경로 끊김 없음.
+3. **dtype SSOT** — MODEL_DTYPE="q4" 단일 상수 유지(`models.ts:25`). q4f16 코드 참조 0건(주석 3건은 이력·금지 경고). worker는 MODEL_DTYPE만 import.
+4. **메시지 계약 SSOT 불변** — messages.ts ToWorker/FromWorker 미변경. generate payload `{ id, messages: ChatTurn[] }` 그대로(`messages.ts:13`). 이번 변경이 메시지 타입 미접촉 — engine.ts/useAiChat 경계 영향 없음.
+5. **UI 소비** — AiAssistant.tsx 미변경. MODEL_LABEL/MODEL_APPROX_MB(919) `@shared/ai` 배럴 import 유지. 919<1000 → "약 919MB" 분기 정확. useAiChat 공개 API만 소비.
+6. **타입체크** — `npx tsc --noEmit` → EXIT=0, 오류 0건. (참고: generate 옵션 객체는 `as Record<string, unknown>` 캐스팅 — 추가 kwarg를 타입 우회로 전달. 정합성은 통과하나 transformers.js 런타임이 top_k/tokenizer_encode_kwargs를 실제 수용하는지는 정적 검증 밖.)
+
+### 결론
+**경계면 통과.** GEN↔worker(topK→top_k 포함), ENABLE_THINKING 경로, dtype SSOT, messages 계약 불변, UI 표기(919MB), 타입체크 모두 정합. 불일치 0건. thinking 비활성 실동작·추론 품질은 런타임 검증 영역.

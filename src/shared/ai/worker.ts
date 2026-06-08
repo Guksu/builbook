@@ -10,7 +10,7 @@ import {
   InterruptableStoppingCriteria,
   type TextGenerationPipeline,
 } from "@huggingface/transformers";
-import { MODEL_ID, MODEL_DTYPE, GEN } from "./models";
+import { MODEL_ID, MODEL_DTYPE, GEN, ENABLE_THINKING } from "./models";
 import type { ToWorker, FromWorker, ChatTurn } from "./messages";
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -128,9 +128,14 @@ async function generate(id: string, messages: ChatTurn[]): Promise<void> {
       do_sample: GEN.doSample,
       temperature: GEN.temperature,
       top_p: GEN.topP,
+      top_k: GEN.topK,
+      repetition_penalty: GEN.repetitionPenalty,
       streamer,
       stopping_criteria: stoppingCriteria,
-    });
+      // Qwen3 thinking 비활성: 파이프라인이 이 kwargs를 apply_chat_template로 그대로 전달한다.
+      // enable_thinking=false면 chat_template이 빈 <think></think>를 넣어 추론을 건너뛰고 바로 답한다.
+      tokenizer_encode_kwargs: { enable_thinking: ENABLE_THINKING },
+    } as Record<string, unknown>);
   } catch (err) {
     // 생성 도중 에러 — 쌓인 부분 텍스트는 메인이 이미 받았다(보존됨).
     post({ type: "error", id, message: errMsg(err) });
