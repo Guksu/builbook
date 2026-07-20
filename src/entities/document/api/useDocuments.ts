@@ -9,7 +9,13 @@ import {
   dbBulkPut,
   dbBulkDelete,
 } from "@shared/db";
+import { deleteSnapshotsForDocuments } from "@entities/snapshot";
 import type { DocumentNode, DocType } from "../model/types";
+import {
+  collectSubtreeIds,
+  selectActiveDocuments,
+  selectTrashedDocuments,
+} from "../lib/tree";
 
 // 문서 목록 SWR 키 — 자동저장 등 외부에서 캐시 무효화할 때 동일 키 사용.
 export const documentsKey = (projectId: string) => `documents:${projectId}`;
@@ -33,31 +39,21 @@ export async function saveDocumentContent(
 }
 
 export function useDocuments(projectId: string) {
+  // SWR은 휴지통 포함 전체(raw)를 읽는다 — 소프트삭제/복원/영구삭제가 같은 캐시를 공유.
   const { data, error, isLoading, mutate } = useSWR<DocumentNode[]>(
     projectId ? documentsKey(projectId) : null,
     () => listDocuments(projectId),
   );
 
-  const documents = data ?? [];
-
-  // 한 노드의 모든 자손 id(자신 포함) 수집 — cascade 삭제용.
-  function collectSubtree(rootId: string): string[] {
-    const ids = [rootId];
-    const stack = [rootId];
-    while (stack.length) {
-      const parent = stack.pop()!;
-      for (const d of documents) {
-        if (d.parentId === parent) {
-          ids.push(d.id);
-          stack.push(d.id);
-        }
-      }
-    }
-    return ids;
-  }
+  const allDocuments = data ?? [];
+  // 바인더·검색·목표 합계 등 문서를 소비하는 모든 곳은 '정상 문서'만 본다(휴지통 제외).
+  const documents = selectActiveDocuments(allDocuments);
+  // 휴지통 패널이 소비할 삭제 문서(루트 선별은 패널이 selectTrashRoots로 처리).
+  const trashedDocuments = selectTrashedDocuments(allDocuments);
 
   return {
     documents,
+    trashedDocuments,
     isLoading,
     error,
     mutate,
@@ -115,9 +111,55 @@ export function useDocuments(projectId: string) {
       await mutate();
     },
 
+    // 문서 목표 단어 수 설정. null이면 목표 해제(undefined 저장).
+    async updateGoal(id: string, goal: number | null) {
+      const doc = await dbGet<DocumentNode>(STORES.documents, id);
+      if (!doc) return;
+      await dbPut(STORES.documents, {
+        ...doc,
+        goal: goal ?? undefined,
+        updatedAt: now(),
+      });
+      await mutate();
+    },
+
+    // 소프트 삭제(휴지통으로 이동). 폴더면 하위 서브트리 전체를 함께 휴지통으로.
+    // 스냅샷은 여기서 지우지 않는다 — 복원 가능해야 하므로 '영구 삭제' 시점까지 보존.
     async deleteDocument(id: string) {
-      // 하위 노드까지 함께 삭제(Postgres onDelete:Cascade를 클라이언트에서 재현).
-      await dbBulkDelete(STORES.documents, collectSubtree(id));
+      const ts = now();
+      // 현재 정상 문서들 기준으로 서브트리를 모은다(이미 휴지통인 노드는 대상 아님).
+      const subtree = collectSubtreeIds(documents, id);
+      const targets = new Set(subtree);
+      const updated = documents
+        .filter((d) => targets.has(d.id))
+        .map((d) => ({ ...d, trashedAt: ts, updatedAt: ts }));
+      await dbBulkPut(STORES.documents, updated);
+      await mutate();
+    },
+
+    // 휴지통에서 복원(trashedAt 제거). 폴더면 서브트리 전체를 함께 복원.
+    async restoreDocument(id: string) {
+      const ts = now();
+      // 휴지통 포함 전체(allDocuments)에서 서브트리를 모은다(자손도 휴지통 상태이므로).
+      const subtree = collectSubtreeIds(allDocuments, id);
+      const targets = new Set(subtree);
+      const updated = allDocuments
+        .filter((d) => targets.has(d.id) && d.trashedAt)
+        .map((d) => {
+          const next = { ...d, updatedAt: ts };
+          delete next.trashedAt; // 휴지통 표식 제거 = 정상 문서로 복원
+          return next;
+        });
+      await dbBulkPut(STORES.documents, updated);
+      await mutate();
+    },
+
+    // 영구 삭제(진짜 하드 삭제 + 스냅샷 정리). 폴더면 서브트리 전체를 완전 제거.
+    async permanentlyDeleteDocument(id: string) {
+      const subtree = collectSubtreeIds(allDocuments, id);
+      await dbBulkDelete(STORES.documents, subtree);
+      // 딸린 스냅샷도 함께 정리 — 고아 스냅샷 누적 방지(하드 삭제 로직이 여기로 이동).
+      await deleteSnapshotsForDocuments(subtree);
       await mutate();
     },
 

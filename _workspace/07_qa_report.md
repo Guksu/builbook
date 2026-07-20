@@ -106,3 +106,30 @@
 
 ### 결론
 **경계면 통과.** GEN↔worker(topK→top_k 포함), ENABLE_THINKING 경로, dtype SSOT, messages 계약 불변, UI 표기(919MB), 타입체크 모두 정합. 불일치 0건. thinking 비활성 실동작·추론 품질은 런타임 검증 영역.
+
+---
+
+## 4기능(스냅샷·노트·집중모드/목표·검색/내보내기/휴지통) 통합 교차검증 (2026-07-20)
+
+> 검증: qa-inspector. integration-qa 스킬. 생산자↔소비자 동시 읽기(존재 확인 아님). lint/vitest(79)/build/playwright(19) green은 신뢰하고, **테스트가 못 잡는 논리적 경계면**만 점검.
+
+### ✅ 통과 (교차검증)
+1. **소프트삭제 필터 SSOT 일관성** — `useDocuments`가 raw(휴지통 포함)를 SWR로 읽고 `selectActiveDocuments`로 필터한 `documents`만 공개(`useDocuments.ts:48-52`). 소비처 전부 이 필터본을 받음: 바인더(`WorkspacePage.tsx:211`), 검색(`:360`), 내보내기(`:401`), 글자수 합계 `sumWordCounts(documents)`(`:97`), 스냅샷 패널은 `selected`(documents에서 파생, `:73-76`). 휴지통 문서 누수 경로 0. 검색은 이중 방어까지(`searchDocuments.ts:39` `doc.trashedAt` 가드), 내보내기도 이중 방어(`exportDocuments.ts:34,48` 내부 재-`selectActiveDocuments`).
+2. **raw 읽기 우회 점검** — `dbGetAllByProject` 직접 호출 3곳 모두 정당: createDocument order 계산(`useDocuments.ts:73`, 휴지통 포함이 오히려 order 충돌 방지로 안전), deleteProject cascade(`useProjects.ts:76`, 전체 삭제가 목적이라 휴지통 포함이 정답), useNotes(별도 store). 휴지통 문서를 **표시**하는 raw 읽기 없음.
+3. **cascade 스냅샷 정리 의미** — 소프트삭제 `deleteDocument`는 스냅샷 미삭제(복원 대비, `useDocuments.ts:128-138`), 영구삭제 `permanentlyDeleteDocument`(`:162`)·작품삭제 `deleteProject`(`useProjects.ts:80`)만 `deleteSnapshotsForDocuments` 호출. 의미 정확.
+4. **폴더 서브트리 cascade** — 소프트삭제는 `collectSubtreeIds(documents, id)`(활성 목록), 복원·영구삭제는 `collectSubtreeIds(allDocuments, id)`(전체). 대상 목록 선택 정확(`useDocuments.ts:131/144/159`). 휴지통 표시는 `selectTrashRoots`가 부모 미삭제 노드만 루트로(`tree.ts:44-53`) → 폴더만 노출, 자손은 폴더에 딸려 처리.
+5. **평문/글자수 규칙 단일 출처** — `extractPlainText`(`snapshotText.ts:31`)를 검색·내보내기·스냅샷 패널이 재사용(중복 구현 0). `countWords`는 Editor(`Editor.tsx:44`)·목표(`progress.ts`)·스냅샷이 동일 함수 공유. 목표 진행률은 `computeProgress` 단일 경로(GoalMeter·집중모드·Inspector). 규칙 분기 없음.
+6. **SWR 키 일관성** — 소프트삭제/복원/영구삭제 전부 동일 `documentsKey` `mutate()` 무효화(`useDocuments.ts:137/153/163`) → 복원 후 바인더 즉시 반영. 스냅샷은 별도 `snapshotsKey`지만 영구삭제 시 대상 문서가 언마운트되어 stale 표시 없음.
+
+### 🔧 발견 (수정은 리더 판단)
+- **[FSD 레이어 역참조 + import 순환]** `src/entities/note/api/useNotes.ts:11`이 `@features/note-research`의 `sortNotes`를 import — **하위 레이어(entities)가 상위 레이어(features)를 참조**(CLAUDE.md FSD 규약 위반). 동시에 `src/features/note-research/lib/notes.ts:1`이 `@entities/note`(Note 타입)를 import → **모듈 그래프 순환**(entities/note ⇄ features/note-research). 반대 방향이 `import type`(컴파일 시 소거)이라 **런타임 크래시는 없고** 빌드/테스트도 green이나, 규약 위반 + 취약한 순환. 수정 방향: (a) `sortNotes` 등 순수 노트 로직을 `entities/note/lib`로 내리거나, (b) `useNotes`에서 정렬을 인라인/entities 로컬 유틸로 대체해 entities→features 참조 제거.
+
+### ⚠️ 마이너 (경계면 아님, 참고)
+- **feature→feature 수평 import** — `search-document`/`export-document`가 `@features/snapshot-document`의 `extractPlainText`를 import(`searchDocuments.ts:5`, `exportDocuments.ts:6`). 엄격 FSD에선 동일 레이어 상호참조 지양(순수 텍스트 유틸이라 `@shared` 또는 `@entities/document/lib` 후보). 런타임/타입 무해, 순환 없음. 설계 스멜 수준.
+- **스냅샷 = 마지막 저장본** — SnapshotPanel이 `doc.content`(자동저장된 값)로 스냅샷 생성(`SnapshotPanel.tsx:62`). 디바운스 미저장분은 제외 — feature 내부 UX 사양이라 경계면 이슈 아님.
+
+### 결론
+**교차검증 실질 크래시·데이터 누수 불일치 0건.** 휴지통 필터 SSOT·cascade 스냅샷 정리 의미·평문/글자수 단일 출처·SWR 키·별칭(tsconfig↔vitest 1:1) 모두 정합. 유일한 규약 위반은 entities/note→features/note-research 역참조 겸 type-only 순환(런타임 무해, 수정 권장).
+
+### 🔧 후속 수정 (리더 적용, 2026-07-20)
+- **[해결] entities/note→features/note-research 역참조 + type-only 순환** — `features/note-research`는 순수 함수(sortNotes 등)만 있고 UI가 없어 잘못 배치된 레이어였다. lib 전체(notes.ts + notes.test.ts)를 `entities/note/lib/`로 이동, `entities/note` 배럴에서 export, 소비처 수정(useNotes는 `../lib/notes` 상대 import, NotesPanel은 `@entities/note`로 통합), `features/note-research` 디렉토리 삭제. 이제 방향은 widget→entity(정상), entity 내부는 자기 model/lib만 참조. 검증: lint·vitest(79)·build·e2e(19/19, notes 3건 포함) 전부 green. FSD 레이어 위반·순환 0건.

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작업 보고서 — 웹소설 에디터 완성 루프</title>
+<style>
+  :root {
+    --ink: #1c1c1c; --sub: #595959; --line: #e3e3e3; --bg: #f6f6f4; --card: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.6; font-size: 15px;
+    padding: 40px 16px;
+  }
+  .page { max-width: 860px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 44px 48px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 26px; }
+  .doc-label { font-size: 12px; letter-spacing: .14em; color: var(--sub); text-transform: uppercase; }
+  h1 { font-size: 24px; font-weight: 700; margin: 6px 0 12px; }
+  .status { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 4px; border: 1px solid; }
+  .status[data-status="done"]    { color: #1a7f37; background: #ebf7ee; border-color: #9fd6ad; }
+  .status[data-status="partial"] { color: #9a6700; background: #fff8e5; border-color: #e6c86e; }
+  .status[data-status="stopped"] { color: #b42318; background: #fdf0ee; border-color: #f0a9a0; }
+  table.meta { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+  table.meta th { text-align: left; color: var(--sub); font-weight: 600; width: 110px; padding: 3px 0; vertical-align: top; }
+  table.meta td { padding: 3px 0; }
+  h2 { font-size: 16.5px; font-weight: 700; margin: 34px 0 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+  p.summary { color: var(--ink); }
+  table.grid { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 4px; }
+  table.grid th { background: #f2f2ef; text-align: left; padding: 8px 12px; border: 1px solid var(--line); font-weight: 600; }
+  table.grid td { padding: 8px 12px; border: 1px solid var(--line); vertical-align: top; }
+  .ok { color: #1a7f37; font-weight: 700; }
+  .fail { color: #b42318; font-weight: 700; }
+  .item { border: 1px solid var(--line); border-left: 4px solid #8a8a8a; border-radius: 6px; padding: 14px 16px; margin: 10px 0; background: #fcfcfb; }
+  .review .item { border-left-color: #d4a72c; background: #fffdf5; }
+  .followup .item { border-left-color: #4477aa; background: #f8fbfd; }
+  .item b.title { display: block; font-size: 14.5px; margin-bottom: 4px; }
+  .item .why { color: var(--sub); font-size: 13.5px; }
+  .none { color: var(--sub); font-size: 14px; }
+  footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--sub); font-size: 12.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  code { font-family: ui-monospace, 'D2Coding', Consolas, monospace; font-size: .92em; background: #f2f2ef; padding: 1px 5px; border-radius: 3px; }
+  @media print { body { background: #fff; padding: 0; } .page { border: none; padding: 24px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="doc-label">Work Report · builbook</div>
+    <h1>웹소설 에디터 완성 루프 (반복 0~4)</h1>
+    <span class="status" data-status="done">완료</span>
+    <table class="meta">
+      <tr><th>날짜</th><td>2026-07-20</td></tr>
+      <tr><th>작성</th><td>Claude (webnovel-editor-orchestrator + loop)</td></tr>
+      <tr><th>브랜치</th><td><code>feat/editor-completion-loop</code></td></tr>
+      <tr><th>워크로그</th><td><code>docs/worklogs/2026-07-20-completion-loop.md</code> — 정본 기록</td></tr>
+      <tr><th>루프 명세</th><td><code>docs/loops/webnovel-editor-completion.md</code></td></tr>
+    </table>
+  </header>
+
+  <h2>1. 요약</h2>
+  <p class="summary">기존 MVP-1(문서트리·에디터·자동저장·온디바이스 AI 문답)이 완결된 builbook 위에, 스크리브너의 본질 기능 5묶음을 루프로 반복 구현했다. 매 반복을 TDD + 기계적 검증 게이트(lint·vitest·build·e2e)로 닫았고, 안전장치(토큰 2M·최대 10반복·막힘 3연속)는 미발동(5반복 사용, 막힘 0). 최종 상태는 4종 검증 전부 green이며, 자동화 테스트가 통과하는데도 숨어 있던 경계면 결함 2건을 QA 교차검증으로 적발·수정했다. 커밋은 사용자 전담이라 브랜치에 변경만 쌓여 있다.</p>
+
+  <h2>2. 작업 내용</h2>
+  <table class="grid">
+    <tr><th style="width:120px">구분</th><th style="width:300px">경로</th><th>내용</th></tr>
+    <tr><td>추가(반복0)</td><td><code>vitest.config.ts</code>, <code>.eslintrc.json</code>, <code>src/features/reorder-document/lib/planReorder.test.ts</code></td><td>vitest 도입(<code>npm test</code>), tsconfig와 별칭 1:1 정렬, 순수 로직 12 테스트. next lint 대화형 프롬프트 제거. prompt()→PromptModal drift로 깨진 e2e 4건 수리</td></tr>
+    <tr><td>추가(반복1)</td><td><code>src/entities/snapshot</code>, <code>src/features/snapshot-document</code>, <code>src/widgets/snapshot-panel</code></td><td>스냅샷(버전 히스토리): DB v2 snapshots 스토어(contains 가드), 저장·미리보기·복원·복원전 자동스냅샷</td></tr>
+    <tr><td>추가(반복2)</td><td><code>src/entities/note</code>, <code>src/widgets/notes-panel</code></td><td>캐릭터·설정 노트: DB v3 notes 스토어, 카테고리별 CRUD, 워크스페이스 '리서치' 패널</td></tr>
+    <tr><td>추가(반복3)</td><td><code>src/features/writing-goals</code>, <code>src/shared/ui/ProgressBar.tsx</code></td><td>집중 모드(Tiptap 재마운트 없이 커서 보존, ESC 해제) + 글자수·목표 진행률. DocumentNode.goal?·Project.goal? 선택 필드</td></tr>
+    <tr><td>추가(반복4)</td><td><code>src/features/{search-document,export-document,trash-document}</code></td><td>작품 내 검색, txt/md 내보내기(Blob 다운로드), 휴지통 소프트삭제(trashedAt)·복원·영구삭제</td></tr>
+    <tr><td>수정</td><td><code>src/entities/document/api/useDocuments.ts</code>, <code>src/entities/project/api/useProjects.ts</code></td><td>삭제 의미를 소프트삭제로 변경, <code>selectActiveDocuments</code> 단일 필터로 전 소비처 휴지통 제외. 문서/작품 삭제 cascade에 스냅샷·노트 정리 연결</td></tr>
+    <tr><td>수정</td><td><code>src/widgets/editor/ui/Editor.tsx</code></td><td>중복 countWords 제거 → <code>snapshotText.countWords</code> 단일 출처 재사용</td></tr>
+    <tr><td>이동/삭제</td><td><code>src/features/note-research</code> → <code>src/entities/note/lib</code></td><td>최종 QA가 적발한 FSD 역참조+순환 해소: 순수 노트 로직을 entity로 이관하고 잘못 배치된 feature 삭제</td></tr>
+    <tr><td>추가(가드레일)</td><td><code>.claude/hooks/*</code>, <code>.claude/settings.json</code>, <code>docs/templates/*</code></td><td>훅 4종(git·시크릿·branchGuard·verifierGate) + deny/allow, 공통 템플릿 6종, 루프 명세</td></tr>
+  </table>
+
+  <h2>3. 검증 결과</h2>
+  <table class="grid">
+    <tr><th style="width:150px">항목</th><th style="width:250px">방법·명령</th><th>결과</th></tr>
+    <tr><td>린트</td><td><code>npm run lint</code></td><td class="ok">통과 (0 warnings/errors)</td></tr>
+    <tr><td>단위 테스트</td><td><code>npm test</code> (vitest)</td><td class="ok">통과 79/79 (7 파일)</td></tr>
+    <tr><td>프로덕션 빌드</td><td><code>npm run build</code></td><td class="ok">성공 (4 라우트 컴파일)</td></tr>
+    <tr><td>E2E</td><td><code>npx playwright test</code></td><td class="ok">통과 19/19 (Chromium)</td></tr>
+    <tr><td>경계면 QA</td><td>qa-inspector 생산자↔소비자 교차검증</td><td class="ok">불일치 0건 (버그 2건 적발·수정 완료)</td></tr>
+  </table>
+
+  <h2>4. 사용자 검토 필요</h2>
+  <div class="review">
+    <div class="item">
+      <b class="title">커밋 — 사용자 전담</b>
+      <div class="why">git 변경은 훅으로 차단되어 에이전트가 커밋하지 않았다. <code>feat/editor-completion-loop</code> 브랜치에 변경만 쌓여 있다. 검토 후 직접 커밋·머지하면 된다. 미결정 시: 변경은 그대로 보존된다.</div>
+    </div>
+    <div class="item">
+      <b class="title">온디바이스 AI 추론 품질은 런타임 검증 영역</b>
+      <div class="why">현재 모델은 Qwen3-0.6B q4(919MB)로 기기 메모리 천장(~0.8GB 추정) 근처다. 자동화 테스트는 경계면·타입만 검증하며 실제 브라우저 추론 품질·OOM 여부는 다루지 않는다. 저사양 기기에서 OOM 보고 시 메모리의 Qwen2.5-0.5B 롤백 절차 적용. 미결정 시: 현재 모델 유지.</div>
+    </div>
+  </div>
+
+  <h2>5. 후속 조치</h2>
+  <div class="followup">
+    <div class="item">
+      <b class="title">feature→feature 수평 import 정리 (설계 스멜, 선택)</b>
+      <div class="why">search-document·export-document가 snapshot-document의 <code>extractPlainText</code>를 재사용한다. 런타임/타입 무해하고 순환 없으나, 엄격 FSD에선 순수 텍스트 유틸을 <code>@shared</code> 또는 <code>@entities/document/lib</code>로 내리는 것이 정석. 트리거: 다음 리팩터링 시. 담당: 에이전트(요청 시).</div>
+    </div>
+    <div class="item">
+      <b class="title">AI 문답 e2e 부재 (의도적 제외)</b>
+      <div class="why">모델 다운로드(919MB)가 CI에 부적합해 AI 관련 e2e는 없다. 서버 도입(클라우드 LLM) 등으로 경량화되면 스트리밍·게이팅 e2e 추가 후보. 트리거: AI 아키텍처 변경 시. 담당: 사용자 판단.</div>
+    </div>
+    <div class="item">
+      <b class="title">검증자 게이트 상시 작동 (참고)</b>
+      <div class="why">이 브랜치에서 이후 작업하면 Stop 훅이 lint·unit·build를 매 턴 종료 시 강제한다. 통과해야 턴이 닫힌다. 게이트를 끄려면 <code>.claude/hooks/verifierGate.config.json</code>을 사용자가 직접 조정.</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>히스토리: <code>docs/reports/</code> (파일명 날짜순)</span>
+    <span>generated by webnovel-editor-orchestrator · guksu-harness</span>
+  </footer>
+
+</div>
+</body>
+</html>

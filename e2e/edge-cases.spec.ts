@@ -28,23 +28,28 @@ async function newProject(page: Page, title = "테스트") {
 test("공백만 입력한 제목으로는 문서가 생성되지 않는다", async ({ page }) => {
   await newProject(page);
 
-  // 공백 제목 → 생성 안 됨
-  page.once("dialog", (d) => d.accept("   "));
+  // PromptModal: 공백 제목이면 만들기 버튼이 비활성 → 생성 안 됨
   await page.getByRole("button", { name: "+ 문서" }).click();
-  await expect(page.getByText("아직 문서가 없어요")).toBeVisible();
+  const dialog = page.getByRole("dialog", { name: "새 문서" });
+  await dialog.getByLabel("문서 제목").fill("   ");
+  await expect(
+    dialog.getByRole("button", { name: "만들기", exact: true }),
+  ).toBeDisabled();
   expect(await count(page, "documents")).toBe(0);
 
   // 유효 제목 → 생성됨 (+ 앞뒤 공백은 trim)
-  page.once("dialog", (d) => d.accept("  1화  "));
-  await page.getByRole("button", { name: "+ 문서" }).click();
+  await dialog.getByLabel("문서 제목").fill("  1화  ");
+  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
   await expect(page.getByRole("heading", { name: "1화", exact: true })).toBeVisible();
   expect(await count(page, "documents")).toBe(1);
 });
 
 test("작품 삭제 시 그 작품의 문서까지 cascade 삭제된다", async ({ page }) => {
   await newProject(page, "삭제대상");
-  page.once("dialog", (d) => d.accept("문서X"));
   await page.getByRole("button", { name: "+ 문서" }).click();
+  const newDocDialog = page.getByRole("dialog", { name: "새 문서" });
+  await newDocDialog.getByLabel("문서 제목").fill("문서X");
+  await newDocDialog.getByRole("button", { name: "만들기", exact: true }).click();
   await expect(page.getByRole("heading", { name: "문서X" })).toBeVisible();
   expect(await count(page, "documents")).toBe(1);
 

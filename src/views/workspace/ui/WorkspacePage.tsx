@@ -7,31 +7,55 @@ import type { JSONContent } from "@tiptap/react";
 import { Binder } from "@widgets/binder";
 import { Editor } from "@widgets/editor";
 import { Inspector } from "@widgets/inspector";
+import { SnapshotPanel } from "@widgets/snapshot-panel";
+import { NotesPanel } from "@widgets/notes-panel";
 import { AiAssistant } from "@widgets/ai-assistant";
 import { planReorder } from "@features/reorder-document";
 import { ThemeToggle } from "@features/toggle-theme";
 import { useAiChat } from "@features/ai-chat";
+import { computeProgress, sumWordCounts } from "@features/writing-goals";
+import { SearchPanel } from "@features/search-document";
+import { TrashPanel } from "@features/trash-document";
+import { ExportMenu } from "@features/export-document";
 import { useDocuments } from "@entities/document";
-import { useToast } from "@shared/ui";
+import { useProject } from "@entities/project";
+import { useToast, ProgressBar, cn } from "@shared/ui";
 
 export function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
   const {
     documents,
+    trashedDocuments,
     isLoading,
     error,
+    mutate: mutateDocuments,
     createDocument,
     renameDocument,
     deleteDocument,
+    restoreDocument,
+    permanentlyDeleteDocument,
     moveDocument,
     reorderSiblings,
     updateSynopsis,
+    updateGoal,
   } = useDocuments(id);
+  const { project, updateGoal: updateProjectGoal } = useProject(id);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [inspectorTab, setInspectorTab] = useState<"info" | "snapshots">("info");
+  const [notesOpen, setNotesOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  // 집중 모드: 주변 UI를 숨기고 본문에만 몰입(에디터 인스턴스는 재마운트 없이 유지).
+  const [focusMode, setFocusMode] = useState(false);
+  // 에디터가 올려주는 실시간 단어 수 — 목표·집중모드 카운터가 즉시 반영되도록.
+  const [liveWords, setLiveWords] = useState(0);
+  // 스냅샷 복원 시 에디터를 강제 재마운트해 교체된 content를 다시 로드하는 토큰.
+  const [reloadToken, setReloadToken] = useState(0);
   // view 레벨에 둬서 패널을 닫았다 열어도 다운로드한 모델/대화가 유지된다.
   const ai = useAiChat();
 
@@ -51,6 +75,33 @@ export function WorkspacePage() {
     [documents, selectedId],
   );
 
+  // 문서 전환 시 저장된 값으로 즉시 리셋(에디터 콜백이 곧 실시간 값으로 보정).
+  useEffect(() => {
+    const d = documents.find((x) => x.id === selectedId);
+    setLiveWords(d?.wordCount ?? 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  // 집중 모드에서 ESC로 빠져나오기.
+  useEffect(() => {
+    if (!focusMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFocusMode(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focusMode]);
+
+  // 작품 전체 단어 수 = 저장된 합계에서 현재 편집 문서만 실시간 값으로 치환.
+  const projectTotalWords = useMemo(() => {
+    const base = sumWordCounts(documents);
+    if (!selected || selected.type !== "DOC") return base;
+    return base - (selected.wordCount ?? 0) + liveWords;
+  }, [documents, selected, liveWords]);
+
+  // 집중 모드 하단에 은은하게 띄울 문서 목표 진행률.
+  const focusProgress = computeProgress(liveWords, selected?.goal);
+
   async function handleCreate(input: {
     title: string;
     type: "FOLDER" | "DOC";
@@ -62,6 +113,12 @@ export function WorkspacePage() {
     } catch {
       toast("문서 생성에 실패했어요.", "error");
     }
+  }
+
+  // 스냅샷 복원 완료 후: 문서 캐시 갱신 → selected.content 최신화 → 에디터 재마운트.
+  async function handleRestored() {
+    await mutateDocuments();
+    setReloadToken((t) => t + 1);
   }
 
   async function handleMove(
@@ -84,13 +141,53 @@ export function WorkspacePage() {
 
   return (
     <div className="flex h-screen flex-col">
-      {/* 상단 바 */}
-      <header className="flex h-48 items-center justify-between border-b border-border px-16">
+      {/* 상단 바 — 집중 모드에서는 숨김(에디터는 그대로 유지) */}
+      <header
+        className={cn(
+          "flex h-48 items-center justify-between border-b border-border px-16",
+          focusMode && "hidden",
+        )}
+      >
         <Link href="/dashboard" className="text-body-sm text-fg-weak hover:text-fg">
           ← 작품 목록
         </Link>
         <div className="flex items-center gap-8">
           <ThemeToggle />
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setFocusMode(true)}
+          >
+            집중
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setSearchOpen((v) => !v)}
+          >
+            {searchOpen ? "검색 닫기" : "검색"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setExportOpen(true)}
+          >
+            내보내기
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setTrashOpen((v) => !v)}
+          >
+            {trashOpen ? "휴지통 닫기" : "휴지통"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setNotesOpen((v) => !v)}
+          >
+            {notesOpen ? "리서치 닫기" : "리서치"}
+          </button>
           <button
             type="button"
             className="text-caption text-fg-weak hover:text-fg"
@@ -109,8 +206,8 @@ export function WorkspacePage() {
       </header>
 
       <div className="flex min-h-0 flex-1">
-        {/* 좌: 바인더 */}
-        <aside className="w-[260px] shrink-0">
+        {/* 좌: 바인더 — 집중 모드에서는 숨김(하지만 트리에 남겨 에디터 위치 유지 → 재마운트 방지) */}
+        <aside className={cn("w-[260px] shrink-0", focusMode && "hidden")}>
           <Binder
             documents={documents}
             selectedId={selectedId}
@@ -123,7 +220,7 @@ export function WorkspacePage() {
         </aside>
 
         {/* 중: 에디터 */}
-        <main className="min-w-0 flex-1 overflow-y-auto bg-bg">
+        <main className="relative min-w-0 flex-1 overflow-y-auto bg-bg">
           {isLoading && (
             <p className="p-24 text-body text-fg-weak">불러오는 중…</p>
           )}
@@ -140,30 +237,170 @@ export function WorkspacePage() {
           )}
           {selected && selected.type === "DOC" && (
             <Editor
-              key={selected.id}
+              key={`${selected.id}:${reloadToken}`}
               documentId={selected.id}
               projectId={id}
               initialContent={(selected.content as JSONContent | null) ?? null}
               title={selected.title}
+              onWordCountChange={setLiveWords}
             />
+          )}
+
+          {/* 집중 모드: 은은한 단어 수/진행률 + 나가기(ESC) */}
+          {focusMode && (
+            <div className="fixed bottom-16 right-16 z-10 flex flex-col items-end gap-6">
+              <div className="flex items-center gap-8 rounded-full border border-border bg-surface px-12 py-6 text-caption text-fg-weak shadow-sm">
+                <span className="tabular-nums">
+                  {liveWords.toLocaleString("ko-KR")}단어
+                </span>
+                {focusProgress.hasGoal && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span
+                      className={cn(
+                        "tabular-nums",
+                        focusProgress.reached && "text-success-strong",
+                      )}
+                    >
+                      {focusProgress.reached ? "달성" : `${focusProgress.percent}%`}
+                    </span>
+                  </>
+                )}
+                <button
+                  type="button"
+                  className="ml-4 text-fg-muted hover:text-fg"
+                  onClick={() => setFocusMode(false)}
+                >
+                  나가기 (ESC)
+                </button>
+              </div>
+              {focusProgress.hasGoal && (
+                <ProgressBar
+                  value={focusProgress.clampedPercent}
+                  reached={focusProgress.reached}
+                  aria-label="집중 모드 진행률"
+                  className="w-[200px]"
+                />
+              )}
+            </div>
           )}
         </main>
 
-        {/* 우: 인스펙터 (기본 접힘) */}
-        {inspectorOpen && (
-          <aside className="w-[280px] shrink-0 border-l border-border bg-surface p-16">
-            <h2 className="mb-12 text-caption font-medium text-fg-weak">인스펙터</h2>
-            <Inspector doc={selected} onSaveSynopsis={updateSynopsis} />
+        {/* 우: 인스펙터 (기본 접힘) — 정보 / 스냅샷 탭. 집중 모드에서는 숨김 */}
+        {inspectorOpen && !focusMode && (
+          <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+            <div role="tablist" className="mb-12 flex gap-4">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={inspectorTab === "info"}
+                onClick={() => setInspectorTab("info")}
+                className={
+                  inspectorTab === "info"
+                    ? "rounded-md px-8 py-4 text-caption font-medium text-fg"
+                    : "rounded-md px-8 py-4 text-caption text-fg-weak hover:text-fg"
+                }
+              >
+                정보
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={inspectorTab === "snapshots"}
+                onClick={() => setInspectorTab("snapshots")}
+                className={
+                  inspectorTab === "snapshots"
+                    ? "rounded-md px-8 py-4 text-caption font-medium text-fg"
+                    : "rounded-md px-8 py-4 text-caption text-fg-weak hover:text-fg"
+                }
+              >
+                스냅샷
+              </button>
+            </div>
+            {inspectorTab === "info" && (
+              <Inspector
+                doc={selected}
+                onSaveSynopsis={updateSynopsis}
+                currentWords={liveWords}
+                onSaveDocGoal={updateGoal}
+                projectTotalWords={projectTotalWords}
+                projectGoal={project?.goal}
+                onSaveProjectGoal={updateProjectGoal}
+              />
+            )}
+            {inspectorTab === "snapshots" &&
+              (selected && selected.type === "DOC" ? (
+                <SnapshotPanel doc={selected} onRestored={handleRestored} />
+              ) : (
+                <p className="text-body-sm text-fg-weak">
+                  본문 문서를 선택하면 스냅샷을 저장할 수 있어요.
+                </p>
+              ))}
+          </aside>
+        )}
+
+        {/* 우: 리서치 노트 (캐릭터·설정) — 바인더와 분리된 작품 단위 참고 자료 */}
+        {notesOpen && !focusMode && (
+          <aside className="w-[300px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+            <NotesPanel projectId={id} />
           </aside>
         )}
 
         {/* 우: AI 문답 (기본 접힘, 인스펙터처럼 토글) */}
-        {aiOpen && (
+        {aiOpen && !focusMode && (
           <aside className="w-[340px] shrink-0 border-l border-border bg-surface p-16">
             <AiAssistant ai={ai} />
           </aside>
         )}
+
+        {/* 우: 검색 — 제목·본문 검색, 결과 클릭 시 문서 선택 */}
+        {searchOpen && !focusMode && (
+          <aside className="w-[300px] shrink-0 overflow-hidden border-l border-border bg-surface p-16">
+            <SearchPanel
+              documents={documents}
+              onSelect={(docId) => {
+                setSelectedId(docId);
+                setSearchOpen(false);
+              }}
+            />
+          </aside>
+        )}
+
+        {/* 우: 휴지통 — 소프트 삭제 문서 복원 / 영구 삭제 */}
+        {trashOpen && !focusMode && (
+          <aside className="w-[300px] shrink-0 overflow-hidden border-l border-border bg-surface p-16">
+            <TrashPanel
+              trashedDocuments={trashedDocuments}
+              onRestore={async (docId) => {
+                const node = trashedDocuments.find((d) => d.id === docId);
+                try {
+                  await restoreDocument(docId);
+                  // 복원한 게 본문 문서면 바로 선택해 보여준다(폴더면 바인더에서 펼치도록 둔다).
+                  if (node?.type === "DOC") setSelectedId(docId);
+                } catch {
+                  toast("복원에 실패했어요.", "error");
+                }
+              }}
+              onPermanentDelete={async (docId) => {
+                try {
+                  await permanentlyDeleteDocument(docId);
+                } catch {
+                  toast("영구 삭제에 실패했어요.", "error");
+                }
+              }}
+            />
+          </aside>
+        )}
       </div>
+
+      {/* 내보내기 — txt/마크다운, 현재 문서 또는 작품 전체를 브라우저 다운로드 */}
+      <ExportMenu
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        projectTitle={project?.title ?? "작품"}
+        documents={documents}
+        selectedDoc={selected}
+      />
     </div>
   );
 }

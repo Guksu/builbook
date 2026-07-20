@@ -4,13 +4,9 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useState } from "react";
 import { useAutosave, SaveStatusBadge } from "@features/autosave-document";
+// 단어 수 규칙 단일 출처(경계면 규약) — 새로 세지 않고 순수 함수를 재사용.
+import { countWords } from "@features/snapshot-document";
 import type { JSONContent } from "@tiptap/react";
-
-// 단어 수: 텍스트를 공백 기준으로 셈(한글/영문 혼용 근사치).
-function countWords(text: string) {
-  const t = text.trim();
-  return t ? t.split(/\s+/).length : 0;
-}
 
 const EMPTY_DOC: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };
 
@@ -19,10 +15,18 @@ interface EditorProps {
   projectId: string;
   initialContent: JSONContent | null;
   title: string;
+  /** 실시간 단어 수를 상위(작업실)로 올려 목표·집중모드 카운터에 공유한다. */
+  onWordCountChange?: (words: number) => void;
 }
 
 // Tiptap 에디터 코어. 최소 확장 세트 + 자동저장. 집중 글쓰기 단일 컬럼.
-export function Editor({ documentId, projectId, initialContent, title }: EditorProps) {
+export function Editor({
+  documentId,
+  projectId,
+  initialContent,
+  title,
+  onWordCountChange,
+}: EditorProps) {
   const { status, schedule } = useAutosave(documentId, projectId);
   const [words, setWords] = useState(0);
 
@@ -39,6 +43,7 @@ export function Editor({ documentId, projectId, initialContent, title }: EditorP
     onUpdate({ editor }) {
       const w = countWords(editor.getText());
       setWords(w);
+      onWordCountChange?.(w);
       schedule(editor.getJSON(), w);
     },
   });
@@ -48,7 +53,11 @@ export function Editor({ documentId, projectId, initialContent, title }: EditorP
     if (editor && initialContent) {
       editor.commands.setContent(initialContent);
     }
-    if (editor) setWords(countWords(editor.getText()));
+    if (editor) {
+      const w = countWords(editor.getText());
+      setWords(w);
+      onWordCountChange?.(w);
+    }
     // documentId 변경 시에만 — initialContent는 그 시점 값 사용.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, editor]);

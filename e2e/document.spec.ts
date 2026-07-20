@@ -9,12 +9,18 @@ async function createProjectAndOpen(page: import("@playwright/test").Page) {
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+// '+ 문서'는 PromptModal로 제목을 받는다 (커밋 3388d03에서 네이티브 prompt 대체)
+async function createDoc(page: import("@playwright/test").Page, title: string) {
+  await page.getByRole("button", { name: "+ 문서" }).click();
+  const dialog = page.getByRole("dialog", { name: "새 문서" });
+  await dialog.getByLabel("문서 제목").fill(title);
+  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
+}
+
 test("문서 생성 → 집필 → 자동저장 → 새로고침 후 내용 유지", async ({ page }) => {
   await createProjectAndOpen(page);
 
-  // '+ 문서'는 window.prompt로 제목을 받는다 → dialog 핸들러로 응답
-  page.once("dialog", (d) => d.accept("1화 - 프롤로그"));
-  await page.getByRole("button", { name: "+ 문서" }).click();
+  await createDoc(page, "1화 - 프롤로그");
 
   // 새 문서가 자동 선택되어 에디터 등장
   const editor = page.locator(".prose-editor");
@@ -41,8 +47,7 @@ test("문서 생성 → 집필 → 자동저장 → 새로고침 후 내용 유�
 test("문서 삭제 시 바인더에서 사라진다", async ({ page }) => {
   await createProjectAndOpen(page);
 
-  page.once("dialog", (d) => d.accept("삭제될 문서"));
-  await page.getByRole("button", { name: "+ 문서" }).click();
+  await createDoc(page, "삭제될 문서");
   await expect(page.getByRole("heading", { name: "삭제될 문서" })).toBeVisible();
 
   // 바인더(nav) 행의 삭제(✕, aria-label 정확히 "삭제") 클릭 → 확인 모달

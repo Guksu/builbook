@@ -1,0 +1,10 @@
+{
+  "checks": [
+    { "name": "lint", "command": "npm run lint" },
+    { "name": "unit", "command": "npm test" },
+    { "name": "build", "command": "npm run build" }
+  ],
+  "maxIterations": 10,
+  "maxTokens": 2000000,
+  "stuckAfter": 3
+}

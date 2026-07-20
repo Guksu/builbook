@@ -202,8 +202,8 @@ export function Binder({
         title={`'${deleteTarget?.title}' 삭제`}
         description={
           deleteTarget?.type === "FOLDER"
-            ? "폴더와 하위 문서가 모두 삭제됩니다. 되돌릴 수 없습니다."
-            : "문서가 삭제됩니다. 되돌릴 수 없습니다."
+            ? "폴더와 하위 문서를 휴지통으로 보냅니다. 휴지통에서 되살릴 수 있어요."
+            : "문서를 휴지통으로 보냅니다. 휴지통에서 되살릴 수 있어요."
         }
         danger
         confirmText="삭제"

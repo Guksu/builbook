@@ -3,6 +3,7 @@ export { cn } from "./cn";
 export { Button, type ButtonProps } from "./Button";
 export { Input, type InputProps } from "./Input";
 export { Textarea, type TextareaProps } from "./Textarea";
+export { ProgressBar, type ProgressBarProps } from "./ProgressBar";
 export {
   Card,
   CardHeader,

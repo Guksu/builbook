@@ -1,2 +1,2 @@
 export type { Project } from "./model/types";
-export { useProjects } from "./api/useProjects";
+export { useProjects, useProject, projectKey } from "./api/useProjects";
