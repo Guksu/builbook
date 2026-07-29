@@ -15,6 +15,7 @@ import {
 } from "@shared/ui";
 import { useProjects, type Project } from "@entities/project";
 import { ThemeToggle } from "@features/toggle-theme";
+import { BackupModal, BackupReminder } from "@features/backup-restore";
 
 export function DashboardPage() {
   const { projects, isLoading, error, createProject, deleteProject } =
@@ -25,6 +26,7 @@ export function DashboardPage() {
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const [backupOpen, setBackupOpen] = useState(false);
   // 동기 in-flight 가드: 상태 업데이트(setBusy)는 비동기라 연속 호출(한글 IME의
   // Enter 더블 fire, 빠른 더블클릭)을 막지 못한다. ref로 즉시 차단해 중복 생성 방지.
   const creatingRef = useRef(false);
@@ -53,9 +55,18 @@ export function DashboardPage() {
         <h1 className="text-h1 text-fg">내 작품</h1>
         <div className="flex items-center gap-8">
           <ThemeToggle />
+          <Button variant="secondary" onClick={() => setBackupOpen(true)}>
+            백업
+          </Button>
           <Button onClick={() => setOpen(true)}>+ 새 작품</Button>
         </div>
       </header>
+
+      {/* 백업 권유 배너 — 백업한 적 없거나 7일 이상 지났을 때만 나타난다 */}
+      <BackupReminder
+        projectCount={projects.length}
+        onOpenBackup={() => setBackupOpen(true)}
+      />
 
       {isLoading && <p className="text-body text-fg-weak">불러오는 중…</p>}
       {error && <p className="text-body text-error">목록을 불러오지 못했어요.</p>}
@@ -130,6 +141,12 @@ export function DashboardPage() {
           }}
         />
       </Modal>
+
+      <BackupModal
+        open={backupOpen}
+        onClose={() => setBackupOpen(false)}
+        projectCount={projects.length}
+      />
 
       <ConfirmModal
         open={!!deleteTarget}
