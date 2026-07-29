@@ -9,6 +9,7 @@ import { Editor } from "@widgets/editor";
 import { Inspector } from "@widgets/inspector";
 import { SnapshotPanel } from "@widgets/snapshot-panel";
 import { NotesPanel } from "@widgets/notes-panel";
+import { StatsPanel } from "@widgets/stats-panel";
 import { AiAssistant } from "@widgets/ai-assistant";
 import { planReorder } from "@features/reorder-document";
 import { ThemeToggle } from "@features/toggle-theme";
@@ -17,6 +18,7 @@ import { computeProgress, sumWordCounts } from "@features/writing-goals";
 import { SearchPanel } from "@features/search-document";
 import { TrashPanel } from "@features/trash-document";
 import { ExportMenu } from "@features/export-document";
+import { ReaderPreview } from "@features/reader-preview";
 import { useDocuments } from "@entities/document";
 import { useProject } from "@entities/project";
 import { useToast, ProgressBar, cn } from "@shared/ui";
@@ -40,7 +42,12 @@ export function WorkspacePage() {
     updateSynopsis,
     updateGoal,
   } = useDocuments(id);
-  const { project, updateGoal: updateProjectGoal } = useProject(id);
+  const {
+    project,
+    updateGoal: updateProjectGoal,
+    updateDailyGoal,
+    updateEpisodeGoal,
+  } = useProject(id);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -50,6 +57,8 @@ export function WorkspacePage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   // 집중 모드: 주변 UI를 숨기고 본문에만 몰입(에디터 인스턴스는 재마운트 없이 유지).
   const [focusMode, setFocusMode] = useState(false);
   // 에디터가 올려주는 실시간 단어 수 — 목표·집중모드 카운터가 즉시 반영되도록.
@@ -159,6 +168,21 @@ export function WorkspacePage() {
             onClick={() => setFocusMode(true)}
           >
             집중
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setPreviewOpen(true)}
+            disabled={!selected || selected.type !== "DOC"}
+          >
+            미리보기
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setStatsOpen((v) => !v)}
+          >
+            {statsOpen ? "현황 닫기" : "현황"}
           </button>
           <button
             type="button"
@@ -346,6 +370,23 @@ export function WorkspacePage() {
           </aside>
         )}
 
+        {/* 우: 집필 현황 — 오늘 분량·연속 집필일·최근 추이·회차별 분량 */}
+        {statsOpen && !focusMode && (
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+            <StatsPanel
+              projectId={id}
+              documents={documents}
+              dailyGoal={project?.dailyGoal}
+              episodeGoal={project?.episodeGoal}
+              projectGoal={project?.goal}
+              projectWords={projectTotalWords}
+              onSaveDailyGoal={updateDailyGoal}
+              onSaveEpisodeGoal={updateEpisodeGoal}
+              onSelectDocument={setSelectedId}
+            />
+          </aside>
+        )}
+
         {/* 우: AI 문답 (기본 접힘, 인스펙터처럼 토글) */}
         {aiOpen && !focusMode && (
           <aside className="w-[340px] shrink-0 border-l border-border bg-surface p-16">
@@ -392,6 +433,16 @@ export function WorkspacePage() {
           </aside>
         )}
       </div>
+
+      {/* 독자 뷰 — 연재본처럼 보이는 현재 회차 미리보기 */}
+      {selected && selected.type === "DOC" && (
+        <ReaderPreview
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          title={selected.title}
+          content={selected.content}
+        />
+      )}
 
       {/* 내보내기 — txt/마크다운, 현재 문서 또는 작품 전체를 브라우저 다운로드 */}
       <ExportMenu
