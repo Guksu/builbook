@@ -10,6 +10,7 @@ import {
   dbBulkDelete,
 } from "@shared/db";
 import { deleteSnapshotsForDocuments } from "@entities/snapshot";
+import { recordWriting } from "@entities/writing-log";
 import type { DocumentNode, DocType } from "../model/types";
 import {
   collectSubtreeIds,
@@ -35,7 +36,14 @@ export async function saveDocumentContent(
 ) {
   const doc = await dbGet<DocumentNode>(STORES.documents, id);
   if (!doc) return;
+  // 저장 직전 값과의 차이가 곧 "방금 쓴 분량" — 일별 집필 기록의 유일한 입력이다.
+  const delta = wordCount - (doc.wordCount ?? 0);
   await dbPut(STORES.documents, { ...doc, content, wordCount, updatedAt: now() });
+  try {
+    await recordWriting(doc.projectId, delta);
+  } catch {
+    // 통계는 부가 정보 — 기록에 실패해도 원고 저장은 이미 끝났고 실패로 취급하지 않는다.
+  }
 }
 
 export function useDocuments(projectId: string) {
@@ -108,6 +116,14 @@ export function useDocuments(projectId: string) {
       const doc = await dbGet<DocumentNode>(STORES.documents, id);
       if (!doc) return;
       await dbPut(STORES.documents, { ...doc, synopsis, updatedAt: now() });
+      await mutate();
+    },
+
+    // 진행 상태 설정(초고/퇴고/완료). 코르크보드 상태 칩이 호출한다.
+    async updateStatus(id: string, status: string) {
+      const doc = await dbGet<DocumentNode>(STORES.documents, id);
+      if (!doc) return;
+      await dbPut(STORES.documents, { ...doc, status, updatedAt: now() });
       await mutate();
     },
 

@@ -1,6 +1,6 @@
 // 집필 목표 진행률 계산 — 순수 함수(UI/DB 비종속이라 단위 테스트가 쉽다).
 // 단위는 '단어 수'(DocumentNode.wordCount)로 통일한다 — 앱 전반이 단어 수를 노출하고,
-// 세는 규칙은 snapshotText.countWords 단일 출처를 재사용한다(여기선 이미 센 값만 소비).
+// 세는 규칙은 @shared/lib의 countWords 단일 출처를 재사용한다(여기선 이미 센 값만 소비).
 
 export interface GoalProgress {
   hasGoal: boolean; // 유효한 목표(양수)가 설정됐는가 — 미설정/0/음수는 false

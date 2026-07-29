@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useState } from "react";
 import { useAutosave, SaveStatusBadge } from "@features/autosave-document";
 // 단어 수 규칙 단일 출처(경계면 규약) — 새로 세지 않고 순수 함수를 재사용.
-import { countWords } from "@features/snapshot-document";
+import { countWords } from "@shared/lib";
 import type { JSONContent } from "@tiptap/react";
 
 const EMPTY_DOC: JSONContent = { type: "doc", content: [{ type: "paragraph" }] };

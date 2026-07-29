@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import { saveDocumentContent, documentsKey } from "@entities/document";
+import { writingLogsKey } from "@entities/writing-log";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -27,6 +28,8 @@ export function useAutosave(documentId: string, projectId: string) {
       localStorage.removeItem(backupKey(documentId));
       // 문서 목록 캐시 무효화 → 다른 문서로 전환해도 최신 content 반영.
       void mutate(documentsKey(projectId));
+      // 저장이 곧 집필 기록 갱신 — 열려 있는 집필 현황 패널이 바로 따라온다.
+      void mutate(writingLogsKey(projectId));
     } catch {
       // 실패 → 로컬 백업 + error 상태. 다음 입력/언마운트 시 재시도.
       try {

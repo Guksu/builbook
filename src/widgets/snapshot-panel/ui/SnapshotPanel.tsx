@@ -8,12 +8,8 @@ import {
   type Snapshot,
 } from "@entities/snapshot";
 import { saveDocumentContent, type DocumentNode } from "@entities/document";
-import {
-  buildPreview,
-  extractPlainText,
-  countChars,
-  formatSignedDiff,
-} from "@features/snapshot-document";
+import { buildPreview, formatSignedDiff } from "@features/snapshot-document";
+import { extractPlainText, countChars } from "@shared/lib";
 
 interface SnapshotPanelProps {
   /** 현재 선택된 DOC 문서 */
