@@ -9,6 +9,10 @@ import { Editor } from "@widgets/editor";
 import { Inspector } from "@widgets/inspector";
 import { SnapshotPanel } from "@widgets/snapshot-panel";
 import { NotesPanel } from "@widgets/notes-panel";
+import { StatsPanel } from "@widgets/stats-panel";
+import { Corkboard } from "@widgets/corkboard";
+import { TimelinePanel } from "@widgets/timeline-panel";
+import { ConsistencyPanel } from "@widgets/consistency-panel";
 import { AiAssistant } from "@widgets/ai-assistant";
 import { planReorder } from "@features/reorder-document";
 import { ThemeToggle } from "@features/toggle-theme";
@@ -17,6 +21,7 @@ import { computeProgress, sumWordCounts } from "@features/writing-goals";
 import { SearchPanel } from "@features/search-document";
 import { TrashPanel } from "@features/trash-document";
 import { ExportMenu } from "@features/export-document";
+import { ReaderPreview } from "@features/reader-preview";
 import { useDocuments } from "@entities/document";
 import { useProject } from "@entities/project";
 import { useToast, ProgressBar, cn } from "@shared/ui";
@@ -39,8 +44,14 @@ export function WorkspacePage() {
     reorderSiblings,
     updateSynopsis,
     updateGoal,
+    updateStatus,
   } = useDocuments(id);
-  const { project, updateGoal: updateProjectGoal } = useProject(id);
+  const {
+    project,
+    updateGoal: updateProjectGoal,
+    updateDailyGoal,
+    updateEpisodeGoal,
+  } = useProject(id);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -50,6 +61,12 @@ export function WorkspacePage() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [checkOpen, setCheckOpen] = useState(false);
+  // 가운데 영역 보기 모드: 본문(에디터) ↔ 카드(코르크보드).
+  const [viewMode, setViewMode] = useState<"editor" | "corkboard">("editor");
+  const [previewOpen, setPreviewOpen] = useState(false);
   // 집중 모드: 주변 UI를 숨기고 본문에만 몰입(에디터 인스턴스는 재마운트 없이 유지).
   const [focusMode, setFocusMode] = useState(false);
   // 에디터가 올려주는 실시간 단어 수 — 목표·집중모드 카운터가 즉시 반영되도록.
@@ -163,6 +180,42 @@ export function WorkspacePage() {
           <button
             type="button"
             className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setViewMode((m) => (m === "editor" ? "corkboard" : "editor"))}
+          >
+            {viewMode === "editor" ? "카드" : "본문"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setTimelineOpen((v) => !v)}
+          >
+            {timelineOpen ? "연표 닫기" : "연표"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setPreviewOpen(true)}
+            disabled={!selected || selected.type !== "DOC"}
+          >
+            미리보기
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setStatsOpen((v) => !v)}
+          >
+            {statsOpen ? "현황 닫기" : "현황"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setCheckOpen((v) => !v)}
+          >
+            {checkOpen ? "점검 닫기" : "점검"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
             onClick={() => setSearchOpen((v) => !v)}
           >
             {searchOpen ? "검색 닫기" : "검색"}
@@ -227,7 +280,20 @@ export function WorkspacePage() {
           {error && (
             <p className="p-24 text-body text-error">문서를 불러오지 못했어요.</p>
           )}
-          {!isLoading && !error && !selected && (
+          {!isLoading && !error && viewMode === "corkboard" && (
+            <Corkboard
+              documents={documents}
+              selectedId={selectedId}
+              onOpen={(docId) => {
+                setSelectedId(docId);
+                setViewMode("editor"); // 카드를 열면 곧바로 본문으로
+              }}
+              onUpdateSynopsis={updateSynopsis}
+              onUpdateStatus={updateStatus}
+              onMove={handleMove}
+            />
+          )}
+          {!isLoading && !error && !selected && viewMode === "editor" && (
             <div className="flex h-full flex-col items-center justify-center gap-8 text-center text-fg-weak">
               <p className="text-body-lg">왼쪽에서 문서를 선택하거나</p>
               <p className="text-body">
@@ -235,7 +301,7 @@ export function WorkspacePage() {
               </p>
             </div>
           )}
-          {selected && selected.type === "DOC" && (
+          {selected && selected.type === "DOC" && viewMode === "editor" && (
             <Editor
               key={`${selected.id}:${reloadToken}`}
               documentId={selected.id}
@@ -346,6 +412,48 @@ export function WorkspacePage() {
           </aside>
         )}
 
+        {/* 우: 타임라인(연표) — 사건 순서와 회차 연결 */}
+        {timelineOpen && !focusMode && (
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+            <TimelinePanel
+              projectId={id}
+              documents={documents}
+              onOpenDocument={(docId) => {
+                setSelectedId(docId);
+                setViewMode("editor");
+              }}
+            />
+          </aside>
+        )}
+
+        {/* 우: 설정 점검 — 고유명사 사전·표기 흔들림·문장 리듬 */}
+        {checkOpen && !focusMode && (
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+            <ConsistencyPanel
+              projectId={id}
+              documents={documents}
+              selectedDoc={selected}
+            />
+          </aside>
+        )}
+
+        {/* 우: 집필 현황 — 오늘 분량·연속 집필일·최근 추이·회차별 분량 */}
+        {statsOpen && !focusMode && (
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+            <StatsPanel
+              projectId={id}
+              documents={documents}
+              dailyGoal={project?.dailyGoal}
+              episodeGoal={project?.episodeGoal}
+              projectGoal={project?.goal}
+              projectWords={projectTotalWords}
+              onSaveDailyGoal={updateDailyGoal}
+              onSaveEpisodeGoal={updateEpisodeGoal}
+              onSelectDocument={setSelectedId}
+            />
+          </aside>
+        )}
+
         {/* 우: AI 문답 (기본 접힘, 인스펙터처럼 토글) */}
         {aiOpen && !focusMode && (
           <aside className="w-[340px] shrink-0 border-l border-border bg-surface p-16">
@@ -392,6 +500,16 @@ export function WorkspacePage() {
           </aside>
         )}
       </div>
+
+      {/* 독자 뷰 — 연재본처럼 보이는 현재 회차 미리보기 */}
+      {selected && selected.type === "DOC" && (
+        <ReaderPreview
+          open={previewOpen}
+          onClose={() => setPreviewOpen(false)}
+          title={selected.title}
+          content={selected.content}
+        />
+      )}
 
       {/* 내보내기 — txt/마크다운, 현재 문서 또는 작품 전체를 브라우저 다운로드 */}
       <ExportMenu

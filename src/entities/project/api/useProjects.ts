@@ -12,6 +12,9 @@ import {
 } from "@shared/db";
 import { deleteSnapshotsForDocuments } from "@entities/snapshot";
 import { deleteNotesForProject } from "@entities/note";
+import { deleteWritingLogsForProject } from "@entities/writing-log";
+import { deleteStoryEventsForProject } from "@entities/story-event";
+import { deleteTermsForProject } from "@entities/term";
 import type { Project } from "../model/types";
 
 const KEY = "projects";
@@ -31,19 +34,29 @@ export function useProject(projectId: string) {
     () => dbGet<Project>(STORES.projects, projectId),
   );
 
+  // 목표 필드 3종(작품 총량·하루·회차)은 저장 방식이 같아 한 함수로 처리한다.
+  async function updateGoalField(
+    field: "goal" | "dailyGoal" | "episodeGoal",
+    value: number | null,
+  ) {
+    const p = await dbGet<Project>(STORES.projects, projectId);
+    if (!p) return;
+    await dbPut(STORES.projects, {
+      ...p,
+      [field]: value ?? undefined, // null이면 목표 해제
+      updatedAt: new Date().toISOString(),
+    });
+    await mutate();
+  }
+
   return {
     project: data ?? null,
     // 작품 목표 단어 수 설정. null이면 목표 해제(undefined 저장).
-    async updateGoal(goal: number | null) {
-      const p = await dbGet<Project>(STORES.projects, projectId);
-      if (!p) return;
-      await dbPut(STORES.projects, {
-        ...p,
-        goal: goal ?? undefined,
-        updatedAt: new Date().toISOString(),
-      });
-      await mutate();
-    },
+    updateGoal: (goal: number | null) => updateGoalField("goal", goal),
+    // 하루 목표 단어 수(집필 현황 '오늘' 진행률 기준).
+    updateDailyGoal: (goal: number | null) => updateGoalField("dailyGoal", goal),
+    // 회차 목표 분량(공백 포함 글자 수).
+    updateEpisodeGoal: (goal: number | null) => updateGoalField("episodeGoal", goal),
   };
 }
 
@@ -80,6 +93,12 @@ export function useProjects() {
       await deleteSnapshotsForDocuments(docIds);
       // 딸린 리서치 노트(캐릭터·설정)도 함께 정리 — 고아 노트 누적 방지.
       await deleteNotesForProject(id);
+      // 일별 집필 기록도 함께 정리 — 고아 기록 누적 방지.
+      await deleteWritingLogsForProject(id);
+      // 타임라인 사건도 함께 정리 — 고아 사건 누적 방지.
+      await deleteStoryEventsForProject(id);
+      // 고유명사 사전도 함께 정리 — 고아 용어 누적 방지.
+      await deleteTermsForProject(id);
       await dbDelete(STORES.projects, id);
       await mutate();
     },

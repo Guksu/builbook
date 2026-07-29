@@ -5,13 +5,20 @@ import { openDB, type IDBPDatabase } from "idb";
 const DB_NAME = "builbook";
 // v2: snapshots 스토어 추가(문서 버전 히스토리).
 // v3: notes 스토어 추가(캐릭터·설정 리서치 노트). 업그레이드 콜백은 기존 스토어를 건드리지 않는다.
-const DB_VERSION = 3;
+// v4: writingLogs 스토어 추가(일별 집필량·연속 집필일).
+// v5: events 스토어 추가(타임라인 사건).
+// v6: terms 스토어 추가(고유명사 사전).
+// 백업 파일에 기록해 진단에 쓴다(복원 로직은 버전이 아니라 레코드 형태만 본다).
+export const DB_VERSION = 6;
 
 export const STORES = {
   projects: "projects",
   documents: "documents",
   snapshots: "snapshots",
   notes: "notes",
+  writingLogs: "writingLogs",
+  events: "events",
+  terms: "terms",
 } as const;
 export type StoreName = (typeof STORES)[keyof typeof STORES];
 
@@ -39,6 +46,18 @@ function getDB() {
       if (!db.objectStoreNames.contains(STORES.notes)) {
         const notes = db.createObjectStore(STORES.notes, { keyPath: "id" });
         notes.createIndex("by-project", "projectId");
+      }
+      if (!db.objectStoreNames.contains(STORES.writingLogs)) {
+        const logs = db.createObjectStore(STORES.writingLogs, { keyPath: "id" });
+        logs.createIndex("by-project", "projectId");
+      }
+      if (!db.objectStoreNames.contains(STORES.events)) {
+        const events = db.createObjectStore(STORES.events, { keyPath: "id" });
+        events.createIndex("by-project", "projectId");
+      }
+      if (!db.objectStoreNames.contains(STORES.terms)) {
+        const terms = db.createObjectStore(STORES.terms, { keyPath: "id" });
+        terms.createIndex("by-project", "projectId");
       }
     },
   });
@@ -89,4 +108,13 @@ export async function dbBulkDelete(store: StoreName, ids: string[]): Promise<voi
   const db = await getDB();
   const tx = db.transaction(store, "readwrite");
   await Promise.all([...ids.map((id) => tx.store.delete(id)), tx.done]);
+}
+
+// 스토어 하나를 통째로 비우고 주어진 레코드로 교체한다(백업 '전체 교체' 복원 전용).
+// 비우기와 채우기를 한 트랜잭션에 묶는다 — 중간에 실패해도 빈 스토어가 남지 않는다.
+export async function dbReplaceAll<T>(store: StoreName, values: T[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(store, "readwrite");
+  await tx.store.clear();
+  await Promise.all([...values.map((v) => tx.store.put(v)), tx.done]);
 }

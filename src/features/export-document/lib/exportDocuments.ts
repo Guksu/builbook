@@ -1,9 +1,9 @@
 // 내보내기 변환 — 순수 함수(브라우저/DB 비종속). ProseMirror JSON → txt/markdown.
-// 평문 추출은 snapshot-document의 단일 출처(extractPlainText)를 재사용한다.
+// 평문 추출은 @shared/lib의 단일 출처(extractPlainText)를 재사용한다.
 
 import type { DocumentNode } from "@entities/document";
 import { selectActiveDocuments, flattenTree } from "@entities/document";
-import { extractPlainText } from "@features/snapshot-document";
+import { extractPlainText } from "@shared/lib";
 
 // 마크다운 헤딩 최대 깊이(h6). 트리가 깊어도 ###### 이상은 만들지 않는다.
 const MAX_HEADING = 6;

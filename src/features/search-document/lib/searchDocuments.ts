@@ -1,8 +1,8 @@
 // 작품 내 문서 검색 — 순수 함수(UI/DB 비종속). 제목 + 본문(평문) 대상.
-// 본문 평문 추출은 snapshot-document의 단일 출처(extractPlainText)를 재사용한다.
+// 본문 평문 추출은 @shared/lib의 단일 출처(extractPlainText)를 재사용한다.
 
 import type { DocumentNode } from "@entities/document";
-import { extractPlainText } from "@features/snapshot-document";
+import { extractPlainText } from "@shared/lib";
 
 export interface SearchMatch {
   doc: DocumentNode;

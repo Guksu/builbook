@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작업 보고서 — 집필 도구 4종 세트</title>
+<style>
+  :root {
+    --ink: #1c1c1c; --sub: #595959; --line: #e3e3e3; --bg: #f6f6f4; --card: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.6; font-size: 15px;
+    padding: 40px 16px;
+  }
+  .page { max-width: 860px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 44px 48px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 26px; }
+  .doc-label { font-size: 12px; letter-spacing: .14em; color: var(--sub); text-transform: uppercase; }
+  h1 { font-size: 24px; font-weight: 700; margin: 6px 0 12px; }
+  .status { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 4px; border: 1px solid; }
+  .status[data-status="done"]    { color: #1a7f37; background: #ebf7ee; border-color: #9fd6ad; }
+  .status[data-status="partial"] { color: #9a6700; background: #fff8e5; border-color: #e6c86e; }
+  .status[data-status="stopped"] { color: #b42318; background: #fdf0ee; border-color: #f0a9a0; }
+  table.meta { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+  table.meta th { text-align: left; color: var(--sub); font-weight: 600; width: 110px; padding: 3px 0; vertical-align: top; }
+  table.meta td { padding: 3px 0; }
+  h2 { font-size: 16.5px; font-weight: 700; margin: 34px 0 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+  p.summary { color: var(--ink); }
+  table.grid { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 4px; }
+  table.grid th { background: #f2f2ef; text-align: left; padding: 8px 12px; border: 1px solid var(--line); font-weight: 600; }
+  table.grid td { padding: 8px 12px; border: 1px solid var(--line); vertical-align: top; }
+  .ok { color: #1a7f37; font-weight: 700; }
+  .fail { color: #b42318; font-weight: 700; }
+  .item { border: 1px solid var(--line); border-left: 4px solid #8a8a8a; border-radius: 6px; padding: 14px 16px; margin: 10px 0; background: #fcfcfb; }
+  .review .item { border-left-color: #d4a72c; background: #fffdf5; }
+  .followup .item { border-left-color: #4477aa; background: #f8fbfd; }
+  .item b.title { display: block; font-size: 14.5px; margin-bottom: 4px; }
+  .item .why { color: var(--sub); font-size: 13.5px; }
+  .none { color: var(--sub); font-size: 14px; }
+  footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--sub); font-size: 12.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  code { font-family: ui-monospace, 'D2Coding', Consolas, monospace; font-size: .92em; background: #f2f2ef; padding: 1px 5px; border-radius: 3px; }
+  @media print { body { background: #fff; padding: 0; } .page { border: none; padding: 24px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="doc-label">Work Report · builbook</div>
+    <h1>집필 도구 4종 세트 (백업 · 연재 · 구조 · 일관성)</h1>
+    <span class="status" data-status="done">완료</span>
+    <table class="meta">
+      <tr><th>날짜</th><td>2026-07-29</td></tr>
+      <tr><th>작성</th><td>Claude (webnovel-editor-orchestrator)</td></tr>
+      <tr><th>브랜치</th><td><code>feat/writing-tools</code> (커밋은 사용자 전담 — 변경만 쌓여 있음)</td></tr>
+      <tr><th>워크로그</th><td><code>docs/worklogs/2026-07-29-writing-tools.md</code> — 정본 기록</td></tr>
+    </table>
+  </header>
+
+  <h2>1. 요약</h2>
+  <p class="summary">
+    본격적인 장편 집필에 들어가기 전, 에디터에 빠져 있던 집필 실무 도구를 채웠다. 사용자가 고른 네 묶음
+    — 데이터 안전(전체 백업·복원), 연재 실전(집필량·연속일·회차 분량·독자 뷰), 구조 설계(코르크보드·타임라인),
+    설정 일관성(고유명사 사전·표기 흔들림 검사·문장 진단) — 을 모두 구현했다. 백엔드 없는 local-first 구조는
+    그대로 유지했고, IndexedDB 스토어 3개(<code>writingLogs</code>·<code>events</code>·<code>terms</code>)
+    추가와 기존 레코드의 선택 필드 추가만으로 수용해 기존 데이터 마이그레이션은 없다. 판정·분석 로직은 전부
+    순수 함수로 분리해 단위 테스트로 덮었고(199개), 기능별 e2e 15개를 새로 추가해 전체 34개가 통과한다.
+    작업 도중 발견한 백업 배너 상태 공유 버그(모달에서 백업해도 배너가 옛 상태로 남음)는 SWR 캐시 키 공유로 수정했다.
+  </p>
+
+  <h2>2. 작업 내용</h2>
+  <table class="grid">
+    <tr><th style="width:130px">구분</th><th style="width:280px">경로</th><th>내용</th></tr>
+    <tr>
+      <td>추가</td>
+      <td><code>src/shared/lib/text.ts</code></td>
+      <td>본문 텍스트 유틸 단일 출처(<code>extractPlainText</code>·<code>countWords</code>·<code>countChars</code>·<code>countCharsWithSpaces</code>). 기존 <code>@features/snapshot-document</code>에 있던 함수를 shared로 내려 feature→feature 수평 import 확산을 차단(2026-07-20 QA 후속 과제 해소).</td>
+    </tr>
+    <tr>
+      <td>수정</td>
+      <td><code>src/shared/db/index.ts</code></td>
+      <td>DB v3→v6: <code>writingLogs</code>(v4)·<code>events</code>(v5)·<code>terms</code>(v6) 스토어 추가. <code>dbReplaceAll</code>(비우기+채우기 단일 트랜잭션) 추가, <code>DB_VERSION</code> export.</td>
+    </tr>
+    <tr>
+      <td>추가</td>
+      <td><code>src/features/backup-restore/**</code></td>
+      <td>전체 백업 JSON 내보내기 / 복원(합치기·전체교체). 검증(<code>parseBackup</code>: 남의 파일·미래 버전·손상 레코드 거부), 병합 규칙(같은 id면 <code>updatedAt</code> 최신 우선 — 오래된 백업이 최신 원고를 덮지 않음), 고아 정리, 미백업 배너(대시보드).</td>
+    </tr>
+    <tr>
+      <td>추가</td>
+      <td><code>src/entities/writing-log/**</code>, <code>src/features/writing-stats/**</code>, <code>src/widgets/stats-panel/**</code></td>
+      <td>일별 집필 기록(작품×날짜 1레코드) + 연속 집필일·14일 추이·평균·완성 예상일 + 회차 분량표(공백 포함 글자 수, 기본 목표 5,500자, 짧음/적정/긴 편). 기록 입력점은 <code>saveDocumentContent</code>의 저장 델타 한 곳.</td>
+    </tr>
+    <tr>
+      <td>추가</td>
+      <td><code>src/features/reader-preview/**</code></td>
+      <td>독자 뷰 미리보기 — 좁은 단·넓은 행간·글자 크기 3단계, 분량·예상 읽기 시간(600자/분)·대사 비율 표시.</td>
+    </tr>
+    <tr>
+      <td>추가</td>
+      <td><code>src/features/corkboard/**</code>, <code>src/widgets/corkboard/**</code></td>
+      <td>코르크보드 — 시놉시스 카드 그리드, 인라인 편집, 진행 상태 칩(초고→퇴고→완료), 드래그 재정렬(바인더와 동일한 <code>planReorder</code> 규약). 작업실 가운데 영역에 본문↔카드 보기 모드 도입.</td>
+    </tr>
+    <tr>
+      <td>추가</td>
+      <td><code>src/entities/story-event/**</code>, <code>src/widgets/timeline-panel/**</code></td>
+      <td>타임라인(연표) — 사건 이름·작중 시점·설명·연결 회차, 위/아래 순서 이동, 삭제된 회차 연결은 '끊어진 연결'로 표시.</td>
+    </tr>
+    <tr>
+      <td>추가</td>
+      <td><code>src/entities/term/**</code>, <code>src/features/consistency-check/**</code>, <code>src/widgets/consistency-panel/**</code></td>
+      <td>고유명사 사전(정본 표기·분류·허용 이명) + 표기 흔들림 검사(조사 감안 앞부분 편집거리, 다른 용어의 정본은 오탐 제외) + 문장 진단(문장 길이·긴 문장 수·대사 비율·어미 3연속 반복·자주 쓴 말).</td>
+    </tr>
+    <tr>
+      <td>수정</td>
+      <td><code>src/entities/{document,project}/**</code></td>
+      <td>선택 필드 추가: <code>Document.status</code>, <code>Project.dailyGoal</code>·<code>episodeGoal</code>. 작품 삭제 cascade에 신규 스토어 3종 정리 연결(고아 방지).</td>
+    </tr>
+    <tr>
+      <td>수정</td>
+      <td><code>src/views/{workspace,dashboard}/**</code></td>
+      <td>작업실 헤더에 카드·연표·미리보기·현황·점검 진입점 추가 및 우측 패널 연결, 대시보드에 백업 버튼·배너 연결.</td>
+    </tr>
+    <tr>
+      <td>추가</td>
+      <td><code>e2e/{backup,serial-tools,structure-tools,consistency-tools}.spec.ts</code></td>
+      <td>기능별 e2e 15개. 백업 왕복 복원·남의 파일 거부, 집필량 기록·회차표·독자 뷰, 시놉시스/상태/연표 CRUD·순서, 사전 영속·흔들림 검출·이명 예외·문장 진단.</td>
+    </tr>
+    <tr>
+      <td>수정</td>
+      <td><code>CLAUDE.md</code>, <code>_workspace/01_product_spec.md</code>, <code>docs/worklogs/2026-07-29-writing-tools.md</code></td>
+      <td>변경 이력 1행 추가, 제품 스펙에 확장 섹션(§7) 추가, 정본 워크로그 작성.</td>
+    </tr>
+  </table>
+
+  <h2>3. 검증 결과</h2>
+  <table class="grid">
+    <tr><th style="width:180px">항목</th><th style="width:280px">방법·명령</th><th>결과</th></tr>
+    <tr><td>린트</td><td><code>npm run lint</code></td><td class="ok">통과 (경고·오류 0)</td></tr>
+    <tr><td>단위 테스트</td><td><code>npm test</code> (vitest)</td><td class="ok">통과 199/199 (신규 120)</td></tr>
+    <tr><td>타입 체크</td><td><code>npx tsc --noEmit</code></td><td class="ok">오류 없음</td></tr>
+    <tr><td>프로덕션 빌드</td><td><code>npm run build</code></td><td class="ok">성공 (5개 라우트)</td></tr>
+    <tr><td>E2E</td><td><code>npx playwright test</code></td><td class="ok">통과 34/34 (신규 15)</td></tr>
+    <tr><td>작업 중 발견·수정한 결함</td><td>e2e 실패 추적</td><td class="ok">2건 수정 — ① 백업 후 배너가 갱신되지 않던 상태 공유 버그(SWR 키 공유로 해결) ② 병렬 e2e에서 하이드레이션 전 클릭 오탐(대기 조건 + <code>expect.timeout</code> 10초)</td></tr>
+  </table>
+
+  <h2>4. 사용자 검토 필요</h2>
+  <div class="review">
+    <div class="item">
+      <b class="title">브랜치 분리 방식 — 세트별 분리 요청이 커밋 없이는 성립하지 않음</b>
+      <div class="why">
+        요청은 "기능별 브랜치 분리"였으나 커밋은 사용자 전담(<code>blockGitMutation</code> 훅)이라, 브랜치를 새로 파도
+        커밋되지 않은 변경이 워킹트리째 따라와 실제 분리가 되지 않는다. 그래서 전부 <code>feat/writing-tools</code> 한
+        브랜치에 쌓았다. 선택지 — ① 이대로 한 번에 커밋, ② 워크로그 §2의 묶음별 파일 목록대로 4커밋으로 나눠 커밋
+        (<code>git add</code>를 묶음 단위로), ③ 세트별 브랜치가 꼭 필요하면 커밋 위임 여부를 알려주면 그 순서로 재구성.
+        미결정 시 기본 동작: 변경은 그대로 두고 아무 커밋도 하지 않는다. 중간에 만든 빈 브랜치
+        <code>feat/backup-restore</code>·<code>feat/serial-tools</code>는 삭제해도 무방하다.
+      </div>
+    </div>
+    <div class="item">
+      <b class="title">회차 분량 기준값(기본 5,500자·공백 포함)이 목표 연재처와 맞는지</b>
+      <div class="why">
+        플랫폼마다 한 편 기준이 다르다(5,000~5,500자가 흔함). 작품별로 '현황' 패널에서 바꿀 수 있으나 기본값은 코드
+        상수(<code>DEFAULT_EPISODE_GOAL</code>)다. 다른 값을 쓰신다면 알려주면 기본값을 바꾼다. 미결정 시 5,500자 유지.
+      </div>
+    </div>
+  </div>
+
+  <h2>5. 후속 조치</h2>
+  <div class="followup">
+    <div class="item">
+      <b class="title">되돌릴 때: DB 버전 6은 다운그레이드가 불가능하다</b>
+      <div class="why">
+        이 변경을 되돌리면 이미 v6로 올라간 브라우저는 <code>VersionError</code>로 앱이 열리지 않는다(IndexedDB 제약).
+        되돌려야 한다면 먼저 백업 파일을 내보내고 → 브라우저 저장소를 지우고 → 이전 버전에서 복원한다. 담당: 사용자,
+        트리거: 롤백 결정 시.
+      </div>
+    </div>
+    <div class="item">
+      <b class="title">스토어를 새로 추가할 때 백업 계약 4곳을 함께 갱신</b>
+      <div class="why">
+        <code>BackupData</code>·<code>BACKUP_STORES</code>·<code>readAllData</code>·<code>importBackup</code>의
+        <code>dbReplaceAll</code> 목록. 하나라도 빠지면 그 데이터가 조용히 백업에서 누락된다. 담당: 다음 기능 구현
+        에이전트, 트리거: 새 IndexedDB 스토어 추가 시. 경로: <code>src/features/backup-restore/</code>.
+      </div>
+    </div>
+    <div class="item">
+      <b class="title">집필 시작 후 백업 습관 — 배너는 7일 기준</b>
+      <div class="why">
+        원고는 이 브라우저의 IndexedDB에만 있다. 대시보드 배너는 미백업이거나 7일이 지나야 뜨므로, 실제 연재 중에는
+        더 자주(회차 마감마다) 내보내기를 권한다. 담당: 사용자, 트리거: 회차 완성 시.
+      </div>
+    </div>
+    <div class="item">
+      <b class="title">표기 검사 정밀도는 사용하면서 조정</b>
+      <div class="why">
+        형태소 분석기 없이 도는 어림이라 비슷한 고유명사에서 오탐이 날 수 있다. 오탐이 반복되면 사전의 '허용 표기'에
+        등록하는 것이 1차 해법이고, 그래도 잦으면 <code>toleranceFor</code>(표기 길이별 허용 오차) 조정을 요청하면 된다.
+        담당: 사용자 → 에이전트, 트리거: 오탐 누적 시. 경로: <code>src/features/consistency-check/lib/variants.ts</code>.
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>히스토리: <code>docs/reports/</code> (파일명 날짜순)</span>
+    <span>generated by report 스킬 · guksu-harness</span>
+  </footer>
+
+</div>
+</body>
+</html>
