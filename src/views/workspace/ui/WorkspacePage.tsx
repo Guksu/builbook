@@ -12,6 +12,7 @@ import { NotesPanel } from "@widgets/notes-panel";
 import { StatsPanel } from "@widgets/stats-panel";
 import { Corkboard } from "@widgets/corkboard";
 import { TimelinePanel } from "@widgets/timeline-panel";
+import { ConsistencyPanel } from "@widgets/consistency-panel";
 import { AiAssistant } from "@widgets/ai-assistant";
 import { planReorder } from "@features/reorder-document";
 import { ThemeToggle } from "@features/toggle-theme";
@@ -62,6 +63,7 @@ export function WorkspacePage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [checkOpen, setCheckOpen] = useState(false);
   // 가운데 영역 보기 모드: 본문(에디터) ↔ 카드(코르크보드).
   const [viewMode, setViewMode] = useState<"editor" | "corkboard">("editor");
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -203,6 +205,13 @@ export function WorkspacePage() {
             onClick={() => setStatsOpen((v) => !v)}
           >
             {statsOpen ? "현황 닫기" : "현황"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setCheckOpen((v) => !v)}
+          >
+            {checkOpen ? "점검 닫기" : "점검"}
           </button>
           <button
             type="button"
@@ -413,6 +422,17 @@ export function WorkspacePage() {
                 setSelectedId(docId);
                 setViewMode("editor");
               }}
+            />
+          </aside>
+        )}
+
+        {/* 우: 설정 점검 — 고유명사 사전·표기 흔들림·문장 리듬 */}
+        {checkOpen && !focusMode && (
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+            <ConsistencyPanel
+              projectId={id}
+              documents={documents}
+              selectedDoc={selected}
             />
           </aside>
         )}
