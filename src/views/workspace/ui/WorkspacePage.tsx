@@ -10,6 +10,8 @@ import { Inspector } from "@widgets/inspector";
 import { SnapshotPanel } from "@widgets/snapshot-panel";
 import { NotesPanel } from "@widgets/notes-panel";
 import { StatsPanel } from "@widgets/stats-panel";
+import { Corkboard } from "@widgets/corkboard";
+import { TimelinePanel } from "@widgets/timeline-panel";
 import { AiAssistant } from "@widgets/ai-assistant";
 import { planReorder } from "@features/reorder-document";
 import { ThemeToggle } from "@features/toggle-theme";
@@ -41,6 +43,7 @@ export function WorkspacePage() {
     reorderSiblings,
     updateSynopsis,
     updateGoal,
+    updateStatus,
   } = useDocuments(id);
   const {
     project,
@@ -58,6 +61,9 @@ export function WorkspacePage() {
   const [trashOpen, setTrashOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  // 가운데 영역 보기 모드: 본문(에디터) ↔ 카드(코르크보드).
+  const [viewMode, setViewMode] = useState<"editor" | "corkboard">("editor");
   const [previewOpen, setPreviewOpen] = useState(false);
   // 집중 모드: 주변 UI를 숨기고 본문에만 몰입(에디터 인스턴스는 재마운트 없이 유지).
   const [focusMode, setFocusMode] = useState(false);
@@ -172,6 +178,20 @@ export function WorkspacePage() {
           <button
             type="button"
             className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setViewMode((m) => (m === "editor" ? "corkboard" : "editor"))}
+          >
+            {viewMode === "editor" ? "카드" : "본문"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
+            onClick={() => setTimelineOpen((v) => !v)}
+          >
+            {timelineOpen ? "연표 닫기" : "연표"}
+          </button>
+          <button
+            type="button"
+            className="text-caption text-fg-weak hover:text-fg"
             onClick={() => setPreviewOpen(true)}
             disabled={!selected || selected.type !== "DOC"}
           >
@@ -251,7 +271,20 @@ export function WorkspacePage() {
           {error && (
             <p className="p-24 text-body text-error">문서를 불러오지 못했어요.</p>
           )}
-          {!isLoading && !error && !selected && (
+          {!isLoading && !error && viewMode === "corkboard" && (
+            <Corkboard
+              documents={documents}
+              selectedId={selectedId}
+              onOpen={(docId) => {
+                setSelectedId(docId);
+                setViewMode("editor"); // 카드를 열면 곧바로 본문으로
+              }}
+              onUpdateSynopsis={updateSynopsis}
+              onUpdateStatus={updateStatus}
+              onMove={handleMove}
+            />
+          )}
+          {!isLoading && !error && !selected && viewMode === "editor" && (
             <div className="flex h-full flex-col items-center justify-center gap-8 text-center text-fg-weak">
               <p className="text-body-lg">왼쪽에서 문서를 선택하거나</p>
               <p className="text-body">
@@ -259,7 +292,7 @@ export function WorkspacePage() {
               </p>
             </div>
           )}
-          {selected && selected.type === "DOC" && (
+          {selected && selected.type === "DOC" && viewMode === "editor" && (
             <Editor
               key={`${selected.id}:${reloadToken}`}
               documentId={selected.id}
@@ -367,6 +400,20 @@ export function WorkspacePage() {
         {notesOpen && !focusMode && (
           <aside className="w-[300px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
             <NotesPanel projectId={id} />
+          </aside>
+        )}
+
+        {/* 우: 타임라인(연표) — 사건 순서와 회차 연결 */}
+        {timelineOpen && !focusMode && (
+          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+            <TimelinePanel
+              projectId={id}
+              documents={documents}
+              onOpenDocument={(docId) => {
+                setSelectedId(docId);
+                setViewMode("editor");
+              }}
+            />
           </aside>
         )}
 
