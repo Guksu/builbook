@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { Binder } from "@widgets/binder";
 import { Editor } from "@widgets/editor";
@@ -14,8 +14,11 @@ import { Corkboard } from "@widgets/corkboard";
 import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
 import { AiAssistant } from "@widgets/ai-assistant";
+import {
+  WorkspaceHeader,
+  type WorkspacePanelKey,
+} from "@widgets/workspace-header";
 import { planReorder } from "@features/reorder-document";
-import { ThemeToggle } from "@features/toggle-theme";
 import { useAiChat } from "@features/ai-chat";
 import { computeProgress, sumWordCounts } from "@features/writing-goals";
 import { SearchPanel } from "@features/search-document";
@@ -119,6 +122,31 @@ export function WorkspacePage() {
   // 집중 모드 하단에 은은하게 띄울 문서 목표 진행률.
   const focusProgress = computeProgress(liveWords, selected?.goal);
 
+  // 헤더 패널 표시등 ↔ 개별 open 상태 매핑.
+  const openPanels: Record<WorkspacePanelKey, boolean> = {
+    timeline: timelineOpen,
+    stats: statsOpen,
+    check: checkOpen,
+    search: searchOpen,
+    notes: notesOpen,
+    trash: trashOpen,
+    ai: aiOpen,
+    inspector: inspectorOpen,
+  };
+  const panelSetters: Record<
+    WorkspacePanelKey,
+    Dispatch<SetStateAction<boolean>>
+  > = {
+    timeline: setTimelineOpen,
+    stats: setStatsOpen,
+    check: setCheckOpen,
+    search: setSearchOpen,
+    notes: setNotesOpen,
+    trash: setTrashOpen,
+    ai: setAiOpen,
+    inspector: setInspectorOpen,
+  };
+
   async function handleCreate(input: {
     title: string;
     type: "FOLDER" | "DOC";
@@ -159,104 +187,20 @@ export function WorkspacePage() {
   return (
     <div className="flex h-screen flex-col">
       {/* 상단 바 — 집중 모드에서는 숨김(에디터는 그대로 유지) */}
-      <header
-        className={cn(
-          "flex h-48 items-center justify-between border-b border-border px-16",
-          focusMode && "hidden",
-        )}
-      >
-        <Link href="/dashboard" className="text-body-sm text-fg-weak hover:text-fg">
-          ← 작품 목록
-        </Link>
-        <div className="flex items-center gap-8">
-          <ThemeToggle />
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setFocusMode(true)}
-          >
-            집중
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setViewMode((m) => (m === "editor" ? "corkboard" : "editor"))}
-          >
-            {viewMode === "editor" ? "카드" : "본문"}
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setTimelineOpen((v) => !v)}
-          >
-            {timelineOpen ? "연표 닫기" : "연표"}
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setPreviewOpen(true)}
-            disabled={!selected || selected.type !== "DOC"}
-          >
-            미리보기
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setStatsOpen((v) => !v)}
-          >
-            {statsOpen ? "현황 닫기" : "현황"}
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setCheckOpen((v) => !v)}
-          >
-            {checkOpen ? "점검 닫기" : "점검"}
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setSearchOpen((v) => !v)}
-          >
-            {searchOpen ? "검색 닫기" : "검색"}
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setExportOpen(true)}
-          >
-            내보내기
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setTrashOpen((v) => !v)}
-          >
-            {trashOpen ? "휴지통 닫기" : "휴지통"}
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setNotesOpen((v) => !v)}
-          >
-            {notesOpen ? "리서치 닫기" : "리서치"}
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setAiOpen((v) => !v)}
-          >
-            {aiOpen ? "AI 문답 닫기" : "AI 문답"}
-          </button>
-          <button
-            type="button"
-            className="text-caption text-fg-weak hover:text-fg"
-            onClick={() => setInspectorOpen((v) => !v)}
-          >
-            {inspectorOpen ? "인스펙터 닫기" : "인스펙터"}
-          </button>
-        </div>
-      </header>
+      {!focusMode && (
+        <WorkspaceHeader
+          projectTitle={project?.title}
+          totalWords={projectTotalWords}
+          viewMode={viewMode}
+          onChangeViewMode={setViewMode}
+          openPanels={openPanels}
+          onTogglePanel={(key) => panelSetters[key]((v) => !v)}
+          onOpenPreview={() => setPreviewOpen(true)}
+          previewDisabled={!selected || selected.type !== "DOC"}
+          onOpenExport={() => setExportOpen(true)}
+          onEnterFocus={() => setFocusMode(true)}
+        />
+      )}
 
       <div className="flex min-h-0 flex-1">
         {/* 좌: 바인더 — 집중 모드에서는 숨김(하지만 트리에 남겨 에디터 위치 유지 → 재마운트 방지) */}

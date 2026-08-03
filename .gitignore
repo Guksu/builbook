@@ -12,3 +12,6 @@ next-env.d.ts
 /test-results
 /playwright-report
 /playwright/.cache
+
+# 개인 집필 자료 (커밋 금지)
+/private
