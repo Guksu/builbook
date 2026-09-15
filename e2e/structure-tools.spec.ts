@@ -10,11 +10,13 @@ async function createProjectAndOpen(page: Page) {
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+// 새 문서: "새 문서" 아이콘 → 기본 이름("N화")으로 즉시 생성 → 인라인 입력에 제목 입력 → Enter.
 async function createDoc(page: Page, title: string) {
-  await page.getByRole("button", { name: "+ 문서" }).click();
-  const dialog = page.getByRole("dialog", { name: "새 문서" });
-  await dialog.getByLabel("문서 제목").fill(title);
-  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
+  await page.getByRole("button", { name: "새 문서" }).click();
+  const name = page.getByRole("textbox", { name: "이름" });
+  await name.fill(title);
+  await name.press("Enter");
+  await expect(name).toHaveCount(0);
 }
 
 test("코르크보드에서 시놉시스를 적고 진행 상태를 바꾼다", async ({ page }) => {
@@ -26,7 +28,11 @@ test("코르크보드에서 시놉시스를 적고 진행 상태를 바꾼다", 
   await expect(board.getByText("1화 회귀")).toBeVisible();
 
   // 시놉시스 인라인 편집 — 빈 카드는 안내 문구를 보여준다
-  await board.getByText("요약을 적어 두면").click();
+  // (자동 생성된 "1화" 카드도 같은 문구를 쓰므로 대상 카드로 좁힌다)
+  const card = board
+    .getByRole("listitem")
+    .filter({ has: page.getByTitle("1화 회귀") });
+  await card.getByText("요약을 적어 두면").click();
   await page.getByLabel("1화 회귀 시놉시스").fill("주인공이 죽기 직전으로 돌아온다");
   await page.getByLabel("1화 회귀 시놉시스").blur();
   await expect(board.getByText("주인공이 죽기 직전으로 돌아온다")).toBeVisible();

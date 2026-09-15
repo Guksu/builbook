@@ -9,12 +9,13 @@ async function createProjectAndOpen(page: Page) {
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
-// '+ 문서'는 PromptModal로 제목을 받는다
+// 새 문서: "새 문서" 아이콘 → 기본 이름("N화")으로 즉시 생성 → 인라인 입력에 제목 입력 → Enter.
 async function createDoc(page: Page, title: string) {
-  await page.getByRole("button", { name: "+ 문서" }).click();
-  const dialog = page.getByRole("dialog", { name: "새 문서" });
-  await dialog.getByLabel("문서 제목").fill(title);
-  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
+  await page.getByRole("button", { name: "새 문서" }).click();
+  const name = page.getByRole("textbox", { name: "이름" });
+  await name.fill(title);
+  await name.press("Enter");
+  await expect(name).toHaveCount(0);
 }
 
 test("문서 삭제 → 휴지통에 나타남 → 복원 → 바인더 복귀", async ({ page }) => {
@@ -22,8 +23,11 @@ test("문서 삭제 → 휴지통에 나타남 → 복원 → 바인더 복귀",
   await createDoc(page, "복원될 문서");
   await expect(page.getByRole("heading", { name: "복원될 문서" })).toBeVisible();
 
-  // 소프트 삭제(휴지통 이동)
-  await page.locator("nav").getByRole("button", { name: "삭제", exact: true }).click();
+  // 소프트 삭제(휴지통 이동) — 우클릭 메뉴
+  await page
+    .getByRole("treeitem", { name: "복원될 문서" })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "삭제" }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "삭제", exact: true })

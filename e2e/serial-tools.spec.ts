@@ -10,11 +10,13 @@ async function createProjectAndOpen(page: Page) {
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+// 새 문서: "새 문서" 아이콘 → 기본 이름("N화")으로 즉시 생성 → 인라인 입력에 제목 입력 → Enter.
 async function createDoc(page: Page, title: string) {
-  await page.getByRole("button", { name: "+ 문서" }).click();
-  const dialog = page.getByRole("dialog", { name: "새 문서" });
-  await dialog.getByLabel("문서 제목").fill(title);
-  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
+  await page.getByRole("button", { name: "새 문서" }).click();
+  const name = page.getByRole("textbox", { name: "이름" });
+  await name.fill(title);
+  await name.press("Enter");
+  await expect(name).toHaveCount(0);
 }
 
 async function typeBody(page: Page, text: string) {
@@ -50,7 +52,8 @@ test("회차 분량표에 회차가 순서대로 쌓이고 클릭하면 그 회�
 
   await page.getByRole("button", { name: "현황", exact: true }).click();
   const list = page.getByRole("list", { name: "회차 분량 목록" });
-  await expect(list.getByRole("button")).toHaveCount(2);
+  // 3 = 새 작품에 자동 생성된 "1화" + 방금 만든 두 회차.
+  await expect(list.getByRole("button")).toHaveCount(3);
   // 목표(기본 5,500자)에 한참 못 미치므로 '짧음'으로 표시된다
   await expect(list.getByText("짧음").first()).toBeVisible();
 

@@ -20,6 +20,7 @@ import { useCountUnit } from "@features/count-unit";
 import { formatCount, unitSuffix } from "@shared/lib";
 import {
   DEFAULT_EPISODE_GOAL,
+  EPISODE_PRESETS,
   buildEpisodeStats,
   episodeStatusLabel,
   summarizeEpisodes,
@@ -80,7 +81,7 @@ export function StatsPanel({
   onSelectDocument,
 }: StatsPanelProps) {
   const { logs, isLoading } = useWritingLogs(projectId);
-  const [unit] = useCountUnit();
+  const [unit, setUnit] = useCountUnit();
   const today = dateKey(new Date());
 
   const todayWords = writtenOn(logs, today, unit);
@@ -99,8 +100,8 @@ export function StatsPanel({
 
   const goalChars = episodeGoal && episodeGoal > 0 ? episodeGoal : DEFAULT_EPISODE_GOAL;
   const episodes = useMemo(
-    () => buildEpisodeStats(documents, goalChars),
-    [documents, goalChars],
+    () => buildEpisodeStats(documents, goalChars, unit),
+    [documents, goalChars, unit],
   );
   const summary = summarizeEpisodes(episodes);
 
@@ -220,7 +221,7 @@ export function StatsPanel({
         <div className="flex items-baseline justify-between">
           <p className="text-body-sm font-medium text-fg">회차 분량</p>
           <p className="text-caption text-fg-weak">
-            {summary.count}편 · 평균 {summary.averageChars.toLocaleString("ko-KR")}자
+            {summary.count}편 · 평균 {formatCount(summary.averageChars, unit)}
           </p>
         </div>
         <Input
@@ -229,7 +230,7 @@ export function StatsPanel({
           inputMode="numeric"
           aria-label="회차 목표 분량"
           defaultValue={episodeGoal && episodeGoal > 0 ? String(episodeGoal) : ""}
-          placeholder={`회차 목표 글자 수 (기본 ${DEFAULT_EPISODE_GOAL.toLocaleString("ko-KR")}자)`}
+          placeholder={`회차 목표 분량 (기본 ${formatCount(DEFAULT_EPISODE_GOAL, "chars")}, 단위: ${unitSuffix(unit)})`}
           className="h-32 text-body-sm"
           onBlur={(e) => commitGoal(e.target.value, episodeGoal, onSaveEpisodeGoal)}
           onKeyDown={(e) => {
@@ -239,6 +240,30 @@ export function StatsPanel({
             }
           }}
         />
+
+        {/* 플랫폼 프리셋 — 누르면 목표와 분량 단위를 함께 맞춘다. 근거는 title로. */}
+        <ul aria-label="회차 분량 프리셋" className="flex flex-wrap gap-4">
+          {EPISODE_PRESETS.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                title={p.source}
+                onClick={() => {
+                  if (p.unit !== unit) setUnit(p.unit);
+                  if (p.goal !== episodeGoal) onSaveEpisodeGoal(p.goal);
+                }}
+                className={cn(
+                  "rounded-full border px-8 py-2 text-caption transition-colors",
+                  episodeGoal === p.goal && unit === p.unit
+                    ? "border-primary bg-primary-weak text-fg"
+                    : "border-border text-fg-weak hover:border-border-strong hover:text-fg",
+                )}
+              >
+                {p.label}
+              </button>
+            </li>
+          ))}
+        </ul>
 
         {episodes.length === 0 ? (
           <p className="text-body-sm text-fg-weak">아직 회차가 없어요.</p>
@@ -258,7 +283,7 @@ export function StatsPanel({
                     {ep.title}
                   </span>
                   <span className="shrink-0 text-caption tabular-nums text-fg-weak">
-                    {ep.chars.toLocaleString("ko-KR")}자
+                    {formatCount(ep.chars, unit)}
                   </span>
                   <span className={cn("w-32 shrink-0 text-right text-caption", STATUS_STYLE[ep.status])}>
                     {episodeStatusLabel(ep.status)}

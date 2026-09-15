@@ -27,12 +27,13 @@ async function createProjectAndOpen(page: import("@playwright/test").Page) {
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
-// '+ 문서'는 PromptModal로 제목을 받는다
-async function createDoc(page: import("@playwright/test").Page, title: string) {
-  await page.getByRole("button", { name: "+ 문서" }).click();
-  const dialog = page.getByRole("dialog", { name: "새 문서" });
-  await dialog.getByLabel("문서 제목").fill(title);
-  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
+// 새 문서: "새 문서" 아이콘 → 기본 이름("N화")으로 즉시 생성 → 인라인 입력에 제목 입력 → Enter.
+async function createDoc(page: Page, title: string) {
+  await page.getByRole("button", { name: "새 문서" }).click();
+  const name = page.getByRole("textbox", { name: "이름" });
+  await name.fill(title);
+  await name.press("Enter");
+  await expect(name).toHaveCount(0);
 }
 
 // 인스펙터 열고 '스냅샷' 탭으로 전환
@@ -88,10 +89,11 @@ test("스냅샷 저장 → 목록 표시 → 복원 → 자동 스냅샷", async
     "완전히 다른 두 번째 버전.",
   );
 
-  // 복원 직전 상태가 자동 스냅샷("복원 전 자동 저장")으로 남아 목록이 2개가 됐다
+  // 복원 직전 상태가 자동 스냅샷("복원 전 자동 저장")으로 남아 목록이 2개가 됐다.
+  // 펼친 항목의 "현재 문서 대비 N자"도 getByText(/\d자$/)에 걸리므로 목록 행(button)으로 센다.
   await expect(page.getByText("복원 전 자동 저장")).toBeVisible();
   await expect(
-    page.getByRole("list", { name: "스냅샷 목록" }).getByText(/\d자$/),
+    page.getByRole("list", { name: "스냅샷 목록" }).getByRole("button", { name: /\d자$/ }),
   ).toHaveCount(2);
 });
 
@@ -119,16 +121,17 @@ test("영구 삭제 시 그 문서의 스냅샷도 cascade 삭제된다 (고아 
   expect(await count(page, "snapshots")).toBe(1);
 
   // 소프트 삭제(휴지통 이동): 바인더에서 사라지지만 DB엔 남고 스냅샷도 보존된다(복원 대비)
+  // 문서 수 2 = 새 작품에 자동 생성된 "1화" + 방금 만든 "삭제될 문서".
   await page
-    .locator("nav")
-    .getByRole("button", { name: "삭제", exact: true })
-    .click();
+    .getByRole("treeitem", { name: "삭제될 문서" })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "삭제" }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "삭제", exact: true })
     .click();
   await expect(page.locator("nav").getByText("삭제될 문서")).toHaveCount(0);
-  expect(await count(page, "documents")).toBe(1);
+  expect(await count(page, "documents")).toBe(2);
   expect(await count(page, "snapshots")).toBe(1);
 
   // 휴지통에서 영구 삭제 → 이제 문서·스냅샷 모두 완전 제거(고아 누적 방지)
@@ -142,6 +145,7 @@ test("영구 삭제 시 그 문서의 스냅샷도 cascade 삭제된다 (고아 
     .getByRole("button", { name: "영구 삭제", exact: true })
     .click();
 
-  expect(await count(page, "documents")).toBe(0);
+  // 자동 생성된 "1화"만 남는다.
+  expect(await count(page, "documents")).toBe(1);
   expect(await count(page, "snapshots")).toBe(0);
 });

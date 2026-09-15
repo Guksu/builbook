@@ -15,9 +15,12 @@ export {
 export {
   Modal,
   ConfirmModal,
-  PromptModal,
   type ModalProps,
   type ConfirmModalProps,
-  type PromptModalProps,
 } from "./Modal";
+export {
+  ContextMenu,
+  type ContextMenuProps,
+  type ContextMenuItem,
+} from "./ContextMenu";
 export { ToastProvider, useToast } from "./Toast";

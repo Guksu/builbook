@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_EPISODE_GOAL,
+  EPISODE_PRESETS,
   buildEpisodeStats,
   episodeStatus,
   episodeStatusLabel,
@@ -108,5 +109,35 @@ describe("episodeStatusLabel", () => {
     expect(episodeStatusLabel("short")).toBe("짧음");
     expect(episodeStatusLabel("ok")).toBe("적정");
     expect(episodeStatusLabel("long")).toBe("긴 편");
+  });
+});
+
+describe("EPISODE_PRESETS", () => {
+  it("모든 프리셋에 양수 목표·단위·근거가 있다", () => {
+    for (const p of EPISODE_PRESETS) {
+      expect(p.goal).toBeGreaterThan(0);
+      expect(["chars", "charsNoSpace", "words"]).toContain(p.unit);
+      expect(p.source.length).toBeGreaterThan(10);
+    }
+    expect(new Set(EPISODE_PRESETS.map((p) => p.id)).size).toBe(EPISODE_PRESETS.length);
+  });
+
+  it("단위를 바꾸면 표의 분량도 그 단위로 센다", () => {
+    const doc = {
+      id: "d",
+      projectId: "p",
+      parentId: null,
+      type: "DOC" as const,
+      title: "1화",
+      order: 0,
+      content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "가 나 다" }] }] },
+      synopsis: null,
+      wordCount: 0,
+      createdAt: "t",
+      updatedAt: "t",
+    };
+    expect(buildEpisodeStats([doc], 10)[0].chars).toBe(5);
+    expect(buildEpisodeStats([doc], 10, "charsNoSpace")[0].chars).toBe(3);
+    expect(buildEpisodeStats([doc], 10, "words")[0].chars).toBe(3);
   });
 });

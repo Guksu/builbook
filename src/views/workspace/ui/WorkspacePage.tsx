@@ -175,11 +175,14 @@ export function WorkspacePage() {
     type: "FOLDER" | "DOC";
     parentId: string | null;
   }) {
+    // 바인더가 생성된 문서를 곧바로 인라인 이름 편집으로 열기 때문에 결과를 돌려준다.
     try {
       const doc = await createDocument(input);
       if (doc?.type === "DOC") setSelectedId(doc.id);
+      return doc;
     } catch {
       toast("문서 생성에 실패했어요.", "error");
+      return null;
     }
   }
 
@@ -229,6 +232,7 @@ export function WorkspacePage() {
         {/* 좌: 바인더 — 집중 모드에서는 숨김(하지만 트리에 남겨 에디터 위치 유지 → 재마운트 방지) */}
         <aside className={cn("w-[260px] shrink-0", focusMode && "hidden")}>
           <Binder
+            projectId={id}
             documents={documents}
             selectedId={selectedId}
             onSelect={setSelectedId}
@@ -277,6 +281,7 @@ export function WorkspacePage() {
               initialContent={(selected.content as JSONContent | null) ?? null}
               title={selected.title}
               onMeasureChange={setLiveMeasure}
+              onRename={(t) => renameDocument(selected.id, t)}
             />
           )}
 

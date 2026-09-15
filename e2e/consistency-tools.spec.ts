@@ -10,11 +10,13 @@ async function createProjectAndOpen(page: Page) {
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
+// 새 문서: "새 문서" 아이콘 → 기본 이름("N화")으로 즉시 생성 → 인라인 입력에 제목 입력 → Enter.
 async function createDoc(page: Page, title: string) {
-  await page.getByRole("button", { name: "+ 문서" }).click();
-  const dialog = page.getByRole("dialog", { name: "새 문서" });
-  await dialog.getByLabel("문서 제목").fill(title);
-  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
+  await page.getByRole("button", { name: "새 문서" }).click();
+  const name = page.getByRole("textbox", { name: "이름" });
+  await name.fill(title);
+  await name.press("Enter");
+  await expect(name).toHaveCount(0);
 }
 
 async function typeBody(page: Page, text: string) {

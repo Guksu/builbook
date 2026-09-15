@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 // 작품 1개 생성하고 작업실 URL로 이동하는 헬퍼.
 async function createProjectAndOpen(page: import("@playwright/test").Page) {
@@ -9,12 +9,13 @@ async function createProjectAndOpen(page: import("@playwright/test").Page) {
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
-// '+ 문서'는 PromptModal로 제목을 받는다 (커밋 3388d03에서 네이티브 prompt 대체)
-async function createDoc(page: import("@playwright/test").Page, title: string) {
-  await page.getByRole("button", { name: "+ 문서" }).click();
-  const dialog = page.getByRole("dialog", { name: "새 문서" });
-  await dialog.getByLabel("문서 제목").fill(title);
-  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
+// 새 문서: "새 문서" 아이콘 → 기본 이름("N화")으로 즉시 생성 → 인라인 입력에 제목 입력 → Enter.
+async function createDoc(page: Page, title: string) {
+  await page.getByRole("button", { name: "새 문서" }).click();
+  const name = page.getByRole("textbox", { name: "이름" });
+  await name.fill(title);
+  await name.press("Enter");
+  await expect(name).toHaveCount(0);
 }
 
 test("문서 생성 → 집필 → 자동저장 → 새로고침 후 내용 유지", async ({ page }) => {
@@ -51,9 +52,11 @@ test("문서 삭제 시 바인더에서 사라진다", async ({ page }) => {
   await createDoc(page, "삭제될 문서");
   await expect(page.getByRole("heading", { name: "삭제될 문서" })).toBeVisible();
 
-  // 바인더(nav) 행의 삭제(✕, aria-label 정확히 "삭제") 클릭 → 확인 모달
-  await page.locator("nav").getByRole("button", { name: "삭제", exact: true }).click();
-  // ConfirmModal(dialog) 의 확인 버튼
+  // 바인더 항목 우클릭 → 메뉴에서 삭제 → 확인 모달
+  await page
+    .getByRole("treeitem", { name: "삭제될 문서" })
+    .click({ button: "right" });
+  await page.getByRole("menuitem", { name: "삭제" }).click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "삭제", exact: true })

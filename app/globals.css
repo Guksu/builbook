@@ -75,6 +75,17 @@
   /* ── 포커스 링 ── */
   --color-ring: var(--blue-50);
 
+  /* ── 스페이싱(px) — tailwind.config.ts theme.extend.spacing과 같은 눈금 [프로젝트 정의] ──
+     .prose-editor 같은 전역 CSS가 쓴다. 2026-09-15 전까지 정의가 없어 var()가 무효였다. */
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+
   color-scheme: light;
 }
 
@@ -167,8 +178,35 @@
 .prose-editor em {
   font-style: italic;
 }
-/* 빈 첫 문단에 placeholder 안내 (StarterKit 단독 시 시각적 힌트) */
+.prose-editor s {
+  text-decoration: line-through;
+}
+.prose-editor hr {
+  border: 0;
+  border-top: 1px solid var(--color-border-strong);
+  margin: var(--space-24) 0;
+}
 .prose-editor:focus {
   outline: none;
+}
+
+/* 빈 문서 안내 — Placeholder 확장이 빈 노드에 data-placeholder를 붙인다.
+   float+height:0 이라 커서 자리를 밀지 않는다(타자 흐름 유지). */
+.prose-editor .is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--color-fg-muted);
+}
+
+/* 찾기 하이라이트 — 일치는 은은하게, 지금 보고 있는 한 건만 또렷하게. */
+.prose-editor .find-match {
+  background: var(--color-warning-weak);
+  border-radius: 2px;
+}
+.prose-editor .find-match--active {
+  background: var(--color-primary-weak);
+  box-shadow: 0 0 0 1px var(--color-primary);
 }
 

@@ -9,12 +9,13 @@ async function createProjectAndOpen(page: Page) {
   await expect(page).toHaveURL(/\/projects\/.+/);
 }
 
-// '+ 문서'는 PromptModal로 제목을 받는다
+// 새 문서: "새 문서" 아이콘 → 기본 이름("N화")으로 즉시 생성 → 인라인 입력에 제목 입력 → Enter.
 async function createDoc(page: Page, title: string) {
-  await page.getByRole("button", { name: "+ 문서" }).click();
-  const dialog = page.getByRole("dialog", { name: "새 문서" });
-  await dialog.getByLabel("문서 제목").fill(title);
-  await dialog.getByRole("button", { name: "만들기", exact: true }).click();
+  await page.getByRole("button", { name: "새 문서" }).click();
+  const name = page.getByRole("textbox", { name: "이름" });
+  await name.fill(title);
+  await name.press("Enter");
+  await expect(name).toHaveCount(0);
 }
 
 test("집중 모드: 토글 시 바인더가 숨겨졌다 ESC로 다시 나타난다", async ({
