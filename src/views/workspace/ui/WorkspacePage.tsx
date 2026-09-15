@@ -12,7 +12,13 @@ import { SnapshotPanel } from "@widgets/snapshot-panel";
 import { NotesPanel } from "@widgets/notes-panel";
 import { StatsPanel } from "@widgets/stats-panel";
 import { Corkboard, CorkboardToolbar } from "@widgets/corkboard";
-import { isCardSize, type CardLabelFilter, type CardSize } from "@features/corkboard";
+import {
+  isCardSize,
+  nextStatus,
+  docStatusLabel,
+  type CardLabelFilter,
+  type CardSize,
+} from "@features/corkboard";
 import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
 import {
@@ -190,6 +196,21 @@ export function WorkspacePage() {
 
   // 집중 모드 하단에 은은하게 띄울 문서 목표 진행률.
   const focusProgress = computeProgress(liveWords, selected?.goal);
+  // Alt+S — 현재 문서의 진행 상태를 초고→퇴고→완료 순으로 돌린다(인스펙터를 열지 않고도).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.key.toLowerCase() !== "s") return;
+      const doc = documents.find((d) => d.id === selectedId);
+      if (!doc || doc.type !== "DOC") return;
+      e.preventDefault();
+      const next = nextStatus(doc.status);
+      void updateStatus(doc.id, next);
+      toast(`상태: ${docStatusLabel(next)}`, "success");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [documents, selectedId, updateStatus, toast]);
+
   // 헤더 목표 바 — 작품·오늘 진행률 + 마감 페이스(스크리브너 Project Targets).
   const todayKey = dateKey(new Date());
   const projectProgress = computeProgress(projectTotalWords, project?.goal);
@@ -382,6 +403,8 @@ export function WorkspacePage() {
               />
             <Corkboard
               scopeId={selected?.type === "FOLDER" ? selected.id : null}
+              scopeParentId={selected?.type === "FOLDER" ? selected.parentId : undefined}
+              onMoveToParent={handleMoveToParent}
               labelFilter={cardLabelFilter}
               cardSize={cardSize}
               documents={documents}

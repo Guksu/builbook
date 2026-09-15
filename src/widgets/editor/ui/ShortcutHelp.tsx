@@ -20,6 +20,8 @@ function rows(mod: ModLabel): { keys: string; what: string }[] {
     { keys: `${mod}+F`, what: "찾기·바꾸기 (본문에 커서가 있을 때)" },
     { keys: "Esc", what: "찾기 닫기" },
     { keys: "F2", what: "제목 편집 (제목을 눌러도 됩니다)" },
+    { keys: `${mod}+P`, what: "빠른 열기 (문서 이름으로 이동)" },
+    { keys: "Alt+S", what: "진행 상태 바꾸기 (초고 → 퇴고 → 완료)" },
     { keys: "# + 공백", what: "제목 줄로 바꾸기" },
     { keys: "> + 공백", what: "인용 줄로 바꾸기" },
   ];

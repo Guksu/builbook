@@ -32,6 +32,7 @@
 
 | 반복 | 결과 | 비고 |
 |------|------|------|
+| 2 | 통과 — CI 수정(`@tiptap/extension-placeholder` 의존성 누락 → package.json·lock 추가, CI run #9 성공) + 후속 후보: 코르크보드 아래 드롭 영역으로 카드를 폴더 밖/최상위로, Alt+S 상태 순환(단축키 안내에 Ctrl/⌘+P·Alt+S 추가), 프리셋 백업 안내(README) | lint 0 · tsc 0 · unit 341 · build OK · e2e 69/69 |
 | 1 | 통과 — `shared/lib/storage`(readJson/writeJson/isOneOf, 테스트 5) + `shared/ui/usePersistedState`. 바인더 정렬·라벨 필터, 코르크보드 라벨 필터·카드 크기를 작품별 localStorage에 기억. 카드 크기 3단(격자·시놉시스 줄 수). 컴파일 프리셋(`Project.compilePresets`, `addPreset/removePreset` 테스트 4, 내보내기 모달 프리셋 select·저장·삭제) | lint 0 · tsc 0 · unit 341 · build OK(250KB) · e2e 67/67 |
 
 ## 5. 종료 보고
@@ -39,4 +40,4 @@
 **성공 종료 (2026-09-15).** 3항목 구현·검증, main 푸시. 안전장치 미발동(반복 1/10).
 
 - 남은 실패: 없음.
-- 후속 후보: 코르크보드 카드 드래그로 폴더 안팎 이동, 인스펙터 키보드 단축키(상태 순환), 내보내기 프리셋 백업 파일 형식 문서화(이미 Project 레코드에 담겨 자동 백업됨).
+- 후속 후보 3건은 반복 2에서 모두 처리했다. CI가 계속 실패하던 원인은 코드가 아니라 의존성 선언 누락이었다(로컬 node_modules에는 있었음). 앞으로 의존성을 추가하면 `rm -rf node_modules && npm ci`로 CI와 같은 조건을 한 번 확인할 것.

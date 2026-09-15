@@ -26,6 +26,10 @@ export interface CorkboardProps {
   onUpdateStatus: (id: string, status: string) => void;
   /** 바인더와 같은 규약: 폴더 위 드롭=into, 문서 위 드롭=before. */
   onMove: (dragId: string, targetId: string, mode: "into" | "before") => void;
+  /** 지정 부모(null=최상위)의 맨 끝으로 — 보드 아래 빈 영역 드롭이 쓴다. */
+  onMoveToParent?: (id: string, parentId: string | null) => void;
+  /** 범위 폴더의 부모 id(범위가 없으면 undefined). "밖으로" 드롭의 목적지. */
+  scopeParentId?: string | null;
   /** 작품 라벨 목록 — 카드 상단 색 띠(미설정이면 기본 라벨). */
   labels?: ProjectLabel[];
   /** 폴더 범위 — 이 폴더의 자손 카드만 보인다(스크리브너처럼 폴더를 고르면 그 안만). null=전체. */
@@ -65,6 +69,8 @@ export function Corkboard({
   onUpdateSynopsis,
   onUpdateStatus,
   onMove,
+  onMoveToParent,
+  scopeParentId,
   labels,
   scopeId = null,
   labelFilter = null,
@@ -76,6 +82,10 @@ export function Corkboard({
   const summary = summarizeCards(cards);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [outDrop, setOutDrop] = useState(false);
+  // 범위(폴더) 안을 보고 있으면 "이 폴더 밖으로", 전체 보기면 "최상위로".
+  const outTarget: string | null = scopeId ? (scopeParentId ?? null) : null;
+  const outLabel = scopeId ? "여기 놓으면 이 폴더 밖으로" : "여기 놓으면 최상위로";
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
 
@@ -239,6 +249,38 @@ export function Corkboard({
           );
         })}
       </ul>
+
+      {/* 보드 아래 빈 영역 — 카드를 폴더 밖(또는 최상위)으로 꺼내는 길. 바인더의 빈 공간 드롭과 같은 규약. */}
+      {onMoveToParent && (
+        <div
+          aria-label={scopeId ? "폴더 밖으로 옮기기" : "최상위로 옮기기"}
+          onDragOver={(e) => {
+            if (!dragId) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            setOutDrop(true);
+          }}
+          onDragLeave={() => setOutDrop(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            const dragged = e.dataTransfer.getData("text/plain") || dragId;
+            if (dragged) onMoveToParent(dragged, outTarget);
+            setOutDrop(false);
+            setDragId(null);
+            setDropTarget(null);
+          }}
+          className={cn(
+            "mt-16 flex min-h-[72px] items-center justify-center rounded-lg border border-dashed text-body-sm transition-colors",
+            dragId
+              ? outDrop
+                ? "border-primary bg-primary-weak text-primary"
+                : "border-border-strong text-fg-weak"
+              : "border-transparent text-transparent",
+          )}
+        >
+          {dragId && outLabel}
+        </div>
+      )}
     </div>
   );
 }
