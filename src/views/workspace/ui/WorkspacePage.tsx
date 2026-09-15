@@ -25,6 +25,7 @@ import { SearchPanel } from "@features/search-document";
 import { TrashPanel } from "@features/trash-document";
 import { ExportMenu } from "@features/export-document";
 import { ReaderPreview } from "@features/reader-preview";
+import { useTabGuard, TabConflictBanner } from "@features/tab-guard";
 import { useDocuments } from "@entities/document";
 import { useProject } from "@entities/project";
 import { useToast, ProgressBar, cn } from "@shared/ui";
@@ -78,6 +79,8 @@ export function WorkspacePage() {
   const [reloadToken, setReloadToken] = useState(0);
   // view 레벨에 둬서 패널을 닫았다 열어도 다운로드한 모델/대화가 유지된다.
   const ai = useAiChat();
+  // 같은 문서를 다른 탭에서도 열었으면 경고(자동저장이 서로 덮어쓰는 사고 예방).
+  const tabConflict = useTabGuard(selectedId);
 
   // 첫 DOC 자동 선택. 선택 문서가 사라지면 해제.
   useEffect(() => {
@@ -218,6 +221,7 @@ export function WorkspacePage() {
 
         {/* 중: 에디터 */}
         <main className="relative min-w-0 flex-1 overflow-y-auto bg-bg">
+          {tabConflict && <TabConflictBanner />}
           {isLoading && (
             <p className="p-24 text-body text-fg-weak">불러오는 중…</p>
           )}

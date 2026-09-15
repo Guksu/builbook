@@ -16,6 +16,7 @@ import {
 import { useProjects, type Project } from "@entities/project";
 import { ThemeToggle } from "@features/toggle-theme";
 import { BackupModal, BackupReminder } from "@features/backup-restore";
+import { StorageNotice } from "@features/storage-guard";
 
 export function DashboardPage() {
   const { projects, isLoading, error, createProject, deleteProject } =
@@ -67,6 +68,8 @@ export function DashboardPage() {
         projectCount={projects.length}
         onOpenBackup={() => setBackupOpen(true)}
       />
+      {/* 저장 공간 보호 요청 + 사용량 — 로컬 저장 앱의 생명줄이라 목록 위에 늘 한 줄 둔다 */}
+      <StorageNotice className="mb-16" />
 
       {isLoading && <p className="text-body text-fg-weak">불러오는 중…</p>}
       {error && <p className="text-body text-error">목록을 불러오지 못했어요.</p>}
