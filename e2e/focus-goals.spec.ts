@@ -59,10 +59,10 @@ test("문서 목표 설정 시 진행률 바가 표시된다", async ({ page }) 
   await expect(page.getByRole("progressbar")).toHaveCount(0);
 
   // 문서 목표를 10으로 설정 → 진행률 바 등장 + 현재/목표 표기
-  const goalInput = page.getByLabel("문서 목표 단어 수");
+  const goalInput = page.getByLabel("문서 목표 분량");
   await goalInput.fill("10");
   await goalInput.blur();
 
   await expect(page.getByRole("progressbar")).toHaveCount(1);
-  await expect(page.getByText("/ 10단어")).toBeVisible();
+  await expect(page.getByText("/ 10자")).toBeVisible();
 });

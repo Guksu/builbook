@@ -9,7 +9,8 @@ import {
 } from "@entities/snapshot";
 import { saveDocumentContent, type DocumentNode } from "@entities/document";
 import { buildPreview, formatSignedDiff } from "@features/snapshot-document";
-import { extractPlainText, countChars } from "@shared/lib";
+import { extractPlainText, countChars, formatCount, measureText, pickCount } from "@shared/lib";
+import { useCountUnit } from "@features/count-unit";
 
 interface SnapshotPanelProps {
   /** 현재 선택된 DOC 문서 */
@@ -29,6 +30,7 @@ function formatTime(iso: string) {
 
 // 인스펙터의 '스냅샷' 탭 본체: 저장 · 목록 · 미리보기/비교 · 복원 · 삭제.
 export function SnapshotPanel({ doc, onRestored }: SnapshotPanelProps) {
+  const [unit] = useCountUnit();
   const { toast } = useToast();
   const { snapshots, isLoading, createSnapshot, deleteSnapshot, mutate } =
     useSnapshots(doc.id);
@@ -84,7 +86,7 @@ export function SnapshotPanel({ doc, onRestored }: SnapshotPanelProps) {
         note: "복원 전 자동 저장",
       });
       // 문서 content를 스냅샷으로 교체(제목은 유지).
-      await saveDocumentContent(doc.id, fresh.content, fresh.wordCount);
+      await saveDocumentContent(doc.id, fresh.content, measureText(extractPlainText(fresh.content)));
       await mutate();
       await onRestored();
       toast("스냅샷으로 복원했어요.", "success");
@@ -146,7 +148,7 @@ export function SnapshotPanel({ doc, onRestored }: SnapshotPanelProps) {
                   <span className="text-caption text-fg-weak">{snap.note}</span>
                 )}
                 <span className="text-caption tabular-nums text-fg-weak">
-                  {snap.wordCount.toLocaleString("ko-KR")}단어
+                  {formatCount(pickCount(measureText(extractPlainText(snap.content)), unit), unit)}
                 </span>
               </button>
 

@@ -16,6 +16,8 @@ import {
   writtenOn,
 } from "@entities/writing-log";
 import { computeProgress } from "@features/writing-goals";
+import { useCountUnit } from "@features/count-unit";
+import { formatCount, unitSuffix } from "@shared/lib";
 import {
   DEFAULT_EPISODE_GOAL,
   buildEpisodeStats,
@@ -27,13 +29,13 @@ import {
 export interface StatsPanelProps {
   projectId: string;
   documents: readonly DocumentNode[];
-  /** 하루 목표 단어 수(미설정 가능). */
+  /** 하루 목표 분량(사용자 설정 단위, 미설정 가능). */
   dailyGoal?: number;
   /** 회차 목표 분량(공백 포함 글자 수, 미설정 시 기본 5,500자). */
   episodeGoal?: number;
-  /** 작품 전체 목표 단어 수 — 완성 예상일 계산에 쓴다. */
+  /** 작품 전체 목표 분량 — 완성 예상일 계산에 쓴다. */
   projectGoal?: number;
-  /** 작품 전체 현재 단어 수(실시간). */
+  /** 작품 전체 현재 분량(실시간, 사용자 설정 단위). */
   projectWords: number;
   onSaveDailyGoal: (goal: number | null) => void;
   onSaveEpisodeGoal: (goal: number | null) => void;
@@ -78,16 +80,20 @@ export function StatsPanel({
   onSelectDocument,
 }: StatsPanelProps) {
   const { logs, isLoading } = useWritingLogs(projectId);
+  const [unit] = useCountUnit();
   const today = dateKey(new Date());
 
-  const todayWords = writtenOn(logs, today);
+  const todayWords = writtenOn(logs, today, unit);
   const todayProgress = computeProgress(todayWords, dailyGoal);
   const streak = computeStreak(logs, today);
   const best = longestStreak(logs);
-  const series = useMemo(() => buildSeries(logs, today, SERIES_DAYS), [logs, today]);
+  const series = useMemo(
+    () => buildSeries(logs, today, SERIES_DAYS, unit),
+    [logs, today, unit],
+  );
   const peak = Math.max(1, ...series.map((d) => d.written));
-  const perDay = averagePerActiveDay(logs);
-  const topDay = bestDay(logs);
+  const perDay = averagePerActiveDay(logs, unit);
+  const topDay = bestDay(logs, unit);
   const remaining = projectGoal ? Math.max(0, projectGoal - projectWords) : 0;
   const daysLeft = projectGoal ? estimateDaysToGoal(remaining, perDay) : null;
 
@@ -107,8 +113,9 @@ export function StatsPanel({
         <div className="flex items-baseline justify-between text-body-sm">
           <span className="text-fg-weak">오늘 쓴 분량</span>
           <span className="tabular-nums text-fg">
-            {todayWords.toLocaleString("ko-KR")}
-            {todayProgress.hasGoal ? ` / ${todayProgress.goal.toLocaleString("ko-KR")}` : ""}단어
+            {todayProgress.hasGoal
+              ? `${todayWords.toLocaleString("ko-KR")} / ${formatCount(todayProgress.goal, unit)}`
+              : formatCount(todayWords, unit)}
           </span>
         </div>
         {todayProgress.hasGoal && (
@@ -122,9 +129,9 @@ export function StatsPanel({
           type="number"
           min={0}
           inputMode="numeric"
-          aria-label="하루 목표 단어 수"
+          aria-label="하루 목표 분량"
           defaultValue={dailyGoal && dailyGoal > 0 ? String(dailyGoal) : ""}
-          placeholder="하루 목표 단어 수 (선택)"
+          placeholder={`하루 목표 분량 (${unitSuffix(unit)}, 선택)`}
           className="h-32 text-body-sm"
           onBlur={(e) => commitGoal(e.target.value, dailyGoal, onSaveDailyGoal)}
           onKeyDown={(e) => {
@@ -158,7 +165,7 @@ export function StatsPanel({
           {series.map((d) => (
             <li
               key={d.date}
-              title={`${d.date} · ${d.written.toLocaleString("ko-KR")}단어`}
+              title={`${d.date} · ${formatCount(d.written, unit)}`}
               className="flex-1"
             >
               <div
@@ -179,18 +186,18 @@ export function StatsPanel({
         <div className="flex justify-between">
           <span className="text-fg-weak">누적 집필량</span>
           <span className="tabular-nums text-fg">
-            {totalWritten(logs).toLocaleString("ko-KR")}단어
+            {formatCount(totalWritten(logs, unit), unit)}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-fg-weak">쓴 날 평균</span>
-          <span className="tabular-nums text-fg">{perDay.toLocaleString("ko-KR")}단어</span>
+          <span className="tabular-nums text-fg">{formatCount(perDay, unit)}</span>
         </div>
         {topDay && (
           <div className="flex justify-between">
             <span className="text-fg-weak">가장 많이 쓴 날</span>
             <span className="tabular-nums text-fg">
-              {topDay.date} · {topDay.written.toLocaleString("ko-KR")}단어
+              {topDay.date} · {formatCount(topDay.written, unit)}
             </span>
           </div>
         )}

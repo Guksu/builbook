@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { mutate } from "swr";
 import { saveDocumentContent, documentsKey } from "@entities/document";
 import { writingLogsKey } from "@entities/writing-log";
+import type { TextMeasure } from "@shared/lib";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
@@ -15,7 +16,7 @@ const backupKey = (id: string) => `builbook:doc-backup:${id}`;
 export function useAutosave(documentId: string, projectId: string) {
   const [status, setStatus] = useState<SaveStatus>("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pending = useRef<{ content: unknown; wordCount: number } | null>(null);
+  const pending = useRef<{ content: unknown; measure: TextMeasure } | null>(null);
 
   const flush = useCallback(async () => {
     if (!pending.current) return;
@@ -23,7 +24,7 @@ export function useAutosave(documentId: string, projectId: string) {
     pending.current = null;
     setStatus("saving");
     try {
-      await saveDocumentContent(documentId, payload.content, payload.wordCount);
+      await saveDocumentContent(documentId, payload.content, payload.measure);
       setStatus("saved");
       localStorage.removeItem(backupKey(documentId));
       // 문서 목록 캐시 무효화 → 다른 문서로 전환해도 최신 content 반영.
@@ -43,8 +44,8 @@ export function useAutosave(documentId: string, projectId: string) {
 
   // 입력마다 호출: 예약된 저장을 debounce.
   const schedule = useCallback(
-    (content: unknown, wordCount: number) => {
-      pending.current = { content, wordCount };
+    (content: unknown, measure: TextMeasure) => {
+      pending.current = { content, measure };
       if (status !== "saving") setStatus("saving");
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(flush, DEBOUNCE_MS);

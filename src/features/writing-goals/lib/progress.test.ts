@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeProgress, sumWordCounts } from "./progress";
+import { computeProgress } from "./progress";
 
 describe("computeProgress", () => {
   it("목표 미설정(undefined)은 hasGoal=false", () => {
@@ -63,34 +63,3 @@ describe("computeProgress", () => {
   });
 });
 
-describe("sumWordCounts", () => {
-  it("DOC 노드의 wordCount만 합산한다", () => {
-    const docs = [
-      { type: "DOC", wordCount: 100 },
-      { type: "DOC", wordCount: 250 },
-      { type: "FOLDER", wordCount: 0 },
-    ];
-    expect(sumWordCounts(docs)).toBe(350);
-  });
-
-  it("FOLDER의 wordCount는 집계에서 제외한다", () => {
-    const docs = [
-      { type: "FOLDER", wordCount: 999 },
-      { type: "DOC", wordCount: 10 },
-    ];
-    expect(sumWordCounts(docs)).toBe(10);
-  });
-
-  it("wordCount 누락·비수치는 0으로 취급한다", () => {
-    const docs = [
-      { type: "DOC" },
-      { type: "DOC", wordCount: undefined },
-      { type: "DOC", wordCount: 40 },
-    ];
-    expect(sumWordCounts(docs)).toBe(40);
-  });
-
-  it("빈 목록은 0", () => {
-    expect(sumWordCounts([])).toBe(0);
-  });
-});

@@ -3,6 +3,7 @@
 // 쓴 글이 어제로 기록돼 연속 집필일이 끊긴 것처럼 보인다.
 
 import type { WritingLog } from "../model/types";
+import type { CountUnit } from "@shared/lib";
 
 export function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -21,29 +22,50 @@ export function shiftDateKey(key: string, days: number): string {
   return dateKey(base);
 }
 
+export interface WritingDelta {
+  words: number;
+  chars: number; // 공백 포함 글자 수
+}
+
+const safeInt = (n: number) => (Number.isFinite(n) ? Math.trunc(n) : 0);
+
 /**
  * 저장 시점의 변화량을 그날 기록에 더한다(없으면 새로 만든다).
- * delta는 문서 단어 수의 증감 — 양수만 written에 쌓이고, net은 지운 만큼 깎인다.
+ * 단어·글자 두 수치를 함께 쌓는다 — 양수만 written에, net은 지운 만큼 깎인다.
  */
 export function applyDelta(
   existing: WritingLog | undefined,
-  input: { projectId: string; date: string; delta: number; now: string },
+  input: { projectId: string; date: string; delta: WritingDelta; now: string },
 ): WritingLog {
-  const delta = Number.isFinite(input.delta) ? Math.trunc(input.delta) : 0;
+  const words = safeInt(input.delta.words);
+  const chars = safeInt(input.delta.chars);
   const base: WritingLog = existing ?? {
     id: logId(input.projectId, input.date),
     projectId: input.projectId,
     date: input.date,
     net: 0,
     written: 0,
+    netChars: 0,
+    writtenChars: 0,
     updatedAt: input.now,
   };
   return {
     ...base,
-    net: base.net + delta,
-    written: base.written + Math.max(0, delta),
+    net: base.net + words,
+    written: base.written + Math.max(0, words),
+    netChars: (base.netChars ?? 0) + chars,
+    writtenChars: (base.writtenChars ?? 0) + Math.max(0, chars),
     updatedAt: input.now,
   };
+}
+
+/**
+ * 그날 새로 쓴 분량을 단위에 맞게 꺼낸다. 글자 수 도입 이전 기록(writtenChars 없음)은
+ * 단어 수를 그대로 돌려준다 — 정확하진 않지만 "썼다/안 썼다"와 상대 크기는 보존된다.
+ */
+export function writtenValue(log: WritingLog, unit: CountUnit): number {
+  if (unit === "words") return log.written;
+  return log.writtenChars ?? log.written;
 }
 
 const byDate = (logs: readonly WritingLog[]) =>
@@ -93,22 +115,29 @@ export function buildSeries(
   logs: readonly WritingLog[],
   todayKey: string,
   days: number,
+  unit: CountUnit = "chars",
 ): DayPoint[] {
   const map = byDate(logs);
   const out: DayPoint[] = [];
   for (let i = days - 1; i >= 0; i--) {
     const date = shiftDateKey(todayKey, -i);
-    out.push({ date, written: map.get(date)?.written ?? 0 });
+    const log = map.get(date);
+    out.push({ date, written: log ? writtenValue(log, unit) : 0 });
   }
   return out;
 }
 
-export function writtenOn(logs: readonly WritingLog[], dateKeyValue: string): number {
-  return byDate(logs).get(dateKeyValue)?.written ?? 0;
+export function writtenOn(
+  logs: readonly WritingLog[],
+  dateKeyValue: string,
+  unit: CountUnit = "chars",
+): number {
+  const log = byDate(logs).get(dateKeyValue);
+  return log ? writtenValue(log, unit) : 0;
 }
 
-export function totalWritten(logs: readonly WritingLog[]): number {
-  return logs.reduce((sum, l) => sum + Math.max(0, l.written), 0);
+export function totalWritten(logs: readonly WritingLog[], unit: CountUnit = "chars"): number {
+  return logs.reduce((sum, l) => sum + Math.max(0, writtenValue(l, unit)), 0);
 }
 
 /** 쓴 날이 있는 기록만 센다 — 평균 계산의 분모(안 쓴 날로 평균을 깎지 않는다). */
@@ -116,17 +145,21 @@ export function activeDays(logs: readonly WritingLog[]): number {
   return logs.filter((l) => l.written > 0).length;
 }
 
-export function averagePerActiveDay(logs: readonly WritingLog[]): number {
+export function averagePerActiveDay(
+  logs: readonly WritingLog[],
+  unit: CountUnit = "chars",
+): number {
   const days = activeDays(logs);
-  return days ? Math.round(totalWritten(logs) / days) : 0;
+  return days ? Math.round(totalWritten(logs, unit) / days) : 0;
 }
 
 /** 가장 많이 쓴 날. 기록이 없으면 null. */
-export function bestDay(logs: readonly WritingLog[]): DayPoint | null {
+export function bestDay(logs: readonly WritingLog[], unit: CountUnit = "chars"): DayPoint | null {
   let best: DayPoint | null = null;
   for (const l of logs) {
-    if (l.written > 0 && (!best || l.written > best.written)) {
-      best = { date: l.date, written: l.written };
+    const v = writtenValue(l, unit);
+    if (v > 0 && (!best || v > best.written)) {
+      best = { date: l.date, written: v };
     }
   }
   return best;

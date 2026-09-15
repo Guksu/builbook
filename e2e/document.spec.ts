@@ -31,9 +31,9 @@ test("문서 생성 → 집필 → 자동저장 → 새로고침 후 내용 유�
   await editor.click();
   await page.keyboard.type("어두운 밤, 이야기는 시작되었다.");
 
-  // 단어 수가 실시간 반영된다 (공백 기준 4단어: 어두운/밤,/이야기는/시작되었다.)
-  // 상단 바에도 작품 합계 "N단어"가 있으므로 에디터(main) 안의 것만 본다.
-  await expect(page.locator("main").getByText(/단어$/)).toContainText("4단어");
+  // 분량이 실시간 반영된다 (기본 단위 = 공백 포함 글자 수: 18자)
+  // 상단 바에도 작품 합계 "N자"가 있으므로 에디터(main) 안의 것만 본다.
+  await expect(page.locator("main").getByText(/\d자$/)).toContainText("18자");
 
   // 자동저장(debounce 800ms) flush 대기 후 새로고침
   await page.waitForTimeout(1500);

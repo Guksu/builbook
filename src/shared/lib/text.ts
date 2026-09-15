@@ -48,3 +48,55 @@ export function countChars(text: string): number {
 export function countCharsWithSpaces(text: string): number {
   return text.replace(/\r\n/g, "\n").length;
 }
+
+// ── 분량 단위 ──────────────────────────────────────────────────────────────
+// 한국 웹소설 플랫폼은 회차 분량을 '글자 수'로 센다(공백 포함이 흔하고, 노벨피아처럼 공백
+// 제외인 곳도 있다). 그래서 앱의 기본 단위는 공백 포함 글자 수이고, 사용자가 바꿀 수 있다.
+export type CountUnit = "chars" | "charsNoSpace" | "words";
+
+export interface TextMeasure {
+  words: number;
+  chars: number; // 공백 포함 글자 수
+  charsNoSpace: number; // 공백 제외 글자 수
+}
+
+export const DEFAULT_COUNT_UNIT: CountUnit = "chars";
+
+export const COUNT_UNITS: readonly { value: CountUnit; label: string; suffix: string }[] = [
+  { value: "chars", label: "글자 수 (공백 포함)", suffix: "자" },
+  { value: "charsNoSpace", label: "글자 수 (공백 제외)", suffix: "자" },
+  { value: "words", label: "단어 수", suffix: "단어" },
+];
+
+export const ZERO_MEASURE: TextMeasure = { words: 0, chars: 0, charsNoSpace: 0 };
+
+// 한 번 훑어 세 가지 수치를 모두 만든다 — 저장 시 함께 기록해 단위를 바꿔도 다시 셀 필요가 없다.
+export function measureText(text: string): TextMeasure {
+  return {
+    words: countWords(text),
+    chars: countCharsWithSpaces(text),
+    charsNoSpace: countChars(text),
+  };
+}
+
+export function isCountUnit(value: unknown): value is CountUnit {
+  return COUNT_UNITS.some((u) => u.value === value);
+}
+
+export function pickCount(m: TextMeasure, unit: CountUnit): number {
+  return m[unit];
+}
+
+export function unitSuffix(unit: CountUnit): string {
+  return COUNT_UNITS.find((u) => u.value === unit)?.suffix ?? "자";
+}
+
+export function unitLabel(unit: CountUnit): string {
+  return COUNT_UNITS.find((u) => u.value === unit)?.label ?? "글자 수";
+}
+
+// "1,234자" / "12단어" — 숫자 표기 규칙의 단일 출처.
+export function formatCount(n: number, unit: CountUnit): string {
+  const safe = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+  return `${safe.toLocaleString("ko-KR")}${unitSuffix(unit)}`;
+}

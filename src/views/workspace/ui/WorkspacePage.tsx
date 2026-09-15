@@ -18,15 +18,34 @@ import {
   type WorkspacePanelKey,
 } from "@widgets/workspace-header";
 import { planReorder } from "@features/reorder-document";
-import { computeProgress, sumWordCounts } from "@features/writing-goals";
+import { computeProgress } from "@features/writing-goals";
+import { useCountUnit } from "@features/count-unit";
 import { SearchPanel } from "@features/search-document";
 import { TrashPanel } from "@features/trash-document";
 import { ExportMenu } from "@features/export-document";
 import { ReaderPreview } from "@features/reader-preview";
 import { useTabGuard, TabConflictBanner } from "@features/tab-guard";
-import { useDocuments } from "@entities/document";
+import { useDocuments, docCount, sumDocCounts, measureDocument } from "@entities/document";
 import { useProject } from "@entities/project";
 import { useToast, ProgressBar, cn } from "@shared/ui";
+import { formatCount, pickCount, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
+
+// 마지막으로 열었던 문서 — 다시 들어오면 그 자리에서 이어 쓴다(작품별).
+const lastDocKey = (projectId: string) => `builbook:last-doc:${projectId}`;
+function readLastDoc(projectId: string): string | null {
+  try {
+    return localStorage.getItem(lastDocKey(projectId));
+  } catch {
+    return null;
+  }
+}
+function writeLastDoc(projectId: string, docId: string) {
+  try {
+    localStorage.setItem(lastDocKey(projectId), docId);
+  } catch {
+    /* 저장 불가 브라우저 — 무시 */
+  }
+}
 
 export function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
@@ -70,23 +89,31 @@ export function WorkspacePage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   // 집중 모드: 주변 UI를 숨기고 본문에만 몰입(에디터 인스턴스는 재마운트 없이 유지).
   const [focusMode, setFocusMode] = useState(false);
-  // 에디터가 올려주는 실시간 단어 수 — 목표·집중모드 카운터가 즉시 반영되도록.
-  const [liveWords, setLiveWords] = useState(0);
+  // 에디터가 올려주는 실시간 분량(단어·글자) — 목표·집중모드 카운터가 즉시 반영되도록.
+  const [liveMeasure, setLiveMeasure] = useState<TextMeasure>(ZERO_MEASURE);
+  const [unit] = useCountUnit();
+  const liveWords = pickCount(liveMeasure, unit);
   // 스냅샷 복원 시 에디터를 강제 재마운트해 교체된 content를 다시 로드하는 토큰.
   const [reloadToken, setReloadToken] = useState(0);
   // 같은 문서를 다른 탭에서도 열었으면 경고(자동저장이 서로 덮어쓰는 사고 예방).
   const tabConflict = useTabGuard(selectedId);
 
-  // 첫 DOC 자동 선택. 선택 문서가 사라지면 해제.
+  // 마지막에 열었던 문서를 우선 복원하고, 없으면 첫 DOC 자동 선택. 선택 문서가 사라지면 해제.
   useEffect(() => {
     if (selectedId && !documents.some((d) => d.id === selectedId)) {
       setSelectedId(null);
     }
     if (!selectedId) {
-      const firstDoc = documents.find((d) => d.type === "DOC");
+      const last = readLastDoc(id);
+      const lastDoc = last ? documents.find((d) => d.id === last && d.type === "DOC") : null;
+      const firstDoc = lastDoc ?? documents.find((d) => d.type === "DOC");
       if (firstDoc) setSelectedId(firstDoc.id);
     }
-  }, [documents, selectedId]);
+  }, [documents, selectedId, id]);
+
+  useEffect(() => {
+    if (selectedId) writeLastDoc(id, selectedId);
+  }, [id, selectedId]);
 
   const selected = useMemo(
     () => documents.find((d) => d.id === selectedId) ?? null,
@@ -96,7 +123,7 @@ export function WorkspacePage() {
   // 문서 전환 시 저장된 값으로 즉시 리셋(에디터 콜백이 곧 실시간 값으로 보정).
   useEffect(() => {
     const d = documents.find((x) => x.id === selectedId);
-    setLiveWords(d?.wordCount ?? 0);
+    setLiveMeasure(d ? measureDocument(d) : ZERO_MEASURE);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
 
@@ -110,12 +137,12 @@ export function WorkspacePage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [focusMode]);
 
-  // 작품 전체 단어 수 = 저장된 합계에서 현재 편집 문서만 실시간 값으로 치환.
+  // 작품 전체 분량 = 저장된 합계에서 현재 편집 문서만 실시간 값으로 치환.
   const projectTotalWords = useMemo(() => {
-    const base = sumWordCounts(documents);
+    const base = sumDocCounts(documents, unit);
     if (!selected || selected.type !== "DOC") return base;
-    return base - (selected.wordCount ?? 0) + liveWords;
-  }, [documents, selected, liveWords]);
+    return base - docCount(selected, unit) + liveWords;
+  }, [documents, selected, liveWords, unit]);
 
   // 집중 모드 하단에 은은하게 띄울 문서 목표 진행률.
   const focusProgress = computeProgress(liveWords, selected?.goal);
@@ -186,7 +213,7 @@ export function WorkspacePage() {
       {!focusMode && (
         <WorkspaceHeader
           projectTitle={project?.title}
-          totalWords={projectTotalWords}
+          totalLabel={formatCount(projectTotalWords, unit)}
           viewMode={viewMode}
           onChangeViewMode={setViewMode}
           openPanels={openPanels}
@@ -249,7 +276,7 @@ export function WorkspacePage() {
               projectId={id}
               initialContent={(selected.content as JSONContent | null) ?? null}
               title={selected.title}
-              onWordCountChange={setLiveWords}
+              onMeasureChange={setLiveMeasure}
             />
           )}
 
@@ -257,9 +284,7 @@ export function WorkspacePage() {
           {focusMode && (
             <div className="fixed bottom-16 right-16 z-10 flex flex-col items-end gap-6">
               <div className="flex items-center gap-8 rounded-full border border-border bg-surface px-12 py-6 text-caption text-fg-weak shadow-sm">
-                <span className="tabular-nums">
-                  {liveWords.toLocaleString("ko-KR")}단어
-                </span>
+                <span className="tabular-nums">{formatCount(liveWords, unit)}</span>
                 {focusProgress.hasGoal && (
                   <>
                     <span aria-hidden>·</span>

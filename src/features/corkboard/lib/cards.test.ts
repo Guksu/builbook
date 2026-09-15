@@ -71,8 +71,7 @@ describe("buildCards", () => {
     ]);
     expect(cards[0]).toMatchObject({
       synopsis: "주인공이 회귀한다",
-      words: 3,
-      chars: 5,
+      measure: { words: 3, chars: 5, charsNoSpace: 3 },
       status: "done",
     });
   });

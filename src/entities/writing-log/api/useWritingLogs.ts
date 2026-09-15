@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { STORES, dbGet, dbGetAllByProject, dbPut, dbBulkDelete } from "@shared/db";
 import type { WritingLog } from "../model/types";
-import { applyDelta, dateKey, logId } from "../lib/stats";
+import { applyDelta, dateKey, logId, type WritingDelta } from "../lib/stats";
 
 export const writingLogsKey = (projectId: string) => `writingLogs:${projectId}`;
 
@@ -11,8 +11,8 @@ export const writingLogsKey = (projectId: string) => `writingLogs:${projectId}`;
  * 저장 시 발생한 단어 수 변화를 오늘 기록에 더한다.
  * 자동저장 경로에서 호출되므로 실패해도 원고 저장을 방해하지 않는다(호출부에서 catch).
  */
-export async function recordWriting(projectId: string, delta: number): Promise<void> {
-  if (!projectId || !delta) return; // 변화 없는 저장은 기록하지 않는다
+export async function recordWriting(projectId: string, delta: WritingDelta): Promise<void> {
+  if (!projectId || (!delta.words && !delta.chars)) return; // 변화 없는 저장은 기록하지 않는다
   const date = dateKey(new Date());
   const id = logId(projectId, date);
   const existing = await dbGet<WritingLog>(STORES.writingLogs, id);

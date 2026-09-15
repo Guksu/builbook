@@ -19,5 +19,7 @@ export {
   shiftDateKey,
   totalWritten,
   writtenOn,
+  writtenValue,
   type DayPoint,
+  type WritingDelta,
 } from "./lib/stats";

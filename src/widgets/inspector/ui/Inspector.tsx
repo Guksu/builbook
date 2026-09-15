@@ -2,6 +2,7 @@
 
 import { Textarea } from "@shared/ui";
 import { GoalMeter } from "@features/writing-goals";
+import { CountUnitSelect } from "@features/count-unit";
 import type { DocumentNode } from "@entities/document";
 
 interface InspectorProps {
@@ -28,11 +29,14 @@ export function Inspector({
 }: InspectorProps) {
   return (
     <div className="flex flex-col gap-16 text-body-sm">
+      {/* 분량 단위 — 헤더·목표·현황 숫자가 모두 이 설정을 따른다 */}
+      <CountUnitSelect />
+      <div className="h-px bg-border" />
       {/* 작품 전체 목표 — 문서 선택과 무관하게 항상 표시 */}
       <GoalMeter
         id="project-goal"
         label="작품 전체"
-        inputLabel="작품 목표 단어 수"
+        inputLabel="작품 목표 분량"
         current={projectTotalWords}
         goal={projectGoal}
         onSave={onSaveProjectGoal}
@@ -46,7 +50,7 @@ export function Inspector({
             key={doc.id}
             id="doc-goal"
             label="이 문서"
-            inputLabel="문서 목표 단어 수"
+            inputLabel="문서 목표 분량"
             current={currentWords}
             goal={doc.goal}
             onSave={(g) => onSaveDocGoal(doc.id, g)}

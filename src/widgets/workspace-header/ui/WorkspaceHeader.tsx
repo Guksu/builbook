@@ -31,8 +31,8 @@ const PANEL_GROUPS: { key: WorkspacePanelKey; label: string }[][] = [
 
 interface WorkspaceHeaderProps {
   projectTitle?: string;
-  /** 작품 전체 단어 수 — 편집 중 문서는 실시간 값으로 치환된 합계. */
-  totalWords: number;
+  /** 작품 전체 분량 표기(예: "12,345자") — 편집 중 문서는 실시간 값으로 치환된 합계. */
+  totalLabel: string;
   viewMode: "editor" | "corkboard";
   onChangeViewMode: (mode: "editor" | "corkboard") => void;
   openPanels: Record<WorkspacePanelKey, boolean>;
@@ -49,7 +49,7 @@ interface WorkspaceHeaderProps {
  */
 export function WorkspaceHeader({
   projectTitle,
-  totalWords,
+  totalLabel,
   viewMode,
   onChangeViewMode,
   openPanels,
@@ -74,7 +74,7 @@ export function WorkspaceHeader({
           {projectTitle ?? "작품"}
         </p>
         <span className="shrink-0 text-caption tabular-nums text-fg-muted">
-          {totalWords.toLocaleString("ko-KR")}단어
+          {totalLabel}
         </span>
       </div>
 

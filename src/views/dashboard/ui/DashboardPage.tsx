@@ -14,6 +14,7 @@ import {
   useToast,
 } from "@shared/ui";
 import { useProjects, type Project } from "@entities/project";
+import { seedFirstEpisode } from "@entities/document";
 import { ThemeToggle } from "@features/toggle-theme";
 import { BackupModal, BackupReminder } from "@features/backup-restore";
 import { StorageNotice } from "@features/storage-guard";
@@ -39,6 +40,8 @@ export function DashboardPage() {
     try {
       const project = await createProject({ title: title.trim() });
       if (!project) return;
+      // 빈 바인더 대신 "1화"를 미리 만들어 둔다 — 들어가자마자 쓸 수 있게.
+      await seedFirstEpisode(project.id);
       setOpen(false);
       setTitle("");
       router.push(`/projects/${project.id}`);

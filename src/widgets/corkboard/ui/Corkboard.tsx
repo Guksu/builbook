@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Textarea, cn } from "@shared/ui";
 import type { DocumentNode } from "@entities/document";
+import { formatCount, pickCount } from "@shared/lib";
+import { useCountUnit } from "@features/count-unit";
 import {
   buildCards,
   docStatusLabel,
@@ -40,6 +42,7 @@ export function Corkboard({
   onUpdateStatus,
   onMove,
 }: CorkboardProps) {
+  const [unit] = useCountUnit();
   const cards = buildCards(documents);
   const summary = summarizeCards(cards);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -173,8 +176,9 @@ export function Corkboard({
               )}
 
               <footer className="mt-8 flex justify-between text-caption tabular-nums text-fg-muted">
-                <span>{card.type === "DOC" ? `${card.chars.toLocaleString("ko-KR")}자` : "폴더"}</span>
-                <span>{card.type === "DOC" ? `${card.words.toLocaleString("ko-KR")}단어` : ""}</span>
+                <span>
+                  {card.type === "DOC" ? formatCount(pickCount(card.measure, unit), unit) : "폴더"}
+                </span>
               </footer>
             </article>
           </li>

@@ -11,6 +11,10 @@ export interface DocumentNode {
   content: unknown | null;
   synopsis: string | null;
   wordCount: number;
+  // 공백 포함 글자 수 / 공백 제외 글자 수(2026-09 글자 수 기준 도입). 옛 레코드는 없을 수 있어
+  // 선택 필드 — 읽을 때 measureDocument가 본문에서 다시 센다.
+  charCount?: number;
+  charCountNoSpace?: number;
   // 문서 단위 목표 단어 수(선택). 미설정 시 undefined — 기존 레코드 호환.
   goal?: number;
   // 진행 상태(선택): "draft"(초고) | "revise"(퇴고) | "done"(완료).

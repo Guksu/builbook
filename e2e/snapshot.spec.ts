@@ -62,7 +62,7 @@ test("스냅샷 저장 → 목록 표시 → 복원 → 자동 스냅샷", async
 
   // 목록에 스냅샷 1개 등장 (단어 수 표시 확인)
   const list = page.getByRole("list", { name: "스냅샷 목록" });
-  await expect(list.getByText(/단어$/)).toHaveCount(1);
+  await expect(list.getByText(/\d자$/)).toHaveCount(1);
 
   // 본문을 두 번째 버전으로 교체 후 자동저장 대기
   await editor.click();
@@ -72,7 +72,7 @@ test("스냅샷 저장 → 목록 표시 → 복원 → 자동 스냅샷", async
   await expect(editor).toContainText("완전히 다른 두 번째 버전.");
 
   // 스냅샷 펼쳐 미리보기 + 복원
-  await list.getByRole("button", { name: /단어$/ }).first().click();
+  await list.getByRole("button", { name: /\d자$/ }).first().click();
   await expect(page.getByText("첫 번째 버전 원고입니다.")).toBeVisible();
   await page.getByRole("button", { name: "복원", exact: true }).click();
 
@@ -91,7 +91,7 @@ test("스냅샷 저장 → 목록 표시 → 복원 → 자동 스냅샷", async
   // 복원 직전 상태가 자동 스냅샷("복원 전 자동 저장")으로 남아 목록이 2개가 됐다
   await expect(page.getByText("복원 전 자동 저장")).toBeVisible();
   await expect(
-    page.getByRole("list", { name: "스냅샷 목록" }).getByText(/단어$/),
+    page.getByRole("list", { name: "스냅샷 목록" }).getByText(/\d자$/),
   ).toHaveCount(2);
 });
 
@@ -114,7 +114,7 @@ test("영구 삭제 시 그 문서의 스냅샷도 cascade 삭제된다 (고아 
     .getByRole("button", { name: "저장", exact: true })
     .click();
   await expect(
-    page.getByRole("list", { name: "스냅샷 목록" }).getByText(/단어$/),
+    page.getByRole("list", { name: "스냅샷 목록" }).getByText(/\d자$/),
   ).toHaveCount(1);
   expect(await count(page, "snapshots")).toBe(1);
 

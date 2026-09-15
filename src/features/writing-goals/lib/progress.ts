@@ -1,6 +1,6 @@
 // 집필 목표 진행률 계산 — 순수 함수(UI/DB 비종속이라 단위 테스트가 쉽다).
-// 단위는 '단어 수'(DocumentNode.wordCount)로 통일한다 — 앱 전반이 단어 수를 노출하고,
-// 세는 규칙은 @shared/lib의 countWords 단일 출처를 재사용한다(여기선 이미 센 값만 소비).
+// 단위에 비종속: 현재/목표 값이 같은 단위(사용자 설정 분량 단위)라고만 가정한다.
+// 세는 규칙은 @shared/lib의 measureText 단일 출처(여기선 이미 센 값만 소비).
 
 export interface GoalProgress {
   hasGoal: boolean; // 유효한 목표(양수)가 설정됐는가 — 미설정/0/음수는 false
@@ -43,14 +43,4 @@ export function computeProgress(current: unknown, goal: unknown): GoalProgress {
     remaining: Math.max(0, g - cur),
     reached: cur >= g,
   };
-}
-
-// 작품 전체 단어 수 합계 — DOC 노드의 wordCount 합(FOLDER는 집계 제외).
-export function sumWordCounts(
-  docs: readonly { type?: string; wordCount?: number }[],
-): number {
-  return docs.reduce(
-    (sum, d) => sum + (d.type === "DOC" ? normalizeCount(d.wordCount) : 0),
-    0,
-  );
 }

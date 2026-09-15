@@ -31,9 +31,9 @@ test("타이핑하면 오늘 집필량·연속 집필일이 기록된다", async
   await typeBody(page, "그는 눈을 떴다. 죽기 직전의 기억이 선명했다.");
 
   await page.getByRole("button", { name: "현황", exact: true }).click();
-  // 오늘 쓴 분량이 0단어가 아니다(자동저장이 델타를 기록했다)
+  // 오늘 쓴 분량이 0자가 아니다(자동저장이 델타를 기록했다)
   await expect(page.getByText(/오늘 쓴 분량/)).toBeVisible();
-  await expect(page.getByText(/^[1-9]\d*단어$/).first()).toBeVisible();
+  await expect(page.getByText(/^[1-9]\d*자$/).first()).toBeVisible();
   // 오늘 썼으므로 연속 집필은 1일
   await expect(page.getByText("연속 집필")).toBeVisible();
   await expect(page.getByText("1일").first()).toBeVisible();
@@ -67,8 +67,8 @@ test("하루 목표를 정하면 오늘 진행률 바가 나타난다", async ({
   await page.getByRole("button", { name: "현황", exact: true }).click();
   await expect(page.getByRole("progressbar", { name: "오늘 목표 진행률" })).toHaveCount(0);
 
-  await page.getByLabel("하루 목표 단어 수").fill("100");
-  await page.getByLabel("하루 목표 단어 수").blur();
+  await page.getByLabel("하루 목표 분량").fill("100");
+  await page.getByLabel("하루 목표 분량").blur();
   await expect(page.getByRole("progressbar", { name: "오늘 목표 진행률" })).toBeVisible();
 });
 

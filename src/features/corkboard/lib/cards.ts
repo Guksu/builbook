@@ -4,7 +4,7 @@
 
 import type { DocumentNode, DocType } from "@entities/document";
 import { flattenTree, selectActiveDocuments } from "@entities/document";
-import { countCharsWithSpaces, countWords, extractPlainText } from "@shared/lib";
+import { extractPlainText, measureText, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
 
 /** 문서 진행 상태 — 초고 → 퇴고 → 완료 순환. 미설정은 '초고'로 본다. */
 export type DocStatus = "draft" | "revise" | "done";
@@ -37,8 +37,7 @@ export interface CardItem {
   depth: number;
   /** 시놉시스가 없으면 빈 문자열(카드는 안내 문구를 대신 보여준다). */
   synopsis: string;
-  words: number;
-  chars: number;
+  measure: TextMeasure;
   status: DocStatus;
 }
 
@@ -48,15 +47,15 @@ export interface CardItem {
  */
 export function buildCards(docs: readonly DocumentNode[]): CardItem[] {
   return flattenTree(selectActiveDocuments(docs)).map(({ node, depth }) => {
-    const text = node.type === "DOC" ? extractPlainText(node.content) : "";
+    const measure =
+      node.type === "DOC" ? measureText(extractPlainText(node.content)) : ZERO_MEASURE;
     return {
       id: node.id,
       title: node.title,
       type: node.type,
       depth,
       synopsis: node.synopsis?.trim() ?? "",
-      words: countWords(text),
-      chars: countCharsWithSpaces(text),
+      measure,
       status: normalizeStatus(node.status),
     };
   });

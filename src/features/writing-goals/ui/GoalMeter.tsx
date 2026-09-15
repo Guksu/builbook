@@ -1,14 +1,16 @@
 "use client";
 
 import { Input, ProgressBar, cn } from "@shared/ui";
+import { formatCount, unitSuffix } from "@shared/lib";
+import { useCountUnit } from "@features/count-unit";
 import { computeProgress } from "../lib/progress";
 
 interface GoalMeterProps {
   /** 좌측 라벨(예: "이 문서", "작품 전체") */
   label: string;
-  /** 현재 단어 수 */
+  /** 현재 분량(사용자 설정 단위) */
   current: number;
-  /** 목표 단어 수 — undefined/null/0 이면 "목표 미설정" */
+  /** 목표 분량 — undefined/null/0 이면 "목표 미설정" */
   goal: number | null | undefined;
   /** 목표 저장 콜백. 빈 입력이면 null(미설정) */
   onSave: (goal: number | null) => void;
@@ -28,6 +30,7 @@ export function GoalMeter({
   id,
   inputLabel,
 }: GoalMeterProps) {
+  const [unit] = useCountUnit();
   const p = computeProgress(current, goal);
 
   // 입력값 커밋: 빈 값 → 미설정(null), 0 이상 정수만 저장, 변화 없으면 무시.
@@ -48,8 +51,9 @@ export function GoalMeter({
       <div className="flex items-baseline justify-between">
         <span className="text-fg-weak">{label}</span>
         <span className="tabular-nums text-fg">
-          {p.current.toLocaleString("ko-KR")}
-          {p.hasGoal ? ` / ${p.goal.toLocaleString("ko-KR")}` : ""}단어
+          {p.hasGoal
+            ? `${p.current.toLocaleString("ko-KR")} / ${formatCount(p.goal, unit)}`
+            : formatCount(p.current, unit)}
         </span>
       </div>
 
@@ -79,7 +83,7 @@ export function GoalMeter({
         inputMode="numeric"
         aria-label={inputLabel}
         defaultValue={goal != null && goal > 0 ? String(goal) : ""}
-        placeholder="목표 단어 수 (선택)"
+        placeholder={`목표 분량 (${unitSuffix(unit)}, 선택)`}
         className="h-32 text-body-sm"
         onBlur={(e) => commit(e.target.value)}
         onKeyDown={(e) => {

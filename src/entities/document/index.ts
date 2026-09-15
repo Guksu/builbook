@@ -8,3 +8,6 @@ export {
   flattenTree,
   type FlatNode,
 } from "./lib/tree";
+export { measureDocument, docCount, sumDocCounts } from "./lib/count";
+export { parseEpisodeNo, nextEpisodeTitle, nextFolderTitle } from "./lib/naming";
+export { seedFirstEpisode } from "./api/seed";

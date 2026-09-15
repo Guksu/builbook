@@ -11,12 +11,14 @@ import {
 } from "@shared/db";
 import { deleteSnapshotsForDocuments } from "@entities/snapshot";
 import { recordWriting } from "@entities/writing-log";
+import type { TextMeasure } from "@shared/lib";
 import type { DocumentNode, DocType } from "../model/types";
 import {
   collectSubtreeIds,
   selectActiveDocuments,
   selectTrashedDocuments,
 } from "../lib/tree";
+import { measureDocument } from "../lib/count";
 
 // 문서 목록 SWR 키 — 자동저장 등 외부에서 캐시 무효화할 때 동일 키 사용.
 export const documentsKey = (projectId: string) => `documents:${projectId}`;
@@ -28,17 +30,25 @@ function listDocuments(projectId: string) {
   return dbGetAllByProject<DocumentNode>(STORES.documents, projectId);
 }
 
-// 자동저장(feature)에서 호출하는 독립 함수 — content/wordCount만 갱신.
+// 자동저장(feature)에서 호출하는 독립 함수 — content와 분량(단어·글자) 수치만 갱신.
 export async function saveDocumentContent(
   id: string,
   content: unknown,
-  wordCount: number,
+  measure: TextMeasure,
 ) {
   const doc = await dbGet<DocumentNode>(STORES.documents, id);
   if (!doc) return;
   // 저장 직전 값과의 차이가 곧 "방금 쓴 분량" — 일별 집필 기록의 유일한 입력이다.
-  const delta = wordCount - (doc.wordCount ?? 0);
-  await dbPut(STORES.documents, { ...doc, content, wordCount, updatedAt: now() });
+  const before = measureDocument(doc);
+  const delta = { words: measure.words - before.words, chars: measure.chars - before.chars };
+  await dbPut(STORES.documents, {
+    ...doc,
+    content,
+    wordCount: measure.words,
+    charCount: measure.chars,
+    charCountNoSpace: measure.charsNoSpace,
+    updatedAt: now(),
+  });
   try {
     await recordWriting(doc.projectId, delta);
   } catch {
@@ -95,6 +105,8 @@ export function useDocuments(projectId: string) {
         content: type === "DOC" ? EMPTY_DOC : null,
         synopsis: null,
         wordCount: 0,
+        charCount: 0,
+        charCountNoSpace: 0,
         createdAt: ts,
         updatedAt: ts,
       };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyDelta,
+  writtenValue,
   averagePerActiveDay,
   bestDay,
   buildSeries,
@@ -40,23 +41,29 @@ describe("applyDelta", () => {
     const next = applyDelta(undefined, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: 120,
+      delta: { words: 120, chars: 360 },
       now: "2026-07-29T10:00:00.000Z",
     });
-    expect(next).toMatchObject({ id: "p1:2026-07-29", net: 120, written: 120 });
+    expect(next).toMatchObject({
+      id: "p1:2026-07-29",
+      net: 120,
+      written: 120,
+      netChars: 360,
+      writtenChars: 360,
+    });
   });
 
   it("같은 날 저장은 누적된다", () => {
     const first = applyDelta(undefined, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: 100,
+      delta: { words: 100, chars: 300 },
       now: "t1",
     });
     const second = applyDelta(first, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: 50,
+      delta: { words: 50, chars: 150 },
       now: "t2",
     });
     expect(second.written).toBe(150);
@@ -66,13 +73,13 @@ describe("applyDelta", () => {
     const first = applyDelta(undefined, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: 200,
+      delta: { words: 200, chars: 600 },
       now: "t1",
     });
     const after = applyDelta(first, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: -80,
+      delta: { words: -80, chars: -240 },
       now: "t2",
     });
     expect(after.net).toBe(120);
@@ -83,10 +90,41 @@ describe("applyDelta", () => {
     const next = applyDelta(undefined, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: Number.NaN,
+      delta: { words: Number.NaN, chars: Number.NaN },
       now: "t",
     });
     expect(next.written).toBe(0);
+    expect(next.writtenChars).toBe(0);
+  });
+
+  it("옛 기록(글자 수 없음)에 더해도 글자 수가 생긴다", () => {
+    const legacy = {
+      id: "p1:2026-07-29",
+      projectId: "p1",
+      date: "2026-07-29",
+      net: 10,
+      written: 10,
+      updatedAt: "t0",
+    };
+    const next = applyDelta(legacy, {
+      projectId: "p1",
+      date: "2026-07-29",
+      delta: { words: 5, chars: 20 },
+      now: "t1",
+    });
+    expect(next).toMatchObject({ written: 15, writtenChars: 20, netChars: 20 });
+  });
+});
+
+describe("writtenValue", () => {
+  const legacy = { id: "x", projectId: "p", date: "2026-01-01", net: 7, written: 7, updatedAt: "t" };
+  it("단어 단위는 written", () => {
+    expect(writtenValue({ ...legacy, writtenChars: 30 }, "words")).toBe(7);
+  });
+  it("글자 단위는 writtenChars, 없으면 단어 수로 대체", () => {
+    expect(writtenValue({ ...legacy, writtenChars: 30 }, "chars")).toBe(30);
+    expect(writtenValue(legacy, "chars")).toBe(7);
+    expect(writtenValue(legacy, "charsNoSpace")).toBe(7);
   });
 });
 
