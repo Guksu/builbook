@@ -11,7 +11,8 @@ import { Scrivenings } from "@widgets/scrivenings";
 import { SnapshotPanel } from "@widgets/snapshot-panel";
 import { NotesPanel } from "@widgets/notes-panel";
 import { StatsPanel } from "@widgets/stats-panel";
-import { Corkboard } from "@widgets/corkboard";
+import { Corkboard, CorkboardToolbar } from "@widgets/corkboard";
+import type { CardLabelFilter } from "@features/corkboard";
 import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
 import {
@@ -75,6 +76,7 @@ export function WorkspacePage() {
     createDocument,
     renameDocument,
     deleteDocument,
+    deleteDocuments,
     restoreDocument,
     permanentlyDeleteDocument,
     moveDocument,
@@ -115,6 +117,8 @@ export function WorkspacePage() {
   // 가운데 영역 보기 모드: 본문(에디터) ↔ 카드(코르크보드).
   const [viewMode, setViewMode] = useState<"editor" | "corkboard">("editor");
   const [previewOpen, setPreviewOpen] = useState(false);
+  // 코르크보드 라벨 필터(세션 상태). 범위는 선택된 폴더가 결정한다.
+  const [cardLabelFilter, setCardLabelFilter] = useState<CardLabelFilter>(null);
   // 집중 모드: 주변 UI를 숨기고 본문에만 몰입(에디터 인스턴스는 재마운트 없이 유지).
   const [focusMode, setFocusMode] = useState(false);
   // 에디터가 올려주는 실시간 분량(단어·글자) — 목표·집중모드 카운터가 즉시 반영되도록.
@@ -260,6 +264,25 @@ export function WorkspacePage() {
     }
   }
 
+  // 다중 선택 이동: 하나씩 옮기되, 옮긴 결과를 반영한 사본으로 다음 자리를 계산한다
+  // (매번 원래 목록으로 계산하면 전부 같은 order를 받아 한자리에 겹친다).
+  async function handleMoveManyToParent(ids: string[], parentId: string | null) {
+    let working = documents;
+    for (const docId of ids) {
+      const plan = planMoveToParent(working, docId, parentId);
+      if (!plan || plan.kind !== "move") continue;
+      try {
+        await moveDocument(plan.id, plan.parentId, plan.order);
+      } catch {
+        toast("이동에 실패했어요.", "error");
+        return;
+      }
+      working = working.map((d) =>
+        d.id === plan.id ? { ...d, parentId: plan.parentId, order: plan.order } : d,
+      );
+    }
+  }
+
   return (
     <div className="flex h-screen flex-col">
       {/* 상단 바 — 집중 모드에서는 숨김(에디터는 그대로 유지) */}
@@ -319,8 +342,10 @@ export function WorkspacePage() {
             onCreate={handleCreate}
             onRename={renameDocument}
             onDelete={deleteDocument}
+            onDeleteMany={deleteDocuments}
             onMove={handleMove}
             onMoveToParent={handleMoveToParent}
+            onMoveManyToParent={handleMoveManyToParent}
             labels={project?.labels}
           />
         </aside>
@@ -335,7 +360,17 @@ export function WorkspacePage() {
             <p className="p-24 text-body text-error">문서를 불러오지 못했어요.</p>
           )}
           {!isLoading && !error && viewMode === "corkboard" && (
+            <>
+              <CorkboardToolbar
+                scopeTitle={selected?.type === "FOLDER" ? selected.title : null}
+                onClearScope={() => setSelectedId(null)}
+                labels={project?.labels}
+                labelFilter={cardLabelFilter}
+                onChangeLabelFilter={setCardLabelFilter}
+              />
             <Corkboard
+              scopeId={selected?.type === "FOLDER" ? selected.id : null}
+              labelFilter={cardLabelFilter}
               documents={documents}
               selectedId={selectedId}
               onOpen={(docId) => {
@@ -347,6 +382,7 @@ export function WorkspacePage() {
               labels={project?.labels}
               onMove={handleMove}
             />
+            </>
           )}
           {!isLoading && !error && !selected && viewMode === "editor" && (
             <div className="flex h-full flex-col items-center justify-center gap-8 text-center text-fg-weak">

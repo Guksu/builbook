@@ -14,6 +14,8 @@ export interface ContextMenuItem {
   danger?: boolean;
   /** 지정하면 라디오 항목(현재 선택 표시)으로 렌더 — 정렬 기준 같은 택일 메뉴용 */
   checked?: boolean;
+  /** 이름 앞에 찍을 색 점의 배경 유틸 클래스(라벨 색 등). 없으면 점을 그리지 않는다. */
+  dotClass?: string;
 }
 
 export interface ContextMenuProps {
@@ -113,6 +115,12 @@ export function ContextMenu({ x, y, items, onClose, label }: ContextMenuProps) {
             <span aria-hidden className="w-12 shrink-0 text-primary">
               {item.checked ? "✓" : ""}
             </span>
+          )}
+          {item.dotClass && (
+            <span
+              aria-hidden
+              className={cn("h-8 w-8 shrink-0 rounded-full", item.dotClass)}
+            />
           )}
           <span className="truncate">{item.label}</span>
         </button>

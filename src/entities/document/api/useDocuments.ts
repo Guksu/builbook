@@ -205,6 +205,21 @@ export function useDocuments(projectId: string) {
       await mutate();
     },
 
+    // 여러 개를 한 번에 휴지통으로(바인더 다중 선택). 각 항목의 서브트리를 모아 한 번만 쓰고
+    // 한 번만 갱신한다 — deleteDocument를 반복하면 그 사이 목록이 갈아엎히며 순서가 꼬인다.
+    async deleteDocuments(ids: string[]) {
+      const ts = now();
+      const targets = new Set(
+        ids.flatMap((id) => collectSubtreeIds(documents, id)),
+      );
+      const updated = documents
+        .filter((d) => targets.has(d.id))
+        .map((d) => ({ ...d, trashedAt: ts, updatedAt: ts }));
+      if (updated.length === 0) return;
+      await dbBulkPut(STORES.documents, updated);
+      await mutate();
+    },
+
     // 휴지통에서 복원(trashedAt 제거). 폴더면 서브트리 전체를 함께 복원.
     async restoreDocument(id: string) {
       const ts = now();

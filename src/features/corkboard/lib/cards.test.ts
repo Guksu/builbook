@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildCards,
+  filterCardsByLabel,
   docStatusLabel,
   nextStatus,
   normalizeStatus,
@@ -104,5 +105,45 @@ describe("summarizeCards", () => {
       revise: 1,
       done: 1,
     });
+  });
+});
+
+describe("buildCards(rootId) — 폴더 범위", () => {
+  const docs = [
+    node({ id: "f1", type: "FOLDER", title: "1부", order: 0 }),
+    node({ id: "d1", parentId: "f1", title: "1화", order: 0 }),
+    node({ id: "f2", parentId: "f1", type: "FOLDER", title: "막간", order: 1 }),
+    node({ id: "d2", parentId: "f2", title: "막간 1", order: 0 }),
+    node({ id: "d3", title: "밖", order: 1 }),
+  ];
+  it("폴더 자손만, 깊이는 폴더 기준", () => {
+    const cards = buildCards(docs, "f1");
+    expect(cards.map((c) => [c.id, c.depth])).toEqual([
+      ["d1", 0],
+      ["f2", 0],
+      ["d2", 1],
+    ]);
+  });
+  it("문서나 없는 id를 범위로 주면 빈 배열, null이면 전체", () => {
+    expect(buildCards(docs, "d1")).toEqual([]);
+    expect(buildCards(docs, "ghost")).toEqual([]);
+    expect(buildCards(docs, null)).toHaveLength(5);
+  });
+});
+
+describe("filterCardsByLabel", () => {
+  const cards = buildCards([
+    node({ id: "f1", type: "FOLDER", title: "1부", order: 0 }),
+    node({ id: "a", parentId: "f1", label: "L1" }),
+    node({ id: "b", parentId: "f1", order: 1 }),
+  ]);
+  it("null은 그대로", () => {
+    expect(filterCardsByLabel(cards, null)).toHaveLength(3);
+  });
+  it("라벨 id면 그 문서만(폴더 제외)", () => {
+    expect(filterCardsByLabel(cards, "L1").map((c) => c.id)).toEqual(["a"]);
+  });
+  it("none이면 라벨 없는 문서만", () => {
+    expect(filterCardsByLabel(cards, "none").map((c) => c.id)).toEqual(["b"]);
   });
 });

@@ -36,6 +36,19 @@ export function QuickOpen({ open, documents, onClose, onPick }: QuickOpenProps) 
     setCursor(0);
   }, [query]);
 
+  // Esc는 어디에 포커스가 있든 닫는다(입력이 포커스를 받기 전 0ms 사이에 눌러도 놓치지 않게).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   const pick = (doc: DocumentNode | undefined) => {

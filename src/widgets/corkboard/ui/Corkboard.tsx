@@ -8,7 +8,9 @@ import { formatCount, pickCount } from "@shared/lib";
 import { useCountUnit } from "@features/count-unit";
 import {
   buildCards,
+  filterCardsByLabel,
   docStatusLabel,
+  type CardLabelFilter,
   nextStatus,
   summarizeCards,
   type CardItem,
@@ -25,6 +27,10 @@ export interface CorkboardProps {
   onMove: (dragId: string, targetId: string, mode: "into" | "before") => void;
   /** 작품 라벨 목록 — 카드 상단 색 띠(미설정이면 기본 라벨). */
   labels?: ProjectLabel[];
+  /** 폴더 범위 — 이 폴더의 자손 카드만 보인다(스크리브너처럼 폴더를 고르면 그 안만). null=전체. */
+  scopeId?: string | null;
+  /** 라벨 필터 — 라벨 id / "none" / null(전체). */
+  labelFilter?: CardLabelFilter;
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -45,10 +51,12 @@ export function Corkboard({
   onUpdateStatus,
   onMove,
   labels,
+  scopeId = null,
+  labelFilter = null,
 }: CorkboardProps) {
   const [unit] = useCountUnit();
   const labelList = withDefaultLabels(labels);
-  const cards = buildCards(documents);
+  const cards = filterCardsByLabel(buildCards(documents, scopeId), labelFilter);
   const summary = summarizeCards(cards);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);

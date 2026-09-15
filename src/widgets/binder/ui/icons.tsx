@@ -102,3 +102,12 @@ export function TemplateIcon() {
     </svg>
   );
 }
+
+/** 라벨 필터 — 깔때기 */
+export function FilterIcon({ className }: IconProps) {
+  return (
+    <svg {...base} width="16" height="16" className={className}>
+      <path d="M2 3h12l-4.5 5v4.5L6.5 14V8L2 3Z" />
+    </svg>
+  );
+}

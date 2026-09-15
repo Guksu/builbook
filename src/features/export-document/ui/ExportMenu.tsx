@@ -12,6 +12,7 @@ import {
   projectToMarkdown,
 } from "../lib/exportDocuments";
 import { downloadBlob, downloadTextFile, type ExportFormat } from "../lib/download";
+import { DEFAULT_COMPILE, countEpisodes, type CompileOptions, type EpisodeSeparator } from "../lib/compile";
 
 
 interface ExportMenuProps {
@@ -32,6 +33,14 @@ export function ExportMenu({
   selectedDoc,
 }: ExportMenuProps) {
   const [docxError, setDocxError] = useState<string | null>(null);
+  // 컴파일 옵션(작품 전체에만 적용). 모달이 열려 있는 동안만 유지 — 매번 같은 기본값에서 시작한다.
+  const [opts, setOpts] = useState<CompileOptions>(DEFAULT_COMPILE);
+  const episodeTotal = countEpisodes(documents);
+  const patch = (p: Partial<CompileOptions>) => setOpts((o) => ({ ...o, ...p }));
+  const parseNo = (v: string) => {
+    const n = Number(v);
+    return v.trim() === "" || !Number.isFinite(n) ? null : Math.floor(n);
+  };
   const canExportDoc = !!selectedDoc && selectedDoc.type === "DOC";
 
   function exportDoc(format: ExportFormat) {
@@ -54,7 +63,7 @@ export function ExportMenu({
       const sections =
         scope === "doc"
           ? selectedDoc && documentToSections(selectedDoc)
-          : projectToSections(projectTitle, documents);
+          : projectToSections(projectTitle, documents, opts);
       if (!sections) return;
       const name = safeFileName(scope === "doc" ? selectedDoc!.title : projectTitle);
       downloadBlob(`${name}.docx`, await packDocxBlob(buildDocx(sections)));
@@ -67,8 +76,8 @@ export function ExportMenu({
   function exportProject(format: ExportFormat) {
     const content =
       format === "txt"
-        ? projectToPlainText(projectTitle, documents)
-        : projectToMarkdown(projectTitle, documents);
+        ? projectToPlainText(projectTitle, documents, opts)
+        : projectToMarkdown(projectTitle, documents, opts);
     downloadTextFile(safeFileName(projectTitle), format, content);
     onClose();
   }
@@ -118,6 +127,69 @@ export function ExportMenu({
 
         <section className="flex flex-col gap-8">
           <span className="text-body-sm font-medium text-fg">작품 전체</span>
+          {/* 컴파일 옵션 — 스크리브너 Compile의 핵심만: 범위·구분선·제목 */}
+          <div className="flex flex-col gap-6 rounded-md border border-border bg-surface p-12 text-body-sm">
+            <div className="flex flex-wrap items-center gap-8">
+              <span className="text-fg-weak">회차 범위</span>
+              <input
+                type="number"
+                min={1}
+                max={episodeTotal || 1}
+                aria-label="시작 회차"
+                placeholder="처음"
+                value={opts.fromEpisode ?? ""}
+                onChange={(e) => patch({ fromEpisode: parseNo(e.target.value) })}
+                className="h-28 w-64 rounded-md border border-border bg-bg px-8 text-body-sm text-fg"
+              />
+              <span className="text-fg-weak">~</span>
+              <input
+                type="number"
+                min={1}
+                max={episodeTotal || 1}
+                aria-label="끝 회차"
+                placeholder="끝"
+                value={opts.toEpisode ?? ""}
+                onChange={(e) => patch({ toEpisode: parseNo(e.target.value) })}
+                className="h-28 w-64 rounded-md border border-border bg-bg px-8 text-body-sm text-fg"
+              />
+              <span className="text-caption text-fg-weak">전체 {episodeTotal}회차</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-8">
+              <label htmlFor="episode-separator" className="text-fg-weak">
+                회차 구분
+              </label>
+              <select
+                id="episode-separator"
+                aria-label="회차 구분"
+                value={opts.separator}
+                onChange={(e) => patch({ separator: e.target.value as EpisodeSeparator })}
+                className="h-28 rounded-md border border-border bg-bg px-8 text-body-sm text-fg"
+              >
+                <option value="none">없음</option>
+                <option value="blank">빈 줄</option>
+                <option value="stars">* * *</option>
+              </select>
+            </div>
+            <div className="flex flex-wrap gap-12">
+              {(
+                [
+                  ["includeTitles", "회차 제목"],
+                  ["includeFolders", "폴더 제목"],
+                  ["includeProjectTitle", "작품 제목"],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-4 text-fg">
+                  <input
+                    type="checkbox"
+                    aria-label={`${label} 포함`}
+                    checked={opts[key]}
+                    onChange={(e) => patch({ [key]: e.target.checked })}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="flex gap-8">
             <Button
               size="sm"

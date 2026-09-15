@@ -1,6 +1,8 @@
 export {
   DOC_STATUS_ORDER,
   buildCards,
+  filterCardsByLabel,
+  type CardLabelFilter,
   docStatusLabel,
   nextStatus,
   normalizeStatus,

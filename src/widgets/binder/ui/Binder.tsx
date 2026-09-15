@@ -27,8 +27,12 @@ import {
   BINDER_SORTS,
   BINDER_SORT_LABEL,
   collectFolderIds,
+  dropDescendants,
+  filterTreeByLabel,
   flattenVisible,
+  selectRange,
   useCollapsedFolders,
+  type BinderLabelFilter,
   type BinderSort,
 } from "@features/binder-tree";
 import {
@@ -36,6 +40,7 @@ import {
   CollapseAllIcon,
   ExpandAllIcon,
   FilePlusIcon,
+  FilterIcon,
   FolderPlusIcon,
   MoreIcon,
   SortIcon,
@@ -64,10 +69,18 @@ interface BinderProps {
   }) => Promise<DocumentNode | null>;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
+  /** 다중 선택 일괄 삭제 — 없으면 onDelete를 차례로 부른다. */
+  onDeleteMany?: (ids: string[]) => void;
   // 드래그 재정렬: 폴더 위 드롭=into(안으로), 문서 위 드롭=before(앞에).
   onMove?: (dragId: string, targetId: string, mode: "into" | "before") => void;
   /** 지정한 부모(null=최상위)의 맨 끝으로 이동 — 메뉴 "최상위로 이동"·트리 아래 빈 공간 드롭. */
   onMoveToParent?: (id: string, parentId: string | null) => void;
+  /**
+   * 여러 항목을 지정한 부모의 맨 끝으로 한꺼번에 이동(다중 선택 메뉴·드래그).
+   * onMoveToParent를 여러 번 부르면 호출부가 옮기기 전 목록을 기준으로 order를 계산해
+   * 전부 같은 자리에 겹친다 — 그래서 '여러 개'는 반드시 이 한 번의 호출로 넘긴다.
+   */
+  onMoveManyToParent?: (ids: string[], parentId: string | null) => void;
   /** 접힘 상태를 저장할 작품 id(localStorage 키). */
   projectId?: string;
   /** 작품 라벨 목록 — 행 앞의 색 막대를 그린다(미설정이면 기본 라벨). */
@@ -79,6 +92,13 @@ type MenuState =
   | { kind: "empty"; x: number; y: number }
   | { kind: "sort"; x: number; y: number }
   | { kind: "template"; x: number; y: number }
+  | { kind: "filter"; x: number; y: number }
+  | null;
+
+/** 삭제 확인 대상 — 한 항목이거나 다중 선택 묶음. */
+type DeleteTarget =
+  | { kind: "one"; node: DocumentNode }
+  | { kind: "many"; ids: string[] }
   | null;
 
 const INDENT = 12; // 들여쓰기 한 단계(px) — 가이드 선 간격과 같다.
@@ -90,8 +110,10 @@ export function Binder({
   onCreate,
   onRename,
   onDelete,
+  onDeleteMany,
   onMove,
   onMoveToParent,
+  onMoveManyToParent,
   projectId = "",
   labels,
 }: BinderProps) {
@@ -101,21 +123,42 @@ export function Binder({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState>(null);
-  const [deleteTarget, setDeleteTarget] = useState<DocumentNode | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  /** 함께 끌고 있는 항목들(다중 선택 드래그). 평소엔 [dragId] 하나. */
+  const [dragIds, setDragIds] = useState<string[]>([]);
   const [rootDrop, setRootDrop] = useState(false);
   const [dropTarget, setDropTarget] = useState<{
     id: string;
     mode: "into" | "before";
   } | null>(null);
+  // 다중 선택(Ctrl/⌘·Shift 클릭)과 그 기준점. 한 번 고른 뒤 Shift로 범위를 넓히는 데 쓴다.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  // 라벨 필터는 세션 상태 — 저장하지 않는다(다음에 들어왔을 때 원고가 반쯤 사라져 보이면 사고다).
+  const [labelFilter, setLabelFilter] = useState<BinderLabelFilter>(null);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
 
+  const visibleDocs = useMemo(
+    () => filterTreeByLabel(documents, labelFilter),
+    [documents, labelFilter],
+  );
   const rows = useMemo(
-    () => flattenVisible(documents, collapsed, sort),
-    [documents, collapsed, sort],
+    // 필터가 켜져 있으면 접힘을 무시한다 — 걸러 남긴 회차가 접힌 폴더에 숨으면 필터가 무의미하다.
+    () => flattenVisible(visibleDocs, labelFilter ? new Set() : collapsed, sort),
+    [visibleDocs, collapsed, sort, labelFilter],
   );
   const folderIds = useMemo(() => collectFolderIds(documents), [documents]);
   const labelList = useMemo(() => withDefaultLabels(labels), [labels]);
+  const activeFilterLabel = labelFilter ? findLabel(labelList, labelFilter) : null;
+
+  // 화면에 보이는 순서로 추린 다중 선택 — 지워졌거나 숨은 항목은 자동으로 빠진다.
+  const multiIds = useMemo(
+    () => rows.filter((r) => selectedIds.has(r.node.id)).map((r) => r.node.id),
+    [rows, selectedIds],
+  );
+  const multi = multiIds.length >= 2; // 2개 이상일 때만 '묶음'으로 다룬다
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
   // 접을 폴더가 하나라도 남아 있으면 "모두 접기", 전부 접혀 있으면 "모두 펼치기".
   const allCollapsed =
     folderIds.length > 0 && folderIds.every((fid) => collapsed.has(fid));
@@ -132,6 +175,66 @@ export function Binder({
     setActiveId(id);
     rowRefs.current.get(id)?.focus();
   }, []);
+
+  /** 묶음 동작의 실제 대상 — 조상과 자손이 같이 선택됐으면 자손은 뺀다. */
+  const targetsOf = useCallback(
+    (ids: string[]) => dropDescendants(documents, ids),
+    [documents],
+  );
+
+  const deleteMany = useCallback(
+    (ids: string[]) => {
+      if (onDeleteMany) onDeleteMany(ids);
+      else for (const id of ids) onDelete(id); // 일괄 삭제를 안 받는 화면은 하나씩
+      clearSelection();
+    },
+    [clearSelection, onDelete, onDeleteMany],
+  );
+
+  const moveMany = useCallback(
+    (ids: string[], parentId: string | null) => {
+      if (ids.length === 0) return;
+      if (onMoveManyToParent) onMoveManyToParent(ids, parentId);
+      else if (onMoveToParent) for (const id of ids) onMoveToParent(id, parentId);
+      clearSelection();
+    },
+    [clearSelection, onMoveManyToParent, onMoveToParent],
+  );
+
+  /**
+   * 행 클릭 — 스크리브너 바인더와 같은 세 갈래.
+   * 그냥 클릭=하나만 골라 연다 / Ctrl·⌘=하나씩 더하고 뺀다 / Shift=기준점부터 범위.
+   * 기준점이 아직 없으면 '지금 열려 있는 문서'가 기준이 된다.
+   */
+  const handleRowClick = useCallback(
+    (node: DocumentNode, e: React.MouseEvent) => {
+      setActiveId(node.id);
+      const anchor = anchorId ?? selectedId;
+      if (e.shiftKey) {
+        setSelectedIds(
+          new Set(selectRange(rows.map((r) => r.node.id), anchor, node.id)),
+        );
+        return;
+      }
+      if (e.ctrlKey || e.metaKey) {
+        // 첫 Ctrl+클릭이면 열려 있는 문서까지 함께 묶는다(보이는 강조와 실제 대상이 어긋나지 않게).
+        const next = new Set(
+          selectedIds.size > 0 ? selectedIds : anchor ? [anchor] : [],
+        );
+        if (next.has(node.id)) next.delete(node.id);
+        else next.add(node.id);
+        setSelectedIds(next);
+        setAnchorId(node.id);
+        return;
+      }
+      clearSelection();
+      setAnchorId(node.id);
+      // 폴더도 '고르는' 대상이다(스크리브너와 같다) — 고르면 그 아래 회차가
+      // 연속 보기로 이어 열린다. 접기/펼치기는 chevron과 ←/→ 키가 맡는다.
+      onSelect(node.id);
+    },
+    [anchorId, clearSelection, onSelect, rows, selectedId, selectedIds],
+  );
 
   // 새 항목의 부모 결정 — 옵시디언과 같다: 폴더를 고르고 있으면 그 안, 문서면 그 문서의 형제.
   const parentForAnchor = useCallback(
@@ -184,8 +287,44 @@ export function Binder({
     [create],
   );
 
+  /** 다중 선택 위에서 연 메뉴 — 묶음에 통하는 동작만 남긴다(이름 변경 같은 건 한 개 전용). */
+  const multiMenuItems = useCallback((): ContextMenuItem[] => {
+    const targets = targetsOf(multiIds);
+    const nodes = targets
+      .map((id) => documents.find((d) => d.id === id))
+      .filter((d): d is DocumentNode => !!d);
+    const items: ContextMenuItem[] = [];
+    if (onMoveToParent || onMoveManyToParent) {
+      if (nodes.some((d) => d.parentId !== null)) {
+        items.push({
+          label: `${targets.length}개 최상위로`,
+          onSelect: () => moveMany(targets, null),
+        });
+      }
+      // '한 단계 위로'는 부모가 같을 때만 뜻이 통한다(제각각이면 어디로 갈지 알 수 없다).
+      const parents = new Set(nodes.map((d) => d.parentId));
+      const parentId = parents.size === 1 ? [...parents][0] : null;
+      const grandParentId = parentId
+        ? documents.find((d) => d.id === parentId)?.parentId ?? null
+        : null;
+      if (grandParentId !== null) {
+        items.push({
+          label: `${targets.length}개 한 단계 위로`,
+          onSelect: () => moveMany(targets, grandParentId),
+        });
+      }
+    }
+    items.push({
+      label: `${targets.length}개 휴지통으로`,
+      danger: true,
+      onSelect: () => setDeleteTarget({ kind: "many", ids: targets }),
+    });
+    return items;
+  }, [documents, moveMany, multiIds, onMoveManyToParent, onMoveToParent, targetsOf]);
+
   const nodeMenuItems = useCallback(
     (node: DocumentNode): ContextMenuItem[] => {
+      if (multi && selectedIds.has(node.id)) return multiMenuItems();
       const items: ContextMenuItem[] = [
         { label: "새 문서", onSelect: () => void create("DOC", node.id) },
         { label: "새 폴더", onSelect: () => void create("FOLDER", node.id) },
@@ -204,14 +343,28 @@ export function Binder({
           items.push({ label: "최상위로 이동", onSelect: () => onMoveToParent(node.id, null) });
         }
       }
-      items.push({ label: "삭제", danger: true, onSelect: () => setDeleteTarget(node) });
+      items.push({
+        label: "삭제",
+        danger: true,
+        onSelect: () => setDeleteTarget({ kind: "one", node }),
+      });
       return items;
     },
-    [create, documents, onMoveToParent, templateItems],
+    [
+      create,
+      documents,
+      multi,
+      multiMenuItems,
+      onMoveToParent,
+      selectedIds,
+      templateItems,
+    ],
   );
 
   const openNodeMenu = (node: DocumentNode, x: number, y: number) => {
     setActiveId(node.id);
+    // 선택 묶음 바깥을 우클릭하면 묶음은 풀린다 — 메뉴가 가리키는 대상과 화면 강조가 어긋나지 않게.
+    if (multi && !selectedIds.has(node.id)) clearSelection();
     setMenu({ kind: "node", x, y, node });
   };
 
@@ -243,6 +396,10 @@ export function Binder({
       if (!row) return;
       e.preventDefault();
       onSelect(row.node.id); // 폴더도 선택(연속 보기) — 마우스 클릭과 같게. 접기는 ←/→.
+    } else if (e.key === "Escape") {
+      if (selectedIds.size === 0) return;
+      e.stopPropagation(); // 집중 모드 종료 등 바깥 Esc 처리까지 함께 터지지 않게
+      clearSelection();
     } else if (e.key === "F2") {
       if (!row) return;
       e.preventDefault();
@@ -253,8 +410,24 @@ export function Binder({
     }
   }
 
+  // 삭제 확인 문구 — 한 개면 이름을, 묶음이면 개수를 말한다.
+  const deleteTitle =
+    deleteTarget === null
+      ? ""
+      : deleteTarget.kind === "many"
+        ? `${deleteTarget.ids.length}개 삭제`
+        : `'${deleteTarget.node.title}' 삭제`;
+  const deleteDescription =
+    deleteTarget === null
+      ? ""
+      : deleteTarget.kind === "many"
+        ? `${deleteTarget.ids.length}개 항목을 휴지통으로 보냅니다. 휴지통에서 되살릴 수 있어요.`
+        : deleteTarget.node.type === "FOLDER"
+          ? "폴더와 하위 문서를 휴지통으로 보냅니다. 휴지통에서 되살릴 수 있어요."
+          : "문서를 휴지통으로 보냅니다. 휴지통에서 되살릴 수 있어요.";
+
   return (
-    <nav className="flex h-full flex-col border-r border-border bg-bg">
+    <nav aria-label="바인더" className="flex h-full flex-col border-r border-border bg-bg">
       {/* 상단 아이콘 줄 — 이름은 title/aria-label로만 두고 화면은 조용하게 */}
       <div className="flex items-center justify-between gap-6 border-b border-border px-12 py-8">
         <span className="text-caption font-medium text-fg-weak">바인더</span>
@@ -282,6 +455,17 @@ export function Binder({
             <TemplateIcon />
           </IconButton>
           <IconButton
+            label="라벨 필터"
+            hasPopup
+            pressed={labelFilter !== null}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setMenu({ kind: "filter", x: r.left, y: r.bottom + 4 });
+            }}
+          >
+            <FilterIcon />
+          </IconButton>
+          <IconButton
             label="정렬"
             hasPopup
             onClick={(e) => {
@@ -300,6 +484,61 @@ export function Binder({
         </div>
       </div>
 
+      {/* 여러 개를 고르면 나타나는 얇은 줄 — 묶음으로 할 수 있는 일만 여기 둔다. */}
+      {multi && (
+        <div className="flex items-center gap-6 border-b border-border bg-surface px-12 py-6 text-caption">
+          <span className="shrink-0 font-medium text-fg">
+            {multiIds.length}개 선택
+          </span>
+          <span aria-hidden className="text-fg-weak">
+            ·
+          </span>
+          <BarButton
+            label="선택 항목 휴지통으로"
+            danger
+            onClick={() =>
+              setDeleteTarget({ kind: "many", ids: targetsOf(multiIds) })
+            }
+          >
+            휴지통
+          </BarButton>
+          <BarButton
+            label="선택 항목 최상위로"
+            onClick={() => moveMany(targetsOf(multiIds), null)}
+          >
+            최상위로
+          </BarButton>
+          <BarButton label="선택 해제" className="ml-auto" onClick={clearSelection}>
+            선택 해제
+          </BarButton>
+        </div>
+      )}
+
+      {/* 라벨 필터가 켜져 있다는 사실을 늘 보이게 — 원고가 사라진 줄 알고 놀라지 않도록. */}
+      {labelFilter !== null && (
+        <div className="flex items-center gap-6 border-b border-border px-12 py-4 text-caption text-fg-weak">
+          {activeFilterLabel && (
+            <span
+              aria-hidden
+              className={cn(
+                "h-8 w-8 shrink-0 rounded-full",
+                LABEL_COLOR_CLASS[activeFilterLabel.color],
+              )}
+            />
+          )}
+          <span className="min-w-0 truncate">
+            라벨: {activeFilterLabel?.name ?? "라벨 없음"}
+          </span>
+          <BarButton
+            label="필터 해제"
+            className="ml-auto"
+            onClick={() => setLabelFilter(null)}
+          >
+            해제
+          </BarButton>
+        </div>
+      )}
+
       <div
         className="flex flex-1 flex-col overflow-y-auto py-4"
         onContextMenu={(e) => {
@@ -310,6 +549,10 @@ export function Binder({
         {documents.length === 0 ? (
           <p className="px-16 py-24 text-center text-body-sm text-fg-weak">
             새 문서 아이콘을 눌러 시작하세요.
+          </p>
+        ) : rows.length === 0 ? (
+          <p className="px-16 py-24 text-center text-body-sm text-fg-weak">
+            이 라벨을 단 문서가 없어요.
           </p>
         ) : (
           <div
@@ -333,15 +576,15 @@ export function Binder({
                   aria-level={depth + 1}
                   aria-selected={selectedId === node.id}
                   aria-expanded={isFolder ? expanded : undefined}
+                  // 다중 선택은 aria-selected를 쓰지 않는다 — 트리의 '선택'은 지금 열린 문서 하나뿐이고,
+                  // 묶음 강조는 별도 표식으로 알린다(보조기술이 선택 문서를 헷갈리지 않게).
+                  data-multiselected={selectedIds.has(node.id) ? "true" : undefined}
                   tabIndex={cursorId === node.id ? 0 : -1}
                   draggable={!editing}
                   onFocus={() => setActiveId(node.id)}
-                  onClick={() => {
+                  onClick={(e) => {
                     if (editing) return;
-                    setActiveId(node.id);
-                    // 폴더도 '고르는' 대상이다(스크리브너와 같다) — 고르면 그 아래 회차가
-                    // 연속 보기로 이어 열린다. 접기/펼치기는 chevron과 ←/→ 키가 맡는다.
-                    onSelect(node.id);
+                    handleRowClick(node, e);
                   }}
                   onDoubleClick={() => setEditingId(node.id)}
                   onContextMenu={(e) => {
@@ -350,16 +593,25 @@ export function Binder({
                     openNodeMenu(node, e.clientX, e.clientY);
                   }}
                   onDragStart={(e) => {
-                    e.dataTransfer.setData("text/plain", node.id);
+                    // 고른 묶음 안에서 하나를 끌면 묶음 전체가 따라온다(스크리브너와 같다).
+                    const ids =
+                      multi && selectedIds.has(node.id)
+                        ? targetsOf(multiIds)
+                        : [node.id];
+                    // dataTransfer에는 대표 하나만 — 나머지는 바인더 안에서만 아는 상태로 둔다.
+                    e.dataTransfer.setData("text/plain", ids[0] ?? node.id);
                     e.dataTransfer.effectAllowed = "move";
+                    setDragIds(ids);
                     setDragId(node.id);
                   }}
                   onDragEnd={() => {
                     setDragId(null);
+                    setDragIds([]);
                     setDropTarget(null);
                   }}
                   onDragOver={(e) => {
-                    if (!dragId || dragId === node.id) return;
+                    // 끌고 있는 항목 자신(묶음 포함) 위에는 놓을 수 없다.
+                    if (!dragId || dragIds.includes(node.id)) return;
                     e.preventDefault();
                     e.dataTransfer.dropEffect = "move";
                     // 폴더 위쪽 1/3에 놓으면 '폴더 앞(같은 계층)', 아래쪽은 '폴더 안'.
@@ -376,18 +628,26 @@ export function Binder({
                   }
                   onDrop={(e) => {
                     e.preventDefault();
-                    const dragged = e.dataTransfer.getData("text/plain") || dragId;
-                    if (dragged && dragged !== node.id) {
-                      const mode =
-                        dropTarget?.id === node.id
-                          ? dropTarget.mode
-                          : isFolder
-                            ? "into"
-                            : "before";
-                      onMove?.(dragged, node.id, mode);
+                    const fallback = e.dataTransfer.getData("text/plain") || dragId;
+                    const dragged = (
+                      dragIds.length > 0 ? dragIds : fallback ? [fallback] : []
+                    ).filter((docId) => docId !== node.id);
+                    const mode =
+                      dropTarget?.id === node.id
+                        ? dropTarget.mode
+                        : isFolder
+                          ? "into"
+                          : "before";
+                    if (dragged.length > 1) {
+                      // 여러 개는 '그 부모의 맨 끝'으로 모아 놓는다(끌어 온 순서 유지).
+                      // 정확히 어느 줄 앞인지까지 맞추는 건 하나만 끌 때의 몫이다.
+                      moveMany(dragged, mode === "into" ? node.id : node.parentId);
+                    } else if (dragged.length === 1) {
+                      onMove?.(dragged[0], node.id, mode);
                     }
                     setDropTarget(null);
                     setDragId(null);
+                    setDragIds([]);
                   }}
                   className={cn(
                     "group relative flex cursor-pointer select-none items-stretch",
@@ -396,7 +656,10 @@ export function Binder({
                     selectedId === node.id
                       ? "bg-primary-weak text-primary"
                       : "text-fg hover:bg-surface",
-                    dragId === node.id && "opacity-50",
+                    // 묶음에 든 줄은 왼쪽 띠로만 알린다 — 열려 있는 문서의 강조는 그대로 둔다.
+                    selectedIds.has(node.id) && "border-l-2 border-l-primary",
+                    selectedIds.has(node.id) && selectedId !== node.id && "bg-surface",
+                    dragIds.includes(node.id) && "opacity-50",
                     dropTarget?.id === node.id &&
                       (dropTarget.mode === "into"
                         ? "ring-2 ring-inset ring-primary"
@@ -482,10 +745,14 @@ export function Binder({
             onDragLeave={() => setRootDrop(false)}
             onDrop={(e) => {
               e.preventDefault();
-              const dragged = e.dataTransfer.getData("text/plain") || dragId;
-              if (dragged) onMoveToParent?.(dragged, null);
+              const fallback = e.dataTransfer.getData("text/plain") || dragId;
+              const dragged =
+                dragIds.length > 0 ? dragIds : fallback ? [fallback] : [];
+              if (dragged.length > 1) moveMany(dragged, null);
+              else if (dragged.length === 1) onMoveToParent?.(dragged[0], null);
               setRootDrop(false);
               setDragId(null);
+              setDragIds([]);
               setDropTarget(null);
             }}
             className={cn(
@@ -533,6 +800,32 @@ export function Binder({
           onClose={() => setMenu(null)}
         />
       )}
+      {menu?.kind === "filter" && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label="라벨 필터"
+          items={[
+            {
+              label: "전체",
+              checked: labelFilter === null,
+              onSelect: () => setLabelFilter(null),
+            },
+            ...labelList.map((l) => ({
+              label: l.name,
+              checked: labelFilter === l.id,
+              dotClass: LABEL_COLOR_CLASS[l.color],
+              onSelect: () => setLabelFilter(l.id),
+            })),
+            {
+              label: "라벨 없음",
+              checked: labelFilter === "none",
+              onSelect: () => setLabelFilter("none"),
+            },
+          ]}
+          onClose={() => setMenu(null)}
+        />
+      )}
       {menu?.kind === "sort" && (
         <ContextMenu
           x={menu.x}
@@ -551,15 +844,12 @@ export function Binder({
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => {
-          if (deleteTarget) onDelete(deleteTarget.id);
+          if (deleteTarget?.kind === "one") onDelete(deleteTarget.node.id);
+          else if (deleteTarget?.kind === "many") deleteMany(deleteTarget.ids);
           setDeleteTarget(null);
         }}
-        title={`'${deleteTarget?.title}' 삭제`}
-        description={
-          deleteTarget?.type === "FOLDER"
-            ? "폴더와 하위 문서를 휴지통으로 보냅니다. 휴지통에서 되살릴 수 있어요."
-            : "문서를 휴지통으로 보냅니다. 휴지통에서 되살릴 수 있어요."
-        }
+        title={deleteTitle}
+        description={deleteDescription}
         danger
         confirmText="삭제"
       />
@@ -619,11 +909,14 @@ function IconButton({
   children,
   onClick,
   hasPopup,
+  pressed,
 }: {
   label: string;
   children: React.ReactNode;
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   hasPopup?: boolean;
+  /** 켜짐/꺼짐이 있는 버튼(라벨 필터)만 넘긴다 — 켜져 있으면 색으로도 알린다. */
+  pressed?: boolean;
 }) {
   return (
     <button
@@ -631,8 +924,43 @@ function IconButton({
       aria-label={label}
       title={label}
       aria-haspopup={hasPopup ? "menu" : undefined}
+      aria-pressed={pressed}
       onClick={onClick}
-      className="rounded-sm p-4 text-fg-weak hover:bg-surface hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(
+        "rounded-sm p-4 hover:bg-surface hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        pressed ? "bg-primary-weak text-primary" : "text-fg-weak",
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** 선택 바·필터 줄의 글자 버튼 — 이름(보조기술)과 화면 글자를 따로 둔다. */
+function BarButton({
+  label,
+  children,
+  onClick,
+  danger,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={cn(
+        "shrink-0 rounded-sm px-4 py-1 hover:bg-bg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        danger ? "text-error" : "text-fg-weak hover:text-fg",
+        className,
+      )}
     >
       {children}
     </button>

@@ -3,7 +3,7 @@
 // 그래서 카드에 담는 건 제목·시놉시스·분량·진행 상태뿐이다.
 
 import type { DocumentNode, DocType } from "@entities/document";
-import { flattenTree, selectActiveDocuments } from "@entities/document";
+import { collectSubtreeIds, flattenTree, selectActiveDocuments } from "@entities/document";
 import { extractPlainText, measureText, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
 
 /** 문서 진행 상태 — 초고 → 퇴고 → 완료 순환. 미설정은 '초고'로 본다. */
@@ -47,8 +47,11 @@ export interface CardItem {
  * 바인더 순서 그대로 카드 목록을 만든다(휴지통 제외).
  * 폴더도 카드로 낸다 — 부(部)·장(章) 단위 흐름을 보드에서 함께 보기 위해서다.
  */
-export function buildCards(docs: readonly DocumentNode[]): CardItem[] {
-  return flattenTree(selectActiveDocuments(docs)).map(({ node, depth }) => {
+export function buildCards(docs: readonly DocumentNode[], rootId: string | null = null): CardItem[] {
+  const active = selectActiveDocuments(docs);
+  // 폴더 범위: 그 폴더의 자손만(폴더 자신은 제외), 깊이는 폴더 기준으로 다시 센다.
+  const scoped = rootId ? scopeToFolder(active, rootId) : flattenTree(active);
+  return scoped.map(({ node, depth }) => {
     const measure =
       node.type === "DOC" ? measureText(extractPlainText(node.content)) : ZERO_MEASURE;
     return {
@@ -62,6 +65,27 @@ export function buildCards(docs: readonly DocumentNode[]): CardItem[] {
       label: node.label,
     };
   });
+}
+
+// 폴더 하나의 자손만 평탄화(폴더 자신 제외). 폴더가 아니거나 없으면 빈 배열.
+function scopeToFolder(active: readonly DocumentNode[], rootId: string) {
+  const root = active.find((d) => d.id === rootId);
+  if (!root || root.type !== "FOLDER") return [];
+  const rootDepth = flattenTree(active).find((f) => f.node.id === rootId)?.depth ?? 0;
+  const ids = new Set(collectSubtreeIds(active, rootId));
+  return flattenTree(active)
+    .filter((f) => ids.has(f.node.id) && f.node.id !== rootId)
+    .map((f) => ({ node: f.node, depth: f.depth - rootDepth - 1 }));
+}
+
+/** 라벨 필터 — 특정 라벨 id / "none"(라벨 없는 문서) / null(전체). 필터 중엔 폴더 카드를 뺀다. */
+export type CardLabelFilter = string | "none" | null;
+
+export function filterCardsByLabel(cards: readonly CardItem[], filter: CardLabelFilter): CardItem[] {
+  if (filter === null) return [...cards];
+  return cards.filter(
+    (c) => c.type === "DOC" && (filter === "none" ? !c.label : c.label === filter),
+  );
 }
 
 export interface CardSummary {

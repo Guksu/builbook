@@ -2,16 +2,19 @@
 // 연재 플랫폼·출판사 투고는 .docx를 받는 곳이 많다. 서식은 최소(제목 + 문단)로 두어
 // 어느 편집기에서 열어도 깨지지 않게 한다.
 
-import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
+import { AlignmentType, Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import type { DocumentNode } from "@entities/document";
-import { flattenTree, isManuscript, selectActiveDocuments } from "@entities/document";
 import { extractPlainText } from "@shared/lib";
+import { DEFAULT_COMPILE, SEPARATOR_TEXT, compileManuscript, type CompileOptions } from "./compile";
 
 export interface DocxSection {
   /** 제목 깊이: 0=작품 제목, 1=1단계 문서·폴더, 2=그 아래… */
   level: number;
+  /** 빈 문자열이면 제목 문단을 만들지 않는다(회차 제목 제외 옵션). */
   title: string;
   paragraphs: string[];
+  /** 앞에 회차 구분선("* * *")을 넣는다. */
+  separatorBefore?: boolean;
 }
 
 const HEADING: Record<number, (typeof HeadingLevel)[keyof typeof HeadingLevel]> = {
@@ -36,28 +39,32 @@ export function documentToSections(doc: DocumentNode): DocxSection[] {
 export function projectToSections(
   projectTitle: string,
   docs: readonly DocumentNode[],
+  opts: CompileOptions = DEFAULT_COMPILE,
 ): DocxSection[] {
-  const out: DocxSection[] = [{ level: 0, title: projectTitle, paragraphs: [] }];
-  for (const { node, depth } of flattenTree(selectActiveDocuments(docs))) {
-    if (node.type === "DOC" && !isManuscript(node)) continue; // 카드는 원고가 아니다
-    out.push({
-      level: Math.min(depth + 1, 3),
-      title: node.title,
-      paragraphs: node.type === "DOC" ? toDocxParagraphs(node.content) : [],
-    });
-  }
-  return out;
+  return compileManuscript(projectTitle, docs, opts).map((s) => ({
+    level: Math.min(s.depth, 3),
+    title: s.title,
+    paragraphs: s.kind === "episode" ? s.body.split("\n").map((l) => l.trim()).filter(Boolean) : [],
+    separatorBefore: s.separatorBefore && opts.separator === "stars",
+  }));
 }
 
 export function buildDocx(sections: readonly DocxSection[]): Document {
   const children: Paragraph[] = [];
   for (const s of sections) {
-    children.push(
-      new Paragraph({
-        heading: HEADING[Math.min(s.level, 3)] ?? HeadingLevel.HEADING_3,
-        children: [new TextRun(s.title)],
-      }),
-    );
+    if (s.separatorBefore) {
+      children.push(
+        new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun(SEPARATOR_TEXT)] }),
+      );
+    }
+    if (s.title) {
+      children.push(
+        new Paragraph({
+          heading: HEADING[Math.min(s.level, 3)] ?? HeadingLevel.HEADING_3,
+          children: [new TextRun(s.title)],
+        }),
+      );
+    }
     for (const p of s.paragraphs) {
       children.push(new Paragraph({ children: [new TextRun(p)], spacing: { after: 160 } }));
     }

@@ -7,6 +7,8 @@ export {
   type SortableNode,
 } from "./lib/sort";
 export { flattenVisible, collectFolderIds, type BinderRow } from "./lib/flatten";
+export { selectRange, dropDescendants } from "./lib/multiSelect";
+export { filterTreeByLabel, type BinderLabelFilter } from "./lib/filterLabel";
 export {
   collapsedStorageKey,
   serializeCollapsed,
