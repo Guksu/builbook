@@ -1,12 +1,13 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { JSONContent } from "@tiptap/react";
 import { Binder } from "@widgets/binder";
 import { Editor } from "@widgets/editor";
 import { Inspector } from "@widgets/inspector";
+import { Scrivenings } from "@widgets/scrivenings";
 import { SnapshotPanel } from "@widgets/snapshot-panel";
 import { NotesPanel } from "@widgets/notes-panel";
 import { StatsPanel } from "@widgets/stats-panel";
@@ -15,17 +16,26 @@ import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
 import {
   WorkspaceHeader,
+  GoalBar,
   type WorkspacePanelKey,
 } from "@widgets/workspace-header";
 import { planReorder, planMoveToParent } from "@features/reorder-document";
-import { computeProgress } from "@features/writing-goals";
+import { computeProgress, paceToDeadline } from "@features/writing-goals";
+import { QuickOpen, useQuickOpenShortcut } from "@features/quick-open";
+import { useWritingLogs, writtenOn, dateKey } from "@entities/writing-log";
 import { useCountUnit } from "@features/count-unit";
 import { SearchPanel } from "@features/search-document";
 import { TrashPanel } from "@features/trash-document";
 import { ExportMenu } from "@features/export-document";
 import { ReaderPreview } from "@features/reader-preview";
 import { useTabGuard, TabConflictBanner } from "@features/tab-guard";
-import { useDocuments, docCount, sumDocCounts, measureDocument } from "@entities/document";
+import {
+  useDocuments,
+  docCount,
+  sumDocCounts,
+  measureDocument,
+  type DocumentKind,
+} from "@entities/document";
 import { useProject } from "@entities/project";
 import { useToast, ProgressBar, cn } from "@shared/ui";
 import { formatCount, pickCount, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
@@ -72,13 +82,23 @@ export function WorkspacePage() {
     updateSynopsis,
     updateGoal,
     updateStatus,
+    updateLabel,
+    updateNote,
+    clearLabelFromDocuments,
   } = useDocuments(id);
   const {
     project,
+    updateLabels,
     updateGoal: updateProjectGoal,
     updateDailyGoal,
     updateEpisodeGoal,
+    updateDeadline,
   } = useProject(id);
+  const { logs: writingLogs } = useWritingLogs(id);
+  // 빠른 열기(Ctrl/⌘+P) — 제목으로 문서를 찾아 바로 연다.
+  const [quickOpen, setQuickOpen] = useState(false);
+  const openQuick = useCallback(() => setQuickOpen(true), []);
+  useQuickOpenShortcut(openQuick);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // 좁은 화면(md 미만) 전용: 바인더를 드로어로 띄운다. 넓은 화면에서는 값과 무관하게 항상 보인다.
@@ -119,9 +139,11 @@ export function WorkspacePage() {
     }
   }, [documents, selectedId, id]);
 
+  // 폴더 선택은 기억하지 않는다 — 다시 들어왔을 때 복원하는 건 '쓰던 회차'뿐이다.
   useEffect(() => {
-    if (selectedId) writeLastDoc(id, selectedId);
-  }, [id, selectedId]);
+    const node = documents.find((d) => d.id === selectedId);
+    if (node?.type === "DOC") writeLastDoc(id, node.id);
+  }, [documents, id, selectedId]);
 
   const selected = useMemo(
     () => documents.find((d) => d.id === selectedId) ?? null,
@@ -154,6 +176,13 @@ export function WorkspacePage() {
 
   // 집중 모드 하단에 은은하게 띄울 문서 목표 진행률.
   const focusProgress = computeProgress(liveWords, selected?.goal);
+  // 헤더 목표 바 — 작품·오늘 진행률 + 마감 페이스(스크리브너 Project Targets).
+  const todayKey = dateKey(new Date());
+  const projectProgress = computeProgress(projectTotalWords, project?.goal);
+  const todayProgress = computeProgress(writtenOn(writingLogs, todayKey, unit), project?.dailyGoal);
+  const pace = project?.deadline
+    ? paceToDeadline(projectProgress.remaining, project.deadline, todayKey)
+    : null;
 
   // 헤더 패널 표시등 ↔ 개별 open 상태 매핑.
   const openPanels: Record<WorkspacePanelKey, boolean> = {
@@ -182,6 +211,8 @@ export function WorkspacePage() {
     title: string;
     type: "FOLDER" | "DOC";
     parentId: string | null;
+    content?: unknown;
+    kind?: DocumentKind;
   }) {
     // 바인더가 생성된 문서를 곧바로 인라인 이름 편집으로 열기 때문에 결과를 돌려준다.
     try {
@@ -246,6 +277,15 @@ export function WorkspacePage() {
           onEnterFocus={() => setFocusMode(true)}
           onToggleBinder={() => setBinderOpen((v) => !v)}
           binderOpen={binderOpen}
+          goalSlot={
+            <GoalBar
+              project={projectProgress}
+              today={todayProgress}
+              pace={pace}
+              unit={unit}
+              onClick={() => setStatsOpen(true)}
+            />
+          }
         />
       )}
 
@@ -281,6 +321,7 @@ export function WorkspacePage() {
             onDelete={deleteDocument}
             onMove={handleMove}
             onMoveToParent={handleMoveToParent}
+            labels={project?.labels}
           />
         </aside>
 
@@ -303,6 +344,7 @@ export function WorkspacePage() {
               }}
               onUpdateSynopsis={updateSynopsis}
               onUpdateStatus={updateStatus}
+              labels={project?.labels}
               onMove={handleMove}
             />
           )}
@@ -323,6 +365,16 @@ export function WorkspacePage() {
               title={selected.title}
               onMeasureChange={setLiveMeasure}
               onRename={(t) => renameDocument(selected.id, t)}
+            />
+          )}
+          {/* 폴더를 고르면 그 아래 회차를 한 장으로 이어 본다(스크리브너 Scrivenings) */}
+          {selected && selected.type === "FOLDER" && viewMode === "editor" && (
+            <Scrivenings
+              key={selected.id}
+              folder={selected}
+              documents={documents}
+              projectId={id}
+              onOpenDocument={setSelectedId}
             />
           )}
 
@@ -399,11 +451,19 @@ export function WorkspacePage() {
               <Inspector
                 doc={selected}
                 onSaveSynopsis={updateSynopsis}
+                onSaveNote={updateNote}
+                onSaveStatus={updateStatus}
+                onSaveLabel={updateLabel}
+                labels={project?.labels}
+                onSaveLabels={updateLabels}
+                onClearLabelFromDocuments={clearLabelFromDocuments}
                 currentWords={liveWords}
                 onSaveDocGoal={updateGoal}
                 projectTotalWords={projectTotalWords}
                 projectGoal={project?.goal}
                 onSaveProjectGoal={updateProjectGoal}
+                deadline={project?.deadline}
+                onSaveDeadline={updateDeadline}
               />
             )}
             {inspectorTab === "snapshots" &&
@@ -523,6 +583,15 @@ export function WorkspacePage() {
         projectTitle={project?.title ?? "작품"}
         documents={documents}
         selectedDoc={selected}
+      />
+      <QuickOpen
+        open={quickOpen}
+        documents={documents}
+        onClose={() => setQuickOpen(false)}
+        onPick={(d) => {
+          setSelectedId(d.id);
+          setViewMode("editor");
+        }}
       />
     </div>
   );

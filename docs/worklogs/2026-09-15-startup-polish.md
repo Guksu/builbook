@@ -41,7 +41,18 @@
 - **DOCX 내보내기** — `docx` 패키지. `features/export-document/lib/docx.ts`(순수 변환 + 패킹), 내보내기 모달에 현재 문서/작품 전체 DOCX 버튼. 서식은 제목+문단 최소.
 - **반응형** — md(768px) 미만에서 바인더는 헤더 버튼("바인더")으로 여는 드로어, 우측 패널은 헤더 아래 오버레이(헤더는 가리지 않아 칩으로 닫는다). 헤더는 좁은 화면에서 가로 스크롤, sm 미만에서 합계·본문/카드 라벨 숨김. e2e `responsive.spec.ts`(390px 폭) 2개.
 
+### 루프 2 — 스크리브너 참고 UI/UX (같은 날, 명세 `docs/loops/2026-09-15-scrivener-ux.md`)
+- **선행 수정**: 폴더 안 문서를 최상위로 못 꺼내던 문제. `planMoveToParent`(순수), 메뉴 "한 단계 위로/최상위로 이동", 폴더 위쪽 1/3 드롭=폴더 앞, 트리 아래 빈 공간 드롭=최상위.
+- **스크리브닝 연속 보기** — `src/widgets/scrivenings`. 바인더에서 폴더를 클릭(또는 Enter)하면 선택되고, 가운데에 자손 회차들이 순서대로 이어져 각각 편집·자동저장된다. 접기는 chevron·←/→만. 구획마다 "이 문서만 열기". 자손 수집은 `collectDescendantDocs`(entities/document).
+- **라벨·상태·메모** — `Project.labels`(기본: 시점: 주인공/시점: 히로인/복선/수정 필요, 색 8종은 `--label-*` 변수), `DocumentNode.label`·`note`. 인스펙터에 상태(초고/퇴고/완료) select·라벨 select·라벨 관리·메모. 바인더 행에 라벨 색 막대와 상태 점, 코르크보드 카드에 색 띠. 상태 값의 단일 출처는 `features/corkboard`.
+- **목표 바 + 마감일 + 빠른 열기** — 헤더 `GoalBar`(작품·오늘 진행 막대, "마감까지 N일 · 하루 N자"), `Project.deadline`과 `paceToDeadline`(오늘 포함 올림), 인스펙터 마감일 입력. `features/quick-open`: Ctrl/⌘+P → 제목 검색(시작 일치 > 단어 시작 > 포함, 같으면 최근 수정 순) → Enter로 열기.
+- **문서 템플릿** — `DocumentNode.kind`(episode/character/setting, 회차는 저장 안 함), `buildTemplateContent`로 인물·설정 카드 틀. 바인더 "카드 템플릿" 버튼과 우클릭 메뉴("새 인물 카드"/"새 설정 카드"). 회차 분량표·TXT/MD/DOCX 내보내기는 `isManuscript`로 카드를 뺀다. 행 제목 옆에 종류 표시.
+
 ## 3. 주의사항
+
+- **e2e 버튼 이름 규칙**: Playwright `getByRole(name)`은 부분 일치라 새 버튼 이름에 기존 이름("새 문서" 등)을 포함하면 기존 스펙 27개가 한꺼번에 깨진다(실제로 겪음). 새 버튼은 겹치지 않는 이름으로.
+- **폴더 선택**: 이제 폴더 클릭은 접기가 아니라 선택(연속 보기)이다. 접기는 chevron과 ←/→ 키.
+- **카드 문서는 원고가 아니다**: `kind`가 character/setting이면 회차 분량표·내보내기에서 빠진다. 코르크보드·검색·백업에는 포함된다.
 
 - **F2 키**: 에디터가 window에 F2 리스너를 달아 제목 편집을 연다. 바인더는 자기 F2 처리에서 `stopPropagation`으로 막는다. 에디터 리스너를 capture 단계로 바꾸면 바인더 인라인 편집이 깨진다.
 - **docx 패키지는 배럴에서 재수출하지 말 것**: `features/export-document/index.ts`에서 재수출하면 작업실 첫 로드가 +100KB(실측 240→344KB)가 된다. `ExportMenu`가 버튼 클릭 시 `import("../lib/docx")`로 가져온다.

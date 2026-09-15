@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Textarea, cn } from "@shared/ui";
 import type { DocumentNode } from "@entities/document";
+import { LABEL_COLOR_CLASS, findLabel, withDefaultLabels, type ProjectLabel } from "@entities/project";
 import { formatCount, pickCount } from "@shared/lib";
 import { useCountUnit } from "@features/count-unit";
 import {
@@ -22,6 +23,8 @@ export interface CorkboardProps {
   onUpdateStatus: (id: string, status: string) => void;
   /** 바인더와 같은 규약: 폴더 위 드롭=into, 문서 위 드롭=before. */
   onMove: (dragId: string, targetId: string, mode: "into" | "before") => void;
+  /** 작품 라벨 목록 — 카드 상단 색 띠(미설정이면 기본 라벨). */
+  labels?: ProjectLabel[];
 }
 
 const STATUS_STYLE: Record<string, string> = {
@@ -41,8 +44,10 @@ export function Corkboard({
   onUpdateSynopsis,
   onUpdateStatus,
   onMove,
+  labels,
 }: CorkboardProps) {
   const [unit] = useCountUnit();
+  const labelList = withDefaultLabels(labels);
   const cards = buildCards(documents);
   const summary = summarizeCards(cards);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -89,7 +94,9 @@ export function Corkboard({
         aria-label="코르크보드 카드"
         className="grid grid-cols-1 gap-16 sm:grid-cols-2 xl:grid-cols-3"
       >
-        {cards.map((card) => (
+        {cards.map((card) => {
+          const label = findLabel(labelList, card.label);
+          return (
           <li key={card.id}>
             <article
               draggable
@@ -126,6 +133,25 @@ export function Corkboard({
                 dropTarget === card.id && "ring-2 ring-inset ring-primary",
               )}
             >
+              {/* 라벨 — 색 띠 + 이름 칩. 카드 더미에서 계열을 색으로 먼저 알아보게 한다. */}
+              {label && (
+                <div className="mb-8 flex items-center gap-6">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "h-4 w-24 shrink-0 rounded-full",
+                      LABEL_COLOR_CLASS[label.color],
+                    )}
+                  />
+                  <span
+                    className="truncate text-caption text-fg-weak"
+                    title={`라벨: ${label.name}`}
+                  >
+                    {label.name}
+                  </span>
+                </div>
+              )}
+
               <header className="mb-8 flex items-start gap-6">
                 <button
                   type="button"
@@ -182,7 +208,8 @@ export function Corkboard({
               </footer>
             </article>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );

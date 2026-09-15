@@ -4,7 +4,7 @@
 
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from "docx";
 import type { DocumentNode } from "@entities/document";
-import { flattenTree, selectActiveDocuments } from "@entities/document";
+import { flattenTree, isManuscript, selectActiveDocuments } from "@entities/document";
 import { extractPlainText } from "@shared/lib";
 
 export interface DocxSection {
@@ -39,6 +39,7 @@ export function projectToSections(
 ): DocxSection[] {
   const out: DocxSection[] = [{ level: 0, title: projectTitle, paragraphs: [] }];
   for (const { node, depth } of flattenTree(selectActiveDocuments(docs))) {
+    if (node.type === "DOC" && !isManuscript(node)) continue; // 카드는 원고가 아니다
     out.push({
       level: Math.min(depth + 1, 3),
       title: node.title,

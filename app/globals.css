@@ -72,6 +72,17 @@
   --color-error-strong: var(--red-40);
   --color-error-weak: var(--red-95);
 
+  /* ── 라벨 팔레트 — 문서 라벨(스크리브너 Label) 색 8종 ──
+     라벨 전용 hex는 이 블록에만 둔다(Tailwind는 colors.label.*로 var()를 가리킨다). */
+  --label-red: var(--red-50);
+  --label-orange: var(--orange-50);
+  --label-yellow: #f5c400;
+  --label-green: var(--green-50);
+  --label-blue: var(--blue-50);
+  --label-purple: #8b5cf6;
+  --label-pink: #ff5fa2;
+  --label-gray: var(--neutral-80);
+
   /* ── 포커스 링 ── */
   --color-ring: var(--blue-50);
 
@@ -118,6 +129,11 @@
   --color-error-weak: rgba(255, 66, 66, 0.18);
 
   --color-ring: var(--blue-50);
+
+  /* 라벨 — 어두운 배경에서 묻히는 색만 밝게 올린다(나머지는 :root 값 그대로). */
+  --label-blue: #4f95ff;
+  --label-purple: #a78bfa;
+  --label-gray: #9b9b9b;
 
   color-scheme: dark;
 }

@@ -50,6 +50,17 @@ const config: Config = {
           weak: "var(--color-error-weak)",
         },
         ring: "var(--color-ring)",
+        // 라벨 색 — 실값은 globals.css의 --label-* 한 곳에만 있다.
+        label: {
+          red: "var(--label-red)",
+          orange: "var(--label-orange)",
+          yellow: "var(--label-yellow)",
+          green: "var(--label-green)",
+          blue: "var(--label-blue)",
+          purple: "var(--label-purple)",
+          pink: "var(--label-pink)",
+          gray: "var(--label-gray)",
+        },
       },
       // 원티드 실제 스페이싱 스케일 (px) [확인]
       spacing: {

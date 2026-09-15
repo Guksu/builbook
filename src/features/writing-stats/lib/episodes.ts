@@ -3,7 +3,7 @@
 // 세고(5,000~5,500자가 흔한 한 편), 너무 짧으면 이탈, 너무 길면 회차를 쪼개는 게 낫다.
 
 import type { DocumentNode } from "@entities/document";
-import { flattenTree, selectActiveDocuments } from "@entities/document";
+import { flattenTree, isManuscript, selectActiveDocuments } from "@entities/document";
 import {
   extractPlainText,
   measureText,
@@ -89,7 +89,7 @@ export function buildEpisodeStats(
   const flat = flattenTree(selectActiveDocuments(docs));
   const out: EpisodeStat[] = [];
   for (const { node } of flat) {
-    if (node.type !== "DOC") continue;
+    if (node.type !== "DOC" || !isManuscript(node)) continue; // 인물·설정 카드는 회차가 아니다
     const measure = measureText(extractPlainText(node.content));
     // 표의 분량은 사용자 설정 단위를 따른다(목표도 같은 단위로 해석).
     const chars = pickCount(measure, unit);

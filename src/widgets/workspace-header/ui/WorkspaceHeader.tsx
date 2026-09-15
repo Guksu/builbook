@@ -44,6 +44,8 @@ interface WorkspaceHeaderProps {
   /** 좁은 화면(md 미만)에서 바인더 드로어를 여닫는다. */
   onToggleBinder?: () => void;
   binderOpen?: boolean;
+  /** 목표 바(있을 때만) — 왼쪽 그룹 끝에 붙는다. */
+  goalSlot?: React.ReactNode;
 }
 
 /**
@@ -63,6 +65,7 @@ export function WorkspaceHeader({
   onEnterFocus,
   onToggleBinder,
   binderOpen,
+  goalSlot,
 }: WorkspaceHeaderProps) {
   return (
     <header className="flex h-48 items-center gap-16 border-b border-border pl-8 pr-12 max-md:gap-8 max-md:overflow-x-auto">
@@ -93,6 +96,7 @@ export function WorkspaceHeader({
         <span className="shrink-0 text-caption tabular-nums text-fg-muted max-sm:hidden">
           {totalLabel}
         </span>
+        {goalSlot}
       </div>
 
       {/* 중: 가운데 화면 전환 — 본문 ↔ 카드 */}

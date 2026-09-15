@@ -39,6 +39,8 @@ export interface CardItem {
   synopsis: string;
   measure: TextMeasure;
   status: DocStatus;
+  /** 라벨 id(없으면 undefined) — 색·이름은 작품의 라벨 목록에서 찾아 쓴다. */
+  label?: string;
 }
 
 /**
@@ -57,6 +59,7 @@ export function buildCards(docs: readonly DocumentNode[]): CardItem[] {
       synopsis: node.synopsis?.trim() ?? "",
       measure,
       status: normalizeStatus(node.status),
+      label: node.label,
     };
   });
 }

@@ -8,7 +8,21 @@ import {
   type ContextMenuItem,
 } from "@shared/ui";
 import type { DocumentNode } from "@entities/document";
-import { nextEpisodeTitle, nextFolderTitle } from "@entities/document";
+import {
+  DOCUMENT_KINDS,
+  buildTemplateContent,
+  defaultTitleForKind,
+  kindLabel,
+  nextFolderTitle,
+  type DocumentKind,
+} from "@entities/document";
+import {
+  LABEL_COLOR_CLASS,
+  findLabel,
+  withDefaultLabels,
+  type ProjectLabel,
+} from "@entities/project";
+import { docStatusLabel, normalizeStatus } from "@features/corkboard";
 import {
   BINDER_SORTS,
   BINDER_SORT_LABEL,
@@ -25,6 +39,7 @@ import {
   FolderPlusIcon,
   MoreIcon,
   SortIcon,
+  TemplateIcon,
 } from "./icons";
 
 /*
@@ -44,6 +59,8 @@ interface BinderProps {
     title: string;
     type: "FOLDER" | "DOC";
     parentId: string | null;
+    content?: unknown;
+    kind?: DocumentKind;
   }) => Promise<DocumentNode | null>;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
@@ -53,12 +70,15 @@ interface BinderProps {
   onMoveToParent?: (id: string, parentId: string | null) => void;
   /** 접힘 상태를 저장할 작품 id(localStorage 키). */
   projectId?: string;
+  /** 작품 라벨 목록 — 행 앞의 색 막대를 그린다(미설정이면 기본 라벨). */
+  labels?: ProjectLabel[];
 }
 
 type MenuState =
   | { kind: "node"; x: number; y: number; node: DocumentNode }
   | { kind: "empty"; x: number; y: number }
   | { kind: "sort"; x: number; y: number }
+  | { kind: "template"; x: number; y: number }
   | null;
 
 const INDENT = 12; // 들여쓰기 한 단계(px) — 가이드 선 간격과 같다.
@@ -73,6 +93,7 @@ export function Binder({
   onMove,
   onMoveToParent,
   projectId = "",
+  labels,
 }: BinderProps) {
   const { collapsed, toggle, expand, collapseAll, expandAll } =
     useCollapsedFolders(projectId);
@@ -94,6 +115,7 @@ export function Binder({
     [documents, collapsed, sort],
   );
   const folderIds = useMemo(() => collectFolderIds(documents), [documents]);
+  const labelList = useMemo(() => withDefaultLabels(labels), [labels]);
   // 접을 폴더가 하나라도 남아 있으면 "모두 접기", 전부 접혀 있으면 "모두 펼치기".
   const allCollapsed =
     folderIds.length > 0 && folderIds.every((fid) => collapsed.has(fid));
@@ -122,13 +144,18 @@ export function Binder({
   );
 
   const create = useCallback(
-    async (type: "FOLDER" | "DOC", anchorId: string | null) => {
+    async (type: "FOLDER" | "DOC", anchorId: string | null, kind: DocumentKind = "episode") => {
       const parentId = parentForAnchor(anchorId);
       const siblings = documents.filter((d) => d.parentId === parentId);
       const title =
-        type === "DOC" ? nextEpisodeTitle(siblings) : nextFolderTitle(siblings);
+        type === "DOC" ? defaultTitleForKind(kind, siblings) : nextFolderTitle(siblings);
       if (parentId) expand(parentId); // 접힌 폴더 안에 만들면 안 보이니 펼쳐 준다
-      const created = await onCreate({ title, type, parentId });
+      const created = await onCreate({
+        title,
+        type,
+        parentId,
+        ...(type === "DOC" ? { content: buildTemplateContent(kind), kind } : {}),
+      });
       if (created) {
         setActiveId(created.id);
         setEditingId(created.id); // 기본 이름이 선택된 채로 바로 고쳐 쓸 수 있게
@@ -147,11 +174,22 @@ export function Binder({
     [onRename],
   );
 
+  // 회차가 아닌 템플릿(인물·설정 카드) 메뉴 항목 — 노드 메뉴·빈 영역 메뉴·상단 템플릿 버튼이 공유.
+  const templateItems = useCallback(
+    (anchorId: string | null): ContextMenuItem[] =>
+      DOCUMENT_KINDS.filter((k) => k.value !== "episode").map((k) => ({
+        label: `새 ${k.label}`,
+        onSelect: () => void create("DOC", anchorId, k.value),
+      })),
+    [create],
+  );
+
   const nodeMenuItems = useCallback(
     (node: DocumentNode): ContextMenuItem[] => {
       const items: ContextMenuItem[] = [
         { label: "새 문서", onSelect: () => void create("DOC", node.id) },
         { label: "새 폴더", onSelect: () => void create("FOLDER", node.id) },
+        ...templateItems(node.id),
         { label: "이름 변경", onSelect: () => setEditingId(node.id) },
       ];
       // 폴더 안에 든 항목은 밖으로 꺼낼 길이 있어야 한다(드래그만으로는 최상위에 폴더뿐일 때 못 나간다).
@@ -169,7 +207,7 @@ export function Binder({
       items.push({ label: "삭제", danger: true, onSelect: () => setDeleteTarget(node) });
       return items;
     },
-    [create, documents, onMoveToParent],
+    [create, documents, onMoveToParent, templateItems],
   );
 
   const openNodeMenu = (node: DocumentNode, x: number, y: number) => {
@@ -204,8 +242,7 @@ export function Binder({
     } else if (e.key === "Enter") {
       if (!row) return;
       e.preventDefault();
-      if (row.node.type === "DOC") onSelect(row.node.id);
-      else toggle(row.node.id);
+      onSelect(row.node.id); // 폴더도 선택(연속 보기) — 마우스 클릭과 같게. 접기는 ←/→.
     } else if (e.key === "F2") {
       if (!row) return;
       e.preventDefault();
@@ -233,6 +270,16 @@ export function Binder({
             onClick={() => void create("FOLDER", cursorId)}
           >
             <FolderPlusIcon />
+          </IconButton>
+          <IconButton
+            label="카드 템플릿"
+            hasPopup
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setMenu({ kind: "template", x: r.left, y: r.bottom + 4 });
+            }}
+          >
+            <TemplateIcon />
           </IconButton>
           <IconButton
             label="정렬"
@@ -292,8 +339,9 @@ export function Binder({
                   onClick={() => {
                     if (editing) return;
                     setActiveId(node.id);
-                    if (isFolder) toggle(node.id);
-                    else onSelect(node.id);
+                    // 폴더도 '고르는' 대상이다(스크리브너와 같다) — 고르면 그 아래 회차가
+                    // 연속 보기로 이어 열린다. 접기/펼치기는 chevron과 ←/→ 키가 맡는다.
+                    onSelect(node.id);
                   }}
                   onDoubleClick={() => setEditingId(node.id)}
                   onContextMenu={(e) => {
@@ -395,9 +443,7 @@ export function Binder({
                         onCancel={() => setEditingId(null)}
                       />
                     ) : (
-                      <span className="min-w-0 flex-1 truncate" title={node.title}>
-                        {node.title}
-                      </span>
+                      <RowTitle node={node} labels={labelList} />
                     )}
 
                     {!editing && (
@@ -473,7 +519,17 @@ export function Binder({
           items={[
             { label: "새 문서", onSelect: () => void create("DOC", null) },
             { label: "새 폴더", onSelect: () => void create("FOLDER", null) },
+            ...templateItems(null),
           ]}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      {menu?.kind === "template" && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label="템플릿 메뉴"
+          items={templateItems(cursorId)}
           onClose={() => setMenu(null)}
         />
       )}
@@ -508,6 +564,52 @@ export function Binder({
         confirmText="삭제"
       />
     </nav>
+  );
+}
+
+/**
+ * 행의 이름칸 — 앞에 라벨 색 막대, 뒤에 상태 점.
+ * 둘 다 '있을 때만' 그린다(초고는 표시 없음) — 평소 바인더는 이름만 보이는 게 기본이다.
+ */
+function RowTitle({
+  node,
+  labels,
+}: {
+  node: DocumentNode;
+  labels: ProjectLabel[];
+}) {
+  const label = findLabel(labels, node.label);
+  const status = normalizeStatus(node.status);
+  return (
+    <>
+      {label && (
+        <span
+          role="img"
+          aria-label={`라벨: ${label.name}`}
+          title={`라벨: ${label.name}`}
+          className={cn("h-14 w-2 shrink-0 rounded-full", LABEL_COLOR_CLASS[label.color])}
+        />
+      )}
+      <span className="min-w-0 flex-1 truncate" title={node.title}>
+        {node.title}
+        {node.kind && node.kind !== "episode" && (
+          <span className="ml-6 rounded-sm bg-surface px-4 text-caption text-fg-muted">
+            {kindLabel(node.kind)}
+          </span>
+        )}
+      </span>
+      {status !== "draft" && (
+        <span
+          role="img"
+          aria-label={`상태: ${docStatusLabel(status)}`}
+          title={`상태: ${docStatusLabel(status)}`}
+          className={cn(
+            "h-6 w-6 shrink-0 rounded-full",
+            status === "revise" ? "bg-warning" : "bg-success",
+          )}
+        />
+      )}
+    </>
   );
 }
 

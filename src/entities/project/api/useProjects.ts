@@ -16,6 +16,7 @@ import { deleteWritingLogsForProject } from "@entities/writing-log";
 import { deleteStoryEventsForProject } from "@entities/story-event";
 import { deleteTermsForProject } from "@entities/term";
 import type { Project } from "../model/types";
+import type { ProjectLabel } from "../lib/labels";
 
 const KEY = "projects";
 
@@ -49,14 +50,38 @@ export function useProject(projectId: string) {
     await mutate();
   }
 
+  // 라벨 목록 통째 교체(추가·이름 변경·삭제 모두 이 한 함수로 — 순수 로직은 lib/labels가 만든다).
+  async function updateLabels(labels: ProjectLabel[]) {
+    const p = await dbGet<Project>(STORES.projects, projectId);
+    if (!p) return;
+    await dbPut(STORES.projects, {
+      ...p,
+      labels,
+      updatedAt: new Date().toISOString(),
+    });
+    await mutate();
+  }
+
   return {
     project: data ?? null,
+    updateLabels,
     // 작품 목표 단어 수 설정. null이면 목표 해제(undefined 저장).
     updateGoal: (goal: number | null) => updateGoalField("goal", goal),
     // 하루 목표 단어 수(집필 현황 '오늘' 진행률 기준).
     updateDailyGoal: (goal: number | null) => updateGoalField("dailyGoal", goal),
     // 회차 목표 분량(공백 포함 글자 수).
     updateEpisodeGoal: (goal: number | null) => updateGoalField("episodeGoal", goal),
+    // 마감일(YYYY-MM-DD). null이면 해제.
+    async updateDeadline(deadline: string | null) {
+      const p = await dbGet<Project>(STORES.projects, projectId);
+      if (!p) return;
+      await dbPut(STORES.projects, {
+        ...p,
+        deadline: deadline || undefined,
+        updatedAt: new Date().toISOString(),
+      });
+      await mutate();
+    },
   };
 }
 

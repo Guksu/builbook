@@ -2,7 +2,7 @@
 // 평문 추출은 @shared/lib의 단일 출처(extractPlainText)를 재사용한다.
 
 import type { DocumentNode } from "@entities/document";
-import { selectActiveDocuments, flattenTree } from "@entities/document";
+import { selectActiveDocuments, flattenTree, isManuscript } from "@entities/document";
 import { extractPlainText } from "@shared/lib";
 
 // 마크다운 헤딩 최대 깊이(h6). 트리가 깊어도 ###### 이상은 만들지 않는다.
@@ -34,6 +34,7 @@ export function projectToPlainText(
   const flat = flattenTree(selectActiveDocuments(docs));
   const blocks = [projectTitle];
   for (const { node } of flat) {
+    if (node.type === "DOC" && !isManuscript(node)) continue; // 인물·설정 카드는 원고가 아니다
     const body = node.type === "DOC" ? extractPlainText(node.content) : "";
     blocks.push(body ? `${node.title}\n\n${body}` : node.title);
   }
@@ -48,6 +49,7 @@ export function projectToMarkdown(
   const flat = flattenTree(selectActiveDocuments(docs));
   const blocks = [`# ${projectTitle}`];
   for (const { node, depth } of flat) {
+    if (node.type === "DOC" && !isManuscript(node)) continue;
     const hashes = "#".repeat(Math.min(depth + 2, MAX_HEADING));
     const heading = `${hashes} ${node.title}`;
     const body = node.type === "DOC" ? extractPlainText(node.content) : "";

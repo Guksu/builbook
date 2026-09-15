@@ -13,6 +13,7 @@ import { deleteSnapshotsForDocuments } from "@entities/snapshot";
 import { recordWriting } from "@entities/writing-log";
 import type { TextMeasure } from "@shared/lib";
 import type { DocumentNode, DocType } from "../model/types";
+import type { DocumentKind } from "../lib/templates";
 import {
   collectSubtreeIds,
   selectActiveDocuments,
@@ -80,6 +81,10 @@ export function useDocuments(projectId: string) {
       title: string;
       type?: DocType;
       parentId?: string | null;
+      /** 템플릿 본문(인물·설정 카드). 없으면 빈 문단. */
+      content?: unknown;
+      /** 문서 종류 — 회차(기본)는 저장하지 않는다(옛 레코드와 같은 모양 유지). */
+      kind?: DocumentKind;
     }) {
       const title = input.title.trim();
       if (!title) return null; // 공백 제목 방어
@@ -102,7 +107,8 @@ export function useDocuments(projectId: string) {
         type,
         title,
         order,
-        content: type === "DOC" ? EMPTY_DOC : null,
+        content: type === "DOC" ? (input.content ?? EMPTY_DOC) : null,
+        ...(type === "DOC" && input.kind && input.kind !== "episode" ? { kind: input.kind } : {}),
         synopsis: null,
         wordCount: 0,
         charCount: 0,
@@ -136,6 +142,40 @@ export function useDocuments(projectId: string) {
       const doc = await dbGet<DocumentNode>(STORES.documents, id);
       if (!doc) return;
       await dbPut(STORES.documents, { ...doc, status, updatedAt: now() });
+      await mutate();
+    },
+
+    // 라벨 지정. null이면 라벨 해제(undefined 저장).
+    async updateLabel(id: string, labelId: string | null) {
+      const doc = await dbGet<DocumentNode>(STORES.documents, id);
+      if (!doc) return;
+      await dbPut(STORES.documents, {
+        ...doc,
+        label: labelId ?? undefined,
+        updatedAt: now(),
+      });
+      await mutate();
+    },
+
+    // 작품에서 라벨을 지울 때, 그 라벨을 달고 있던 문서들의 참조를 함께 비운다(죽은 id 방지).
+    async clearLabelFromDocuments(labelId: string) {
+      const ts = now();
+      const targets = allDocuments.filter((d) => d.label === labelId);
+      if (targets.length === 0) return;
+      const updated = targets.map((d) => {
+        const next = { ...d, updatedAt: ts };
+        delete next.label;
+        return next;
+      });
+      await dbBulkPut(STORES.documents, updated);
+      await mutate();
+    },
+
+    // 문서 메모(작가 노트). 인스펙터 '정보' 탭에서 blur 시 저장.
+    async updateNote(id: string, note: string) {
+      const doc = await dbGet<DocumentNode>(STORES.documents, id);
+      if (!doc) return;
+      await dbPut(STORES.documents, { ...doc, note, updatedAt: now() });
       await mutate();
     },
 
