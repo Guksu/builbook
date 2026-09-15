@@ -47,6 +47,12 @@ function writeLastDoc(projectId: string, docId: string) {
   }
 }
 
+// 우측 패널 공통 클래스 — 넓은 화면은 본문 옆에 나란히, 좁은 화면(md 미만)은 헤더 아래 오버레이.
+// 헤더는 가리지 않아 칩으로 다시 닫을 수 있다.
+const SIDE_PANEL =
+  "shrink-0 overflow-y-auto border-l border-border bg-surface p-16 " +
+  "max-md:fixed max-md:bottom-0 max-md:right-0 max-md:top-48 max-md:z-30 max-md:!w-[min(100vw,360px)] max-md:shadow-lg";
+
 export function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
   const { toast } = useToast();
@@ -75,6 +81,8 @@ export function WorkspacePage() {
   } = useProject(id);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // 좁은 화면(md 미만) 전용: 바인더를 드로어로 띄운다. 넓은 화면에서는 값과 무관하게 항상 보인다.
+  const [binderOpen, setBinderOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<"info" | "snapshots">("info");
   const [notesOpen, setNotesOpen] = useState(false);
@@ -225,17 +233,38 @@ export function WorkspacePage() {
           previewDisabled={!selected || selected.type !== "DOC"}
           onOpenExport={() => setExportOpen(true)}
           onEnterFocus={() => setFocusMode(true)}
+          onToggleBinder={() => setBinderOpen((v) => !v)}
+          binderOpen={binderOpen}
         />
       )}
 
       <div className="flex min-h-0 flex-1">
         {/* 좌: 바인더 — 집중 모드에서는 숨김(하지만 트리에 남겨 에디터 위치 유지 → 재마운트 방지) */}
-        <aside className={cn("w-[260px] shrink-0", focusMode && "hidden")}>
+        {/* 좁은 화면에서는 드로어(헤더 아래 고정) — 배경을 누르면 닫힌다 */}
+        {binderOpen && !focusMode && (
+          <button
+            type="button"
+            aria-label="바인더 닫기"
+            onClick={() => setBinderOpen(false)}
+            className="fixed inset-x-0 bottom-0 top-48 z-20 bg-black/30 md:hidden"
+          />
+        )}
+        <aside
+          className={cn(
+            "w-[260px] shrink-0",
+            "max-md:fixed max-md:bottom-0 max-md:left-0 max-md:top-48 max-md:z-30 max-md:w-[min(100vw,300px)] max-md:bg-bg max-md:shadow-lg",
+            focusMode && "hidden",
+            !binderOpen && "max-md:hidden",
+          )}
+        >
           <Binder
             projectId={id}
             documents={documents}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={(docId) => {
+              setSelectedId(docId);
+              setBinderOpen(false); // 좁은 화면: 고르면 드로어를 닫고 본문으로
+            }}
             onCreate={handleCreate}
             onRename={renameDocument}
             onDelete={deleteDocument}
@@ -325,7 +354,7 @@ export function WorkspacePage() {
 
         {/* 우: 인스펙터 (기본 접힘) — 정보 / 스냅샷 탭. 집중 모드에서는 숨김 */}
         {inspectorOpen && !focusMode && (
-          <aside className="w-[280px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+          <aside className={cn(SIDE_PANEL, "w-[280px]")}>
             <div role="tablist" className="mb-12 flex gap-4">
               <button
                 type="button"
@@ -378,14 +407,14 @@ export function WorkspacePage() {
 
         {/* 우: 리서치 노트 (캐릭터·설정) — 바인더와 분리된 작품 단위 참고 자료 */}
         {notesOpen && !focusMode && (
-          <aside className="w-[300px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+          <aside className={cn(SIDE_PANEL, "w-[300px]")}>
             <NotesPanel projectId={id} />
           </aside>
         )}
 
         {/* 우: 타임라인(연표) — 사건 순서와 회차 연결 */}
         {timelineOpen && !focusMode && (
-          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+          <aside className={cn(SIDE_PANEL, "w-[320px]")}>
             <TimelinePanel
               projectId={id}
               documents={documents}
@@ -399,7 +428,7 @@ export function WorkspacePage() {
 
         {/* 우: 설정 점검 — 고유명사 사전·표기 흔들림·문장 리듬 */}
         {checkOpen && !focusMode && (
-          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+          <aside className={cn(SIDE_PANEL, "w-[320px]")}>
             <ConsistencyPanel
               projectId={id}
               documents={documents}
@@ -410,7 +439,7 @@ export function WorkspacePage() {
 
         {/* 우: 집필 현황 — 오늘 분량·연속 집필일·최근 추이·회차별 분량 */}
         {statsOpen && !focusMode && (
-          <aside className="w-[320px] shrink-0 overflow-y-auto border-l border-border bg-surface p-16">
+          <aside className={cn(SIDE_PANEL, "w-[320px]")}>
             <StatsPanel
               projectId={id}
               documents={documents}
@@ -427,7 +456,7 @@ export function WorkspacePage() {
 
         {/* 우: 검색 — 제목·본문 검색, 결과 클릭 시 문서 선택 */}
         {searchOpen && !focusMode && (
-          <aside className="w-[300px] shrink-0 overflow-hidden border-l border-border bg-surface p-16">
+          <aside className={cn(SIDE_PANEL, "w-[300px] overflow-hidden")}>
             <SearchPanel
               documents={documents}
               onSelect={(docId) => {
@@ -440,7 +469,7 @@ export function WorkspacePage() {
 
         {/* 우: 휴지통 — 소프트 삭제 문서 복원 / 영구 삭제 */}
         {trashOpen && !focusMode && (
-          <aside className="w-[300px] shrink-0 overflow-hidden border-l border-border bg-surface p-16">
+          <aside className={cn(SIDE_PANEL, "w-[300px] overflow-hidden")}>
             <TrashPanel
               trashedDocuments={trashedDocuments}
               onRestore={async (docId) => {

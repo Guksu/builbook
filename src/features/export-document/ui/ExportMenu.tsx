@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { Modal, Button } from "@shared/ui";
 import type { DocumentNode } from "@entities/document";
 import {
@@ -9,7 +11,8 @@ import {
   projectToPlainText,
   projectToMarkdown,
 } from "../lib/exportDocuments";
-import { downloadTextFile, type ExportFormat } from "../lib/download";
+import { downloadBlob, downloadTextFile, type ExportFormat } from "../lib/download";
+
 
 interface ExportMenuProps {
   open: boolean;
@@ -28,6 +31,7 @@ export function ExportMenu({
   documents,
   selectedDoc,
 }: ExportMenuProps) {
+  const [docxError, setDocxError] = useState<string | null>(null);
   const canExportDoc = !!selectedDoc && selectedDoc.type === "DOC";
 
   function exportDoc(format: ExportFormat) {
@@ -38,6 +42,26 @@ export function ExportMenu({
         : documentToMarkdown(selectedDoc);
     downloadTextFile(safeFileName(selectedDoc.title), format, content);
     onClose();
+  }
+
+  // DOCX는 비동기(zip 패킹). docx 패키지는 무거워서 버튼을 눌렀을 때만 불러온다(작업실 첫 로드 보호).
+  // 실패해도 모달만 남겨 다시 시도할 수 있게 한다.
+  async function exportDocx(scope: "doc" | "project") {
+    try {
+      const { buildDocx, documentToSections, packDocxBlob, projectToSections } = await import(
+        "../lib/docx"
+      );
+      const sections =
+        scope === "doc"
+          ? selectedDoc && documentToSections(selectedDoc)
+          : projectToSections(projectTitle, documents);
+      if (!sections) return;
+      const name = safeFileName(scope === "doc" ? selectedDoc!.title : projectTitle);
+      downloadBlob(`${name}.docx`, await packDocxBlob(buildDocx(sections)));
+      onClose();
+    } catch {
+      setDocxError("DOCX 파일을 만들지 못했어요. TXT로 내보내 보세요.");
+    }
   }
 
   function exportProject(format: ExportFormat) {
@@ -54,7 +78,7 @@ export function ExportMenu({
       open={open}
       onClose={onClose}
       title="내보내기"
-      description="브라우저에 파일로 저장합니다."
+      description="브라우저에 파일로 저장합니다. DOCX는 투고·플랫폼 업로드용, TXT는 어디서나 열려요."
     >
       <div className="flex flex-col gap-16">
         <section className="flex flex-col gap-8">
@@ -75,6 +99,14 @@ export function ExportMenu({
               onClick={() => exportDoc("md")}
             >
               마크다운
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={!canExportDoc}
+              onClick={() => void exportDocx("doc")}
+            >
+              DOCX
             </Button>
           </div>
           {!canExportDoc && (
@@ -103,7 +135,16 @@ export function ExportMenu({
             >
               마크다운
             </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={documents.length === 0}
+              onClick={() => void exportDocx("project")}
+            >
+              DOCX
+            </Button>
           </div>
+          {docxError && <p className="text-caption text-error">{docxError}</p>}
           {documents.length === 0 && (
             <p className="text-caption text-fg-weak">
               내보낼 문서가 아직 없어요.

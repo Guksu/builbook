@@ -104,7 +104,7 @@ export function Editor({
   }, [onRename]);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[720px] flex-col px-24 py-16">
+    <div className="mx-auto flex h-full w-full max-w-[720px] flex-col px-24 py-16 max-sm:px-16">
       <header className="mb-12 flex items-center justify-between gap-12">
         <div className="min-w-0 flex-1">
           <TitleField title={title} onRename={onRename} editSignal={titleEditSignal} />

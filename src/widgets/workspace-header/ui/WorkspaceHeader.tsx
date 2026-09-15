@@ -41,6 +41,9 @@ interface WorkspaceHeaderProps {
   previewDisabled?: boolean;
   onOpenExport: () => void;
   onEnterFocus: () => void;
+  /** 좁은 화면(md 미만)에서 바인더 드로어를 여닫는다. */
+  onToggleBinder?: () => void;
+  binderOpen?: boolean;
 }
 
 /**
@@ -58,11 +61,25 @@ export function WorkspaceHeader({
   previewDisabled,
   onOpenExport,
   onEnterFocus,
+  onToggleBinder,
+  binderOpen,
 }: WorkspaceHeaderProps) {
   return (
-    <header className="flex h-48 items-center gap-16 border-b border-border pl-8 pr-12">
-      {/* 좌: 어디에서 얼마나 쓰고 있는지 */}
-      <div className="flex min-w-0 flex-1 items-center gap-6">
+    <header className="flex h-48 items-center gap-16 border-b border-border pl-8 pr-12 max-md:gap-8 max-md:overflow-x-auto">
+      {/* 좌: 어디에서 얼마나 쓰고 있는지 — 좁은 화면에서는 줄어들지 않고 제목만 자른다 */}
+      <div className="flex min-w-0 flex-1 items-center gap-6 max-md:max-w-[44vw] max-md:flex-none">
+        {/* 좁은 화면: 바인더는 드로어 — 여기서 연다 */}
+        {onToggleBinder && (
+          <button
+            type="button"
+            aria-label="바인더"
+            aria-pressed={!!binderOpen}
+            onClick={onToggleBinder}
+            className="flex h-28 w-28 shrink-0 items-center justify-center rounded-md text-fg-weak transition-colors hover:bg-surface hover:text-fg md:hidden"
+          >
+            <IconMenu />
+          </button>
+        )}
         <Link
           href="/dashboard"
           aria-label="작품 목록으로 돌아가기"
@@ -73,7 +90,7 @@ export function WorkspaceHeader({
         <p className="truncate text-body-sm font-medium text-fg">
           {projectTitle ?? "작품"}
         </p>
-        <span className="shrink-0 text-caption tabular-nums text-fg-muted">
+        <span className="shrink-0 text-caption tabular-nums text-fg-muted max-sm:hidden">
           {totalLabel}
         </span>
       </div>
@@ -165,7 +182,7 @@ function SegmentButton({
       )}
     >
       {icon}
-      {label}
+      <span className="max-sm:hidden">{label}</span>
     </button>
   );
 }
@@ -216,6 +233,14 @@ function ActionButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
 
 function Divider() {
   return <span aria-hidden className="h-16 w-1 shrink-0 bg-border" />;
+}
+
+function IconMenu() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function IconChevronLeft() {
