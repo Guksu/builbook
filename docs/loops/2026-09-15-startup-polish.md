@@ -32,6 +32,7 @@
 
 | 반복 | 결과 | 비고 |
 |------|------|------|
+| 2 | 통과 — 2단계 AI 제거: `src/shared/ai`·`features/ai-chat`·`widgets/ai-assistant` 삭제, `@huggingface/transformers` 제거(패키지 34개 감소), 헤더 "AI 문답" 칩 제거, CLAUDE.md·오케스트레이터·AI 에이전트/스킬·`_workspace/08` 휴면 표기 | lint 0 · tsc 0 · unit 211 · build OK · e2e 34/34 |
 | 1 | 통과 — 1단계 기반: GitHub Actions CI(lint·tsc·unit·build·e2e), e2e 실패 2건 수정(헤더 "N단어" 중복 locator, 한글 다운로드 파일명은 UTF-8 로케일 부재가 원인 → playwright.config에서 LANG 기본값), app/error.tsx·not-found.tsx, features/storage-guard(navigator.storage.persist + 사용량 안내), features/tab-guard(BroadcastChannel로 같은 문서 다중 탭 경고) | lint 0 · tsc 0 · unit 211 · build OK · e2e 34/34 |
 | 0 | 베이스라인 — lint 0 · tsc 0 · unit 199 · build OK · e2e 32/34 (실패 2: 테스트 drift 1, 내보내기 파일명 1) · `npm ci` 실패(lock 불일치) → lock 동기화 커밋 | 사용자 결정: AI는 제거(A), 컨셉 유지, 사이드바는 옵시디언 참고, 글자 수 기준 통일 |
 

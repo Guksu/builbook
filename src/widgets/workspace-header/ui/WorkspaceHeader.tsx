@@ -12,7 +12,6 @@ export type WorkspacePanelKey =
   | "search"
   | "notes"
   | "trash"
-  | "ai"
   | "inspector";
 
 // 성격이 같은 패널끼리 묶어 간격으로 구분한다: 집필 관리 / 자료 / 보조 뷰.
@@ -27,10 +26,7 @@ const PANEL_GROUPS: { key: WorkspacePanelKey; label: string }[][] = [
     { key: "notes", label: "리서치" },
     { key: "trash", label: "휴지통" },
   ],
-  [
-    { key: "ai", label: "AI 문답" },
-    { key: "inspector", label: "인스펙터" },
-  ],
+  [{ key: "inspector", label: "인스펙터" }],
 ];
 
 interface WorkspaceHeaderProps {

@@ -13,13 +13,11 @@ import { StatsPanel } from "@widgets/stats-panel";
 import { Corkboard } from "@widgets/corkboard";
 import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
-import { AiAssistant } from "@widgets/ai-assistant";
 import {
   WorkspaceHeader,
   type WorkspacePanelKey,
 } from "@widgets/workspace-header";
 import { planReorder } from "@features/reorder-document";
-import { useAiChat } from "@features/ai-chat";
 import { computeProgress, sumWordCounts } from "@features/writing-goals";
 import { SearchPanel } from "@features/search-document";
 import { TrashPanel } from "@features/trash-document";
@@ -61,7 +59,6 @@ export function WorkspacePage() {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<"info" | "snapshots">("info");
   const [notesOpen, setNotesOpen] = useState(false);
-  const [aiOpen, setAiOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -77,8 +74,6 @@ export function WorkspacePage() {
   const [liveWords, setLiveWords] = useState(0);
   // 스냅샷 복원 시 에디터를 강제 재마운트해 교체된 content를 다시 로드하는 토큰.
   const [reloadToken, setReloadToken] = useState(0);
-  // view 레벨에 둬서 패널을 닫았다 열어도 다운로드한 모델/대화가 유지된다.
-  const ai = useAiChat();
   // 같은 문서를 다른 탭에서도 열었으면 경고(자동저장이 서로 덮어쓰는 사고 예방).
   const tabConflict = useTabGuard(selectedId);
 
@@ -133,7 +128,6 @@ export function WorkspacePage() {
     search: searchOpen,
     notes: notesOpen,
     trash: trashOpen,
-    ai: aiOpen,
     inspector: inspectorOpen,
   };
   const panelSetters: Record<
@@ -146,7 +140,6 @@ export function WorkspacePage() {
     search: setSearchOpen,
     notes: setNotesOpen,
     trash: setTrashOpen,
-    ai: setAiOpen,
     inspector: setInspectorOpen,
   };
 
@@ -399,13 +392,6 @@ export function WorkspacePage() {
               onSaveEpisodeGoal={updateEpisodeGoal}
               onSelectDocument={setSelectedId}
             />
-          </aside>
-        )}
-
-        {/* 우: AI 문답 (기본 접힘, 인스펙터처럼 토글) */}
-        {aiOpen && !focusMode && (
-          <aside className="w-[340px] shrink-0 border-l border-border bg-surface p-16">
-            <AiAssistant ai={ai} />
           </aside>
         )}
 

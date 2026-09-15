@@ -3,6 +3,8 @@ name: client-ai-inference
 description: "브라우저에서 도는 Transformers.js 온디바이스 AI 추론을 구현하는 스킬. Web Worker에서 모델 실행, 사용자 트리거 모델 다운로드(progress_callback 진행률), TextStreamer 토큰 스트리밍, worker↔메인 postMessage 메시지 계약, 취소(중단)·WebGPU/WASM 폴백·Next.js Worker 설정·엣지케이스를 다룬다. AI 문답·Transformers.js·온디바이스/클라이언트 추론·Web Worker AI·모델 다운로드·토큰 스트리밍·'기능 사용' 게이팅 구현 작업 시 반드시 사용. 후속: AI 문답 수정·재실행·스트리밍 보완·모델 교체 시에도 사용. 단, 클라우드 LLM API(OpenAI/Anthropic 등) 서버 연동에는 쓰지 않는다(그건 SSE+서버 라우트)."
 ---
 
+> **휴면(2026-09-15):** 온디바이스 AI 문답 기능은 제품에서 제거됐다(사용자 결정, 실용성 부족). 이 문서는 재도입 검토 시에만 참고한다. 현재 코드베이스에 `src/shared/ai`·`features/ai-chat`·`widgets/ai-assistant`는 없다.
+
 # Client AI Inference — 브라우저 온디바이스 추론 구현
 
 builbook의 **백엔드 없는(local-first)** 환경에서 AI 문답을 구현하는 스킬. 모델은 사용자가 버튼을 눌렀을 때 브라우저로 다운로드되고, 추론은 Web Worker 안에서 일어난다.

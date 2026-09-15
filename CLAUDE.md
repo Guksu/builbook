@@ -6,9 +6,9 @@
 
 **MVP-1 범위:** 문서 트리 + 에디터 + 자동저장 (Project·Document, 로컬). 로그인/User·Character·Snapshot 없음. 데이터 계층은 `src/shared/db`(idb) + entities 훅(SWR).
 
-**AI 문답(온디바이스):** Transformers.js를 **Web Worker**에서 구동하는 브라우저 추론. "기능 사용" 버튼으로 모델을 **브라우저에 다운로드**한 뒤 추론한다. 백엔드/서버가 없으므로 **SSE 불가** — 토큰은 worker→메인 `postMessage`로 스트리밍(SSE와 UX 동일). 엔진은 `src/shared/ai`, 상태는 `src/features/ai-chat`, 패널은 `src/widgets/ai-assistant`.
+**AI 문답: 제거됨(2026-09-15).** 온디바이스 Transformers.js 문답은 사용자 테스트에서 실용성 부족(0.6B 모델 한국어 품질, 919MB 다운로드, 원고를 못 보는 구조)으로 제거했다. 규칙 기반 도구(표기 흔들림 검사·문장 진단)는 유지. 재도입하려면 사용자 API 키 기반 클라우드 호출(서버 없음 유지)이 후보이며, 제품 결정 후 진행한다.
 
-> 참고: 백엔드 하네스 에이전트/스킬(backend-engineer·data-modeler, nextjs-api·prisma-data-model)과 오케스트레이터 Phase 3는 현재 **휴면**(local-first 전환으로 미사용). 추후 동기화/서버 도입 시 재가동.
+> 참고: 백엔드 하네스 에이전트/스킬(backend-engineer·data-modeler, nextjs-api·prisma-data-model)과 오케스트레이터 Phase 3, 그리고 **AI 하네스(ai-inference-engineer·client-ai-inference, 오케스트레이터 "AI 문답 기능 빌드")**는 현재 **휴면**(미사용). 추후 동기화/서버·AI 재도입 시 재가동.
 
 **프론트 컨벤션:** Feature-Sliced Design(FSD). Next `app/`은 라우팅 전용 얇은 래퍼, 화면 로직은 `src/`(views·widgets·features·entities·shared). 별칭 `@views @widgets @features @entities @shared @app`. 서버 인프라(`lib/`·`app/api`·`middleware`)는 FSD 밖.
 
@@ -33,4 +33,5 @@
 | 2026-06-03 | **로컬 우선 전환**: 로그인·백엔드·Postgres/Prisma 제거, IndexedDB(idb)로 데이터 저장 | 인증/api/prisma/middleware 삭제, shared/db 신설, entities 훅 재작성 | 사용자 결정: 로그인 없애고 IndexedDB 사용 (인증 진입장벽 제거) |
 | 2026-07-20 | **완성 루프 + 가드레일 구성**: 루프 명세 `docs/loops/webnovel-editor-completion.md`(백로그 5항목, 예산 2M·최대 10반복·막힘 3연속), 훅 4종(git 차단·시크릿 차단·branchGuard·verifierGate) + settings.json(deny/allow) 등록, 공통 템플릿 6종 `docs/templates/` 배포 | .claude/hooks, .claude/settings.json, docs/ | 사용자 요청: "완벽한 웹소설 에디터로 완성, 루프로 진행" — loop 스킬 4요소·안전장치 사용자 확인(2026-07-20) |
 | 2026-07-29 | **집필 도구 4종 세트 추가**: 백업·복원(전체 JSON, 병합/전체교체) · 연재 실전(일별 집필량·연속 집필일·회차 분량표·독자 뷰) · 구조 설계(코르크보드+진행 상태, 타임라인) · 설정 일관성(고유명사 사전, 표기 흔들림 검사, 문장 진단). IndexedDB v3→v6(writingLogs·events·terms), 텍스트 유틸을 `@shared/lib`으로 이관 | shared/db·shared/lib, entities/{writing-log,story-event,term}, features/{backup-restore,writing-stats,reader-preview,corkboard,consistency-check}, widgets/{stats-panel,corkboard,timeline-panel,consistency-panel} | 사용자 요청: "본격 집필 전 필요한 툴 추가" — 4개 묶음 전부 선택. 상세: `docs/worklogs/2026-07-29-writing-tools.md` |
+| 2026-09-15 | **스타트업 완성도 루프 시작**: 1단계 기반(CI·에러 화면·저장 공간 보호·다중 탭 경고), 2단계 온디바이스 AI 제거(`src/shared/ai`·`features/ai-chat`·`widgets/ai-assistant`·`@huggingface/transformers` 삭제, AI 하네스 휴면) | .github, app, features/{storage-guard,tab-guard}, 워크스페이스 헤더/뷰, CLAUDE.md | 사용자 결정: "실제 스타트업 제품처럼 개선", AI는 실용성 부족으로 제거(A안), 컨셉(로그인 없음·로컬 저장) 유지. 명세: `docs/loops/2026-09-15-startup-polish.md` |
 | 2026-06-06 | **AI 문답 도메인 추가**: 에이전트 `ai-inference-engineer` + 스킬 `client-ai-inference` 신설, 오케스트레이터에 AI 빌드 흐름 추가 및 스택 drift(Postgres/Prisma→local-first) 정정 | ai-inference-engineer, client-ai-inference, webnovel-editor-orchestrator, CLAUDE.md | 사용자 요청: Transformers.js 온디바이스 AI 문답(사이드바, "기능 사용" 게이팅, postMessage 스트리밍). assignment(회사 코드)는 엣지케이스/개념만 참조, 구조 미복제 |
