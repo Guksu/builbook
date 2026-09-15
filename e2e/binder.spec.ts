@@ -153,3 +153,26 @@ test("위/아래 화살표로 옮겨 다니고 Enter로 연다", async ({ page }
   await expect(items.nth(1)).toHaveAttribute("aria-selected", "true");
   await expect(items.first()).toHaveAttribute("aria-selected", "false");
 });
+
+test("폴더 안 문서를 우클릭 메뉴로 최상위로 꺼낸다", async ({ page }) => {
+  await createProjectAndOpen(page);
+
+  // 폴더를 만들고 그 안에 문서를 하나 넣는다(우클릭 → 새 문서 = 폴더 안).
+  await page.getByRole("button", { name: "새 폴더" }).click();
+  await nameInput(page).press("Enter");
+  await expect(nameInput(page)).toHaveCount(0);
+  await tree(page).getByRole("treeitem", { name: "새 폴더" }).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "새 문서" }).click();
+  await nameInput(page).fill("속문서");
+  await nameInput(page).press("Enter");
+  await expect(nameInput(page)).toHaveCount(0);
+  const inner = tree(page).getByRole("treeitem", { name: "속문서" });
+  await expect(inner).toHaveAttribute("aria-level", "2");
+
+  // 메뉴로 최상위로 이동 → 깊이 1, 폴더 접어도 그대로 보인다.
+  await inner.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "최상위로 이동" }).click();
+  await expect(tree(page).getByRole("treeitem", { name: "속문서" })).toHaveAttribute("aria-level", "1");
+  await page.getByRole("button", { name: "새 폴더 접기" }).click();
+  await expect(tree(page).getByRole("treeitem", { name: "속문서" })).toBeVisible();
+});

@@ -49,6 +49,8 @@ interface BinderProps {
   onDelete: (id: string) => void;
   // 드래그 재정렬: 폴더 위 드롭=into(안으로), 문서 위 드롭=before(앞에).
   onMove?: (dragId: string, targetId: string, mode: "into" | "before") => void;
+  /** 지정한 부모(null=최상위)의 맨 끝으로 이동 — 메뉴 "최상위로 이동"·트리 아래 빈 공간 드롭. */
+  onMoveToParent?: (id: string, parentId: string | null) => void;
   /** 접힘 상태를 저장할 작품 id(localStorage 키). */
   projectId?: string;
 }
@@ -69,6 +71,7 @@ export function Binder({
   onRename,
   onDelete,
   onMove,
+  onMoveToParent,
   projectId = "",
 }: BinderProps) {
   const { collapsed, toggle, expand, collapseAll, expandAll } =
@@ -79,6 +82,7 @@ export function Binder({
   const [menu, setMenu] = useState<MenuState>(null);
   const [deleteTarget, setDeleteTarget] = useState<DocumentNode | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [rootDrop, setRootDrop] = useState(false);
   const [dropTarget, setDropTarget] = useState<{
     id: string;
     mode: "into" | "before";
@@ -144,13 +148,28 @@ export function Binder({
   );
 
   const nodeMenuItems = useCallback(
-    (node: DocumentNode): ContextMenuItem[] => [
-      { label: "새 문서", onSelect: () => void create("DOC", node.id) },
-      { label: "새 폴더", onSelect: () => void create("FOLDER", node.id) },
-      { label: "이름 변경", onSelect: () => setEditingId(node.id) },
-      { label: "삭제", danger: true, onSelect: () => setDeleteTarget(node) },
-    ],
-    [create],
+    (node: DocumentNode): ContextMenuItem[] => {
+      const items: ContextMenuItem[] = [
+        { label: "새 문서", onSelect: () => void create("DOC", node.id) },
+        { label: "새 폴더", onSelect: () => void create("FOLDER", node.id) },
+        { label: "이름 변경", onSelect: () => setEditingId(node.id) },
+      ];
+      // 폴더 안에 든 항목은 밖으로 꺼낼 길이 있어야 한다(드래그만으로는 최상위에 폴더뿐일 때 못 나간다).
+      if (node.parentId !== null && onMoveToParent) {
+        const parent = documents.find((d) => d.id === node.parentId);
+        const grandParentId = parent?.parentId ?? null;
+        items.push({
+          label: grandParentId === null ? "최상위로 이동" : "한 단계 위로 이동",
+          onSelect: () => onMoveToParent(node.id, grandParentId),
+        });
+        if (grandParentId !== null) {
+          items.push({ label: "최상위로 이동", onSelect: () => onMoveToParent(node.id, null) });
+        }
+      }
+      items.push({ label: "삭제", danger: true, onSelect: () => setDeleteTarget(node) });
+      return items;
+    },
+    [create, documents, onMoveToParent],
   );
 
   const openNodeMenu = (node: DocumentNode, x: number, y: number) => {
@@ -235,7 +254,7 @@ export function Binder({
       </div>
 
       <div
-        className="flex-1 overflow-y-auto py-4"
+        className="flex flex-1 flex-col overflow-y-auto py-4"
         onContextMenu={(e) => {
           e.preventDefault();
           setMenu({ kind: "empty", x: e.clientX, y: e.clientY });
@@ -295,7 +314,14 @@ export function Binder({
                     if (!dragId || dragId === node.id) return;
                     e.preventDefault();
                     e.dataTransfer.dropEffect = "move";
-                    setDropTarget({ id: node.id, mode: isFolder ? "into" : "before" });
+                    // 폴더 위쪽 1/3에 놓으면 '폴더 앞(같은 계층)', 아래쪽은 '폴더 안'.
+                    // 스크리브너·옵시디언처럼, 폴더 옆으로 꺼내는 길을 드래그로도 연다.
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const nearTop = e.clientY - rect.top < rect.height / 3;
+                    setDropTarget({
+                      id: node.id,
+                      mode: isFolder && !nearTop ? "into" : "before",
+                    });
                   }}
                   onDragLeave={() =>
                     setDropTarget((t) => (t?.id === node.id ? null : t))
@@ -304,7 +330,13 @@ export function Binder({
                     e.preventDefault();
                     const dragged = e.dataTransfer.getData("text/plain") || dragId;
                     if (dragged && dragged !== node.id) {
-                      onMove?.(dragged, node.id, isFolder ? "into" : "before");
+                      const mode =
+                        dropTarget?.id === node.id
+                          ? dropTarget.mode
+                          : isFolder
+                            ? "into"
+                            : "before";
+                      onMove?.(dragged, node.id, mode);
                     }
                     setDropTarget(null);
                     setDragId(null);
@@ -388,6 +420,38 @@ export function Binder({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* 트리 아래 남는 공간 — 끌어다 놓으면 최상위 맨 끝으로 간다(폴더에서 꺼내는 가장 쉬운 길). */}
+        {documents.length > 0 && (
+          <div
+            aria-label="최상위로 옮기기"
+            onDragOver={(e) => {
+              if (!dragId) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setRootDrop(true);
+            }}
+            onDragLeave={() => setRootDrop(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              const dragged = e.dataTransfer.getData("text/plain") || dragId;
+              if (dragged) onMoveToParent?.(dragged, null);
+              setRootDrop(false);
+              setDragId(null);
+              setDropTarget(null);
+            }}
+            className={cn(
+              "mx-8 mt-4 flex min-h-[56px] flex-1 items-start justify-center rounded-md border border-dashed text-caption transition-colors",
+              dragId
+                ? rootDrop
+                  ? "border-primary bg-primary-weak text-primary"
+                  : "border-border-strong text-fg-weak"
+                : "border-transparent text-transparent",
+            )}
+          >
+            {dragId && <span className="pt-8">여기 놓으면 최상위로</span>}
           </div>
         )}
       </div>

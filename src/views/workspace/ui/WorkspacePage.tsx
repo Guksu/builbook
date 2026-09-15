@@ -17,7 +17,7 @@ import {
   WorkspaceHeader,
   type WorkspacePanelKey,
 } from "@widgets/workspace-header";
-import { planReorder } from "@features/reorder-document";
+import { planReorder, planMoveToParent } from "@features/reorder-document";
 import { computeProgress } from "@features/writing-goals";
 import { useCountUnit } from "@features/count-unit";
 import { SearchPanel } from "@features/search-document";
@@ -218,6 +218,17 @@ export function WorkspacePage() {
     }
   }
 
+  // 메뉴 "최상위로 이동"·트리 아래 드롭: 지정 부모의 맨 끝으로.
+  async function handleMoveToParent(docId: string, parentId: string | null) {
+    const plan = planMoveToParent(documents, docId, parentId);
+    if (!plan || plan.kind !== "move") return;
+    try {
+      await moveDocument(plan.id, plan.parentId, plan.order);
+    } catch {
+      toast("이동에 실패했어요.", "error");
+    }
+  }
+
   return (
     <div className="flex h-screen flex-col">
       {/* 상단 바 — 집중 모드에서는 숨김(에디터는 그대로 유지) */}
@@ -269,6 +280,7 @@ export function WorkspacePage() {
             onRename={renameDocument}
             onDelete={deleteDocument}
             onMove={handleMove}
+            onMoveToParent={handleMoveToParent}
           />
         </aside>
 

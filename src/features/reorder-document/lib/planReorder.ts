@@ -60,3 +60,24 @@ export function planReorder(
   ].map((d) => d.id);
   return { kind: "reorder", parentId, orderedIds };
 }
+
+/**
+ * 노드를 지정한 부모(null=최상위)의 맨 끝으로 옮기는 계획.
+ * 메뉴 "최상위로 이동"·"한 단계 위로"와 트리 아래 빈 공간 드롭이 쓴다.
+ * 자기 자신/자손 폴더 안으로는 못 옮기고(순환), 이미 그 부모면 아무것도 하지 않는다.
+ */
+export function planMoveToParent(
+  docs: DocumentNode[],
+  id: string,
+  parentId: string | null,
+): ReorderPlan {
+  const node = docs.find((d) => d.id === id);
+  if (!node || node.parentId === parentId) return null;
+  if (parentId) {
+    const parent = docs.find((d) => d.id === parentId);
+    if (!parent || parent.type !== "FOLDER") return null;
+    if (isSelfOrDescendant(docs, id, parentId)) return null;
+  }
+  const siblingCount = docs.filter((d) => d.parentId === parentId && d.id !== id).length;
+  return { kind: "move", id, parentId, order: siblingCount };
+}

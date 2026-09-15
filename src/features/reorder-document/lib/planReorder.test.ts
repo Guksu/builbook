@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { DocumentNode } from "@entities/document";
-import { planReorder } from "./planReorder";
+import { planMoveToParent, planReorder } from "./planReorder";
 
 // 테스트 픽스처: 평면 배열 트리
 //   root
@@ -127,5 +127,36 @@ describe("planReorder — 방어 케이스", () => {
       parentId: "a",
       order: 1,
     });
+  });
+});
+
+describe("planMoveToParent", () => {
+  it("폴더 안 문서를 최상위 맨 끝으로 옮긴다", () => {
+    expect(planMoveToParent(docs, "doc1", null)).toEqual({
+      kind: "move",
+      id: "doc1",
+      parentId: null,
+      order: 2, // 최상위 형제 folderA·doc3 뒤
+    });
+  });
+  it("깊이 2 문서를 한 단계 위(folderA)로 옮긴다", () => {
+    expect(planMoveToParent(docs, "doc2", "folderA")).toEqual({
+      kind: "move",
+      id: "doc2",
+      parentId: "folderA",
+      order: 2,
+    });
+  });
+  it("이미 그 부모면 아무것도 하지 않는다", () => {
+    expect(planMoveToParent(docs, "doc3", null)).toBeNull();
+    expect(planMoveToParent(docs, "doc1", "folderA")).toBeNull();
+  });
+  it("자기 자신·자손 폴더 안으로는 못 옮긴다(순환)", () => {
+    expect(planMoveToParent(docs, "folderA", "folderB")).toBeNull();
+    expect(planMoveToParent(docs, "folderA", "folderA")).toBeNull();
+  });
+  it("문서는 부모가 될 수 없고, 없는 노드는 무시한다", () => {
+    expect(planMoveToParent(docs, "doc2", "doc3")).toBeNull();
+    expect(planMoveToParent(docs, "ghost", null)).toBeNull();
   });
 });
