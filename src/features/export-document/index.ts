@@ -18,3 +18,4 @@ export {
   type CompiledSection,
   type EpisodeSeparator,
 } from "./lib/compile";
+export { addPreset, removePreset, uniquePresetName, MAX_PRESETS } from "./lib/presets";

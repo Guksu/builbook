@@ -12,7 +12,7 @@ import { SnapshotPanel } from "@widgets/snapshot-panel";
 import { NotesPanel } from "@widgets/notes-panel";
 import { StatsPanel } from "@widgets/stats-panel";
 import { Corkboard, CorkboardToolbar } from "@widgets/corkboard";
-import type { CardLabelFilter } from "@features/corkboard";
+import { isCardSize, type CardLabelFilter, type CardSize } from "@features/corkboard";
 import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
 import {
@@ -38,7 +38,7 @@ import {
   type DocumentKind,
 } from "@entities/document";
 import { useProject } from "@entities/project";
-import { useToast, ProgressBar, cn } from "@shared/ui";
+import { useToast, ProgressBar, cn, usePersistedState } from "@shared/ui";
 import { formatCount, pickCount, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
 
 // 마지막으로 열었던 문서 — 다시 들어오면 그 자리에서 이어 쓴다(작품별).
@@ -95,6 +95,7 @@ export function WorkspacePage() {
     updateDailyGoal,
     updateEpisodeGoal,
     updateDeadline,
+    updateCompilePresets,
   } = useProject(id);
   const { logs: writingLogs } = useWritingLogs(id);
   // 빠른 열기(Ctrl/⌘+P) — 제목으로 문서를 찾아 바로 연다.
@@ -117,8 +118,17 @@ export function WorkspacePage() {
   // 가운데 영역 보기 모드: 본문(에디터) ↔ 카드(코르크보드).
   const [viewMode, setViewMode] = useState<"editor" | "corkboard">("editor");
   const [previewOpen, setPreviewOpen] = useState(false);
-  // 코르크보드 라벨 필터(세션 상태). 범위는 선택된 폴더가 결정한다.
-  const [cardLabelFilter, setCardLabelFilter] = useState<CardLabelFilter>(null);
+  // 코르크보드 라벨 필터·카드 크기 — 작품별로 기억. 범위는 선택된 폴더가 결정한다.
+  const [cardLabelFilter, setCardLabelFilter] = usePersistedState<CardLabelFilter>(
+    `builbook:card-label-filter:${id}`,
+    null,
+    (v): v is CardLabelFilter => v === null || typeof v === "string",
+  );
+  const [cardSize, setCardSize] = usePersistedState<CardSize>(
+    `builbook:card-size:${id}`,
+    "medium",
+    isCardSize,
+  );
   // 집중 모드: 주변 UI를 숨기고 본문에만 몰입(에디터 인스턴스는 재마운트 없이 유지).
   const [focusMode, setFocusMode] = useState(false);
   // 에디터가 올려주는 실시간 분량(단어·글자) — 목표·집중모드 카운터가 즉시 반영되도록.
@@ -367,10 +377,13 @@ export function WorkspacePage() {
                 labels={project?.labels}
                 labelFilter={cardLabelFilter}
                 onChangeLabelFilter={setCardLabelFilter}
+                cardSize={cardSize}
+                onChangeCardSize={setCardSize}
               />
             <Corkboard
               scopeId={selected?.type === "FOLDER" ? selected.id : null}
               labelFilter={cardLabelFilter}
+              cardSize={cardSize}
               documents={documents}
               selectedId={selectedId}
               onOpen={(docId) => {
@@ -619,6 +632,8 @@ export function WorkspacePage() {
         projectTitle={project?.title ?? "작품"}
         documents={documents}
         selectedDoc={selected}
+        presets={project?.compilePresets}
+        onSavePresets={updateCompilePresets}
       />
       <QuickOpen
         open={quickOpen}

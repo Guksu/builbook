@@ -11,6 +11,7 @@ import {
   filterCardsByLabel,
   docStatusLabel,
   type CardLabelFilter,
+  type CardSize,
   nextStatus,
   summarizeCards,
   type CardItem,
@@ -31,7 +32,21 @@ export interface CorkboardProps {
   scopeId?: string | null;
   /** 라벨 필터 — 라벨 id / "none" / null(전체). */
   labelFilter?: CardLabelFilter;
+  /** 카드 크기(기본 보통). */
+  cardSize?: CardSize;
 }
+
+// 크기별 격자·시놉시스 줄 수. 시놉시스는 line-clamp로 잘라 카드 높이를 고르게 한다.
+const SIZE_GRID: Record<CardSize, string> = {
+  small: "grid-cols-2 sm:grid-cols-3 xl:grid-cols-5",
+  medium: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+  large: "grid-cols-1 xl:grid-cols-2",
+};
+const SIZE_CLAMP: Record<CardSize, string> = {
+  small: "line-clamp-2",
+  medium: "line-clamp-5",
+  large: "line-clamp-[12]",
+};
 
 const STATUS_STYLE: Record<string, string> = {
   draft: "bg-surface text-fg-weak",
@@ -53,6 +68,7 @@ export function Corkboard({
   labels,
   scopeId = null,
   labelFilter = null,
+  cardSize = "medium",
 }: CorkboardProps) {
   const [unit] = useCountUnit();
   const labelList = withDefaultLabels(labels);
@@ -100,7 +116,8 @@ export function Corkboard({
 
       <ul
         aria-label="코르크보드 카드"
-        className="grid grid-cols-1 gap-16 sm:grid-cols-2 xl:grid-cols-3"
+        data-card-size={cardSize}
+        className={cn("grid gap-16", SIZE_GRID[cardSize])}
       >
         {cards.map((card) => {
           const label = findLabel(labelList, card.label);
@@ -203,7 +220,10 @@ export function Corkboard({
                 <button
                   type="button"
                   onClick={() => startEdit(card)}
-                  className="flex-1 overflow-hidden text-left text-body-sm text-fg-weak hover:text-fg"
+                  className={cn(
+                    "flex-1 overflow-hidden text-left text-body-sm text-fg-weak hover:text-fg",
+                    SIZE_CLAMP[cardSize],
+                  )}
                 >
                   {card.synopsis || "요약을 적어 두면 흐름이 한눈에 보여요."}
                 </button>

@@ -54,6 +54,11 @@
 - **코르크보드 폴더 범위** — 폴더를 고른 채 카드 보기로 가면 그 폴더의 자손 카드만. 툴바에 "보는 범위 · 전체 보기 · 라벨".
 - **컴파일 옵션** — `compileManuscript`가 회차 범위(원고만 1부터 셈)·구분선(없음/빈 줄/`* * *`)·회차/폴더/작품 제목 포함을 해석해 섹션 목록을 만들고 TXT·MD·DOCX가 공통 소비. 회차가 없는 폴더는 빠진다.
 
+### 루프 4 — 설정 기억·카드 크기·컴파일 프리셋 (명세 `docs/loops/2026-09-15-scrivener-ux-3.md`)
+- **화면 설정 기억** — `@shared/lib` `readJson/writeJson/isOneOf` + `@shared/ui` `usePersistedState(key, initial, guard)`. 첫 렌더는 기본값, 마운트 뒤 저장값(hydration 안전). 바인더 정렬(`builbook:binder-sort:*`)·라벨 필터(`builbook:binder-label-filter:*`), 코르크보드 라벨 필터(`builbook:card-label-filter:*`)·카드 크기(`builbook:card-size:*`)가 작품별로 남는다.
+- **카드 크기** — 작게/보통/크게(격자 열 수·시놉시스 line-clamp). 툴바 세그먼트.
+- **컴파일 프리셋** — `Project.compilePresets`(작품 데이터라 백업 파일에 자동 포함). 내보내기 모달에서 현재 옵션을 이름 붙여 저장, 고르면 옵션 복원, 삭제. 최대 12개(오래된 것부터 버림).
+
 ## 3. 주의사항
 
 - **버튼 이름 겹침 재발 주의**: "카드"(보기 전환)와 "카드 템플릿"이 부분 일치한다. e2e는 `exact: true`로 찾는다.

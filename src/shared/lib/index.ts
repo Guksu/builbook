@@ -16,3 +16,4 @@ export {
   type CountUnit,
   type TextMeasure,
 } from "./text";
+export { readJson, writeJson, isOneOf } from "./storage";

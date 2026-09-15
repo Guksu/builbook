@@ -2,7 +2,8 @@
 
 import { Button } from "@shared/ui";
 import { LABEL_COLOR_CLASS, withDefaultLabels, type ProjectLabel } from "@entities/project";
-import type { CardLabelFilter } from "@features/corkboard";
+import { CARD_SIZES, CARD_SIZE_LABEL, type CardLabelFilter, type CardSize } from "@features/corkboard";
+import { cn } from "@shared/ui";
 
 interface CorkboardToolbarProps {
   /** 범위로 잡힌 폴더 제목(전체 보기면 null). */
@@ -11,6 +12,8 @@ interface CorkboardToolbarProps {
   labels?: ProjectLabel[];
   labelFilter: CardLabelFilter;
   onChangeLabelFilter: (filter: CardLabelFilter) => void;
+  cardSize: CardSize;
+  onChangeCardSize: (size: CardSize) => void;
 }
 
 /**
@@ -23,6 +26,8 @@ export function CorkboardToolbar({
   labels,
   labelFilter,
   onChangeLabelFilter,
+  cardSize,
+  onChangeCardSize,
 }: CorkboardToolbarProps) {
   const labelList = withDefaultLabels(labels);
   const current = labelFilter && labelFilter !== "none" ? labelList.find((l) => l.id === labelFilter) : null;
@@ -65,6 +70,23 @@ export function CorkboardToolbar({
           className={`h-8 w-8 rounded-full ${LABEL_COLOR_CLASS[current.color]}`}
         />
       )}
+      <span className="mx-4 h-16 w-px bg-border" aria-hidden />
+      <div role="group" aria-label="카드 크기" className="flex rounded-lg bg-surface p-2">
+        {CARD_SIZES.map((size) => (
+          <button
+            key={size}
+            type="button"
+            aria-pressed={cardSize === size}
+            onClick={() => onChangeCardSize(size)}
+            className={cn(
+              "h-24 rounded-md px-8 text-caption transition-colors",
+              cardSize === size ? "bg-bg text-fg shadow-sm" : "text-fg-weak hover:text-fg",
+            )}
+          >
+            {CARD_SIZE_LABEL[size]}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

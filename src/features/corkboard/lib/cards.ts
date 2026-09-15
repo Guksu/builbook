@@ -88,6 +88,12 @@ export function filterCardsByLabel(cards: readonly CardItem[], filter: CardLabel
   );
 }
 
+/** 카드 크기 — 화면당 카드 수와 시놉시스 줄 수를 바꾼다(스크리브너 코르크보드 옵션의 핵심 둘). */
+export type CardSize = "small" | "medium" | "large";
+export const CARD_SIZES: readonly CardSize[] = ["small", "medium", "large"];
+export const CARD_SIZE_LABEL: Record<CardSize, string> = { small: "작게", medium: "보통", large: "크게" };
+export const isCardSize = (v: unknown): v is CardSize => CARD_SIZES.includes(v as CardSize);
+
 export interface CardSummary {
   total: number;
   withSynopsis: number;

@@ -13,6 +13,8 @@ import {
 } from "../lib/exportDocuments";
 import { downloadBlob, downloadTextFile, type ExportFormat } from "../lib/download";
 import { DEFAULT_COMPILE, countEpisodes, type CompileOptions, type EpisodeSeparator } from "../lib/compile";
+import { addPreset, removePreset } from "../lib/presets";
+import type { CompilePreset } from "@entities/project";
 
 
 interface ExportMenuProps {
@@ -23,6 +25,9 @@ interface ExportMenuProps {
   documents: DocumentNode[];
   // 현재 선택된 본문 문서(없거나 폴더면 '현재 문서' 내보내기 비활성).
   selectedDoc: DocumentNode | null;
+  /** 작품에 저장된 컴파일 프리셋. */
+  presets?: CompilePreset[];
+  onSavePresets?: (presets: CompilePreset[]) => void;
 }
 
 export function ExportMenu({
@@ -31,7 +36,11 @@ export function ExportMenu({
   projectTitle,
   documents,
   selectedDoc,
+  presets = [],
+  onSavePresets,
 }: ExportMenuProps) {
+  const [presetName, setPresetName] = useState("");
+  const [presetId, setPresetId] = useState("");
   const [docxError, setDocxError] = useState<string | null>(null);
   // 컴파일 옵션(작품 전체에만 적용). 모달이 열려 있는 동안만 유지 — 매번 같은 기본값에서 시작한다.
   const [opts, setOpts] = useState<CompileOptions>(DEFAULT_COMPILE);
@@ -129,6 +138,64 @@ export function ExportMenu({
           <span className="text-body-sm font-medium text-fg">작품 전체</span>
           {/* 컴파일 옵션 — 스크리브너 Compile의 핵심만: 범위·구분선·제목 */}
           <div className="flex flex-col gap-6 rounded-md border border-border bg-surface p-12 text-body-sm">
+            {onSavePresets && (
+              <div className="flex flex-wrap items-center gap-8">
+                <label htmlFor="compile-preset" className="text-fg-weak">
+                  프리셋
+                </label>
+                <select
+                  id="compile-preset"
+                  aria-label="컴파일 프리셋"
+                  value={presetId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setPresetId(id);
+                    const p = presets.find((x) => x.id === id);
+                    if (p) setOpts({ ...p.options });
+                  }}
+                  className="h-28 rounded-md border border-border bg-bg px-8 text-body-sm text-fg"
+                >
+                  <option value="">선택 안 함</option>
+                  {presets.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+                {presetId && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      onSavePresets(removePreset(presets, presetId));
+                      setPresetId("");
+                    }}
+                  >
+                    프리셋 삭제
+                  </Button>
+                )}
+                <input
+                  aria-label="프리셋 이름"
+                  placeholder="현재 옵션을 이름 붙여 저장"
+                  value={presetName}
+                  onChange={(e) => setPresetName(e.target.value)}
+                  className="h-28 min-w-0 flex-1 rounded-md border border-border bg-bg px-8 text-body-sm text-fg"
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!presetName.trim()}
+                  onClick={() => {
+                    const next = addPreset(presets, presetName, opts, crypto.randomUUID());
+                    onSavePresets(next);
+                    setPresetId(next[next.length - 1].id);
+                    setPresetName("");
+                  }}
+                >
+                  프리셋 저장
+                </Button>
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-8">
               <span className="text-fg-weak">회차 범위</span>
               <input

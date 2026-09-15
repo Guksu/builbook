@@ -1,6 +1,10 @@
 export {
   DOC_STATUS_ORDER,
   buildCards,
+  CARD_SIZES,
+  CARD_SIZE_LABEL,
+  isCardSize,
+  type CardSize,
   filterCardsByLabel,
   type CardLabelFilter,
   docStatusLabel,

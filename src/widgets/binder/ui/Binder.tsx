@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  usePersistedState,
   ConfirmModal,
   ContextMenu,
   cn,
@@ -35,6 +36,10 @@ import {
   type BinderLabelFilter,
   type BinderSort,
 } from "@features/binder-tree";
+import { isOneOf } from "@shared/lib";
+
+const isBinderSort = isOneOf(BINDER_SORTS);
+const isBinderLabelFilter = (v: unknown): v is BinderLabelFilter => v === null || typeof v === "string";
 import {
   ChevronIcon,
   CollapseAllIcon,
@@ -119,7 +124,12 @@ export function Binder({
 }: BinderProps) {
   const { collapsed, toggle, expand, collapseAll, expandAll } =
     useCollapsedFolders(projectId);
-  const [sort, setSort] = useState<BinderSort>("order");
+  // 정렬은 작품별로 기억한다(옵시디언도 볼트마다 기억).
+  const [sort, setSort] = usePersistedState<BinderSort>(
+    `builbook:binder-sort:${projectId}`,
+    "order",
+    isBinderSort,
+  );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [menu, setMenu] = useState<MenuState>(null);
@@ -136,7 +146,12 @@ export function Binder({
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
   const [anchorId, setAnchorId] = useState<string | null>(null);
   // 라벨 필터는 세션 상태 — 저장하지 않는다(다음에 들어왔을 때 원고가 반쯤 사라져 보이면 사고다).
-  const [labelFilter, setLabelFilter] = useState<BinderLabelFilter>(null);
+  // 라벨 필터도 작품별로 기억 — 퇴고 중인 라벨만 며칠씩 보는 일이 흔하다.
+  const [labelFilter, setLabelFilter] = usePersistedState<BinderLabelFilter>(
+    `builbook:binder-label-filter:${projectId}`,
+    null,
+    isBinderLabelFilter,
+  );
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
 
   const visibleDocs = useMemo(

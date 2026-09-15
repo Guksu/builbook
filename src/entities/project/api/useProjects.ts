@@ -15,7 +15,7 @@ import { deleteNotesForProject } from "@entities/note";
 import { deleteWritingLogsForProject } from "@entities/writing-log";
 import { deleteStoryEventsForProject } from "@entities/story-event";
 import { deleteTermsForProject } from "@entities/term";
-import type { Project } from "../model/types";
+import type { Project, CompilePreset } from "../model/types";
 import type { ProjectLabel } from "../lib/labels";
 
 const KEY = "projects";
@@ -71,6 +71,13 @@ export function useProject(projectId: string) {
     updateDailyGoal: (goal: number | null) => updateGoalField("dailyGoal", goal),
     // 회차 목표 분량(공백 포함 글자 수).
     updateEpisodeGoal: (goal: number | null) => updateGoalField("episodeGoal", goal),
+    // 컴파일 프리셋 목록 통째 교체.
+    async updateCompilePresets(presets: CompilePreset[]) {
+      const p = await dbGet<Project>(STORES.projects, projectId);
+      if (!p) return;
+      await dbPut(STORES.projects, { ...p, compilePresets: presets, updatedAt: new Date().toISOString() });
+      await mutate();
+    },
     // 마감일(YYYY-MM-DD). null이면 해제.
     async updateDeadline(deadline: string | null) {
       const p = await dbGet<Project>(STORES.projects, projectId);
