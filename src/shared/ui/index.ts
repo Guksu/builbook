@@ -23,5 +23,5 @@ export {
   type ContextMenuProps,
   type ContextMenuItem,
 } from "./ContextMenu";
-export { ToastProvider, useToast } from "./Toast";
+export { ToastProvider, useToast, type ToastAction } from "./Toast";
 export { usePersistedState } from "./usePersistedState";

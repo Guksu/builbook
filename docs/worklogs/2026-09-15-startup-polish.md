@@ -65,7 +65,15 @@
 - **Alt+S** — 현재 문서 상태를 초고→퇴고→완료로 돌린다. 단축키 안내 모달에 Ctrl/⌘+P·Alt+S 추가.
 - **프리셋 백업** — 컴파일 프리셋은 `Project.compilePresets`에 있어 전체 백업 JSON에 자동 포함된다(별도 형식 없음). README에 명시.
 
+### 루프 5 (2026-09-16) — UX 다듬기 (명세 `docs/loops/2026-09-16-ux-polish.md`)
+- **작업실 코드 분할** — `src/views/workspace/model/`(selection·panels·documentActions·shortcuts·progress 훅, `types.ts`) + `ui/`(Main·SidePanels·BinderPane·Overlays). `WorkspacePage.tsx`는 조립만(157줄). 컴포넌트에는 `selection`·`panels`·`docs`·`projectApi` 묶음으로 전달(개별 prop 25개+ 방지).
+- **탭 닫기 저장 보강** — `useAutosave`: `pagehide`에 대기 중 본문을 localStorage(`builbook:doc-backup:*`)에 동기로 남기고 flush 시도, IndexedDB 쓰기 중에만 `beforeunload` 확인. `Editor`는 열릴 때 `readBackup`으로 되살려 저장하고 토스트. 스크리브닝 구획은 백업만 남기고 복구는 단일 편집기에서 한다.
+- **본문 표시 설정** — `features/focus-settings`(글자 크기 4단·줄 간격 3단·폭 3단·타이프라이터). 브라우저 전체 설정(localStorage). 에디터는 CSS 변수(`--editor-font-size`·`--editor-line-height`)로 받는다 — 클래스(`text-body`)로 두면 설정이 못 이긴다. 집중 모드에서는 제목·툴바가 hover/포커스 때만 보이고, 타이프라이터가 켜지면 커서 줄을 `main` 스크롤 가운데로.
+- **UX 감사 수정** — Tailwind spacing에 `28`·`36` 추가(`h-28`을 쓰던 select·input이 높이 없이 늘어나던 버그), 저장 공간 미보호 안내를 경고색에서 일반 안내로, 헤더 칩 꺼진 점 숨김, 휴지통 이동 "되돌리기" 토스트(`Toast`에 action 지원), Alt+S 리스너 ref화, 탭 가드 문서 한정.
+
 ## 3. 주의사항
+
+- **Tailwind 눈금**: `h-28`·`h-36`처럼 눈금에 없는 값을 쓰면 클래스가 조용히 무시된다. 새 값을 쓰기 전에 `tailwind.config.ts` spacing을 확인할 것.
 
 - **의존성 추가 후 확인**: 에이전트가 설치한 패키지가 `package.json`에 남았는지 커밋 전에 확인한다. `rm -rf node_modules && npm ci && npx tsc --noEmit`이 CI와 같은 조건이다.
 

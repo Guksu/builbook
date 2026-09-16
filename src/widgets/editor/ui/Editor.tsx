@@ -4,7 +4,9 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useCallback, useEffect, useState } from "react";
-import { useAutosave, SaveStatusBadge } from "@features/autosave-document";
+import { useAutosave, SaveStatusBadge, readBackup, clearBackup } from "@features/autosave-document";
+import { useFocusSettings, focusStyle, FocusSettingsPanel } from "@features/focus-settings";
+import { useToast, cn } from "@shared/ui";
 // 분량 규칙 단일 출처(경계면 규약) — 새로 세지 않고 순수 함수를 재사용.
 import { measureText, pickCount, formatCount, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
 import { useCountUnit } from "@features/count-unit";
@@ -29,6 +31,8 @@ interface EditorProps {
   onMeasureChange?: (measure: TextMeasure) => void;
   /** 제목 인라인 수정 — 없으면 제목은 읽기 전용 */
   onRename?: (title: string) => void;
+  /** 집중 모드 — 제목·툴바를 숨기고(hover 시 표시) 타이프라이터 스크롤을 켠다(설정 시). */
+  focusMode?: boolean;
 }
 
 // Tiptap 에디터 코어. 최소 확장 세트 + 자동저장. 집중 글쓰기 단일 컬럼.
@@ -39,10 +43,15 @@ export function Editor({
   title,
   onMeasureChange,
   onRename,
+  focusMode = false,
 }: EditorProps) {
   const { status, schedule } = useAutosave(documentId, projectId);
   const [measure, setMeasure] = useState<TextMeasure>(ZERO_MEASURE);
   const [unit] = useCountUnit();
+  const [display, setDisplay] = useFocusSettings();
+  const [displayOpen, setDisplayOpen] = useState(false);
+  const { toast } = useToast();
+  const style = focusStyle(display);
   const [findOpen, setFindOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   // 값이 바뀔 때마다 제목 편집이 시작된다(F2). 상태 대신 신호로 두면 되돌릴 필요가 없다.
@@ -63,7 +72,7 @@ export function Editor({
     editorProps: {
       attributes: {
         class:
-          "prose-editor min-h-[60vh] outline-none text-body leading-relaxed text-fg",
+          "prose-editor min-h-[60vh] outline-none text-fg",
       },
     },
     onUpdate({ editor }) {
@@ -73,6 +82,26 @@ export function Editor({
       schedule(editor.getJSON(), m);
     },
   });
+
+  // 타이프라이터 스크롤 — 집중 모드 + 설정 켜짐일 때 커서 줄을 스크롤 영역 가운데로.
+  useEffect(() => {
+    if (!editor || !focusMode || !display.typewriter) return;
+    const center = () => {
+      const { from } = editor.state.selection;
+      const coords = editor.view.coordsAtPos(from);
+      const scroller = editor.view.dom.closest("main") as HTMLElement | null;
+      if (!scroller) return;
+      const rect = scroller.getBoundingClientRect();
+      const target = rect.top + rect.height / 2;
+      scroller.scrollBy({ top: coords.top - target, behavior: "smooth" });
+    };
+    editor.on("selectionUpdate", center);
+    editor.on("update", center);
+    return () => {
+      editor.off("selectionUpdate", center);
+      editor.off("update", center);
+    };
+  }, [editor, focusMode, display.typewriter]);
 
   // 문서 전환 시 content 교체 + 단어 수 초기화.
   useEffect(() => {
@@ -87,6 +116,24 @@ export function Editor({
     // documentId 변경 시에만 — initialContent는 그 시점 값 사용.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, editor]);
+
+  // 탭이 닫히기 전 미저장 본문이 localStorage에 남아 있으면 되살린다(자동저장 pagehide 백업).
+  useEffect(() => {
+    if (!editor) return;
+    const backup = readBackup(documentId);
+    if (!backup) return;
+    clearBackup(documentId);
+    if (JSON.stringify(backup.content) === JSON.stringify(initialContent)) return; // 이미 저장된 상태
+    editor.commands.setContent(backup.content as JSONContent);
+    const m = measureText(editor.getText());
+    setMeasure(m);
+    onMeasureChange?.(m);
+    schedule(editor.getJSON(), m);
+    toast("닫기 전에 저장되지 않았던 내용을 되살렸어요.", "success");
+    // documentId·editor가 바뀔 때만(백업은 문서마다 한 번).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId, editor]);
+
 
   // F2 = 제목 편집. 브라우저 기본 동작이 없는 키라 문서 어디서 눌러도 안전하지만,
   // 다른 입력칸에 글을 치는 중이라면 가만히 둔다.
@@ -104,7 +151,20 @@ export function Editor({
   }, [onRename]);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-[720px] flex-col px-24 py-16 max-sm:px-16">
+    <div
+      className={cn(
+        "group/editor mx-auto flex h-full w-full flex-col px-24 py-16 max-sm:px-16",
+        focusMode && display.typewriter && "pb-[50vh]",
+      )}
+      style={{ maxWidth: style.maxWidth }}
+    >
+      {/* 집중 모드: 제목·툴바는 마우스를 올릴 때만 나타난다 — 화면에 글만 남긴다 */}
+      <div
+        className={cn(
+          "transition-opacity",
+          focusMode && "opacity-0 focus-within:opacity-100 group-hover/editor:opacity-100",
+        )}
+      >
       <header className="mb-12 flex items-center justify-between gap-12">
         <div className="min-w-0 flex-1">
           <TitleField title={title} onRename={onRename} editSignal={titleEditSignal} />
@@ -123,6 +183,8 @@ export function Editor({
           findOpen={findOpen}
           onOpenFind={() => setFindOpen((v) => !v)}
           onOpenHelp={() => setHelpOpen(true)}
+          displayOpen={displayOpen}
+          onToggleDisplay={() => setDisplayOpen((v) => !v)}
         />
       )}
 
@@ -130,7 +192,23 @@ export function Editor({
         <FindReplaceBar editor={editor} onClose={() => setFindOpen(false)} />
       )}
 
-      <EditorContent editor={editor} className="flex-1" />
+      {displayOpen && (
+        <div className="mb-12 rounded-md border border-border bg-surface p-12">
+          <FocusSettingsPanel settings={display} onChange={setDisplay} showTypewriter={focusMode} />
+        </div>
+      )}
+      </div>
+
+      <EditorContent
+        editor={editor}
+        className="flex-1"
+        style={
+          {
+            "--editor-font-size": style.fontSize,
+            "--editor-line-height": String(style.lineHeight),
+          } as React.CSSProperties
+        }
+      />
 
       <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>

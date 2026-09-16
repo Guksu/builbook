@@ -12,6 +12,9 @@ export interface EditorToolbarProps {
   onOpenHelp: () => void;
   /** 찾기 바가 열려 있는지 — 버튼 눌림 상태 표시용 */
   findOpen: boolean;
+  /** 본문 표시 설정(글자 크기·줄 간격·폭) 패널 토글 */
+  onToggleDisplay?: () => void;
+  displayOpen?: boolean;
 }
 
 const buttonClass =
@@ -49,7 +52,14 @@ function ToolButton({ label, hint, active, disabled, onClick, children }: ToolBu
  * 최소 툴바 — 웹소설 본문에 실제로 쓰는 것만 둔다.
  * 폰트·색·정렬 같은 서식은 일부러 뺐다: 선택지가 늘수록 글쓰기 대신 꾸미기를 시작한다.
  */
-export function EditorToolbar({ editor, onOpenFind, onOpenHelp, findOpen }: EditorToolbarProps) {
+export function EditorToolbar({
+  editor,
+  onOpenFind,
+  onOpenHelp,
+  findOpen,
+  onToggleDisplay,
+  displayOpen = false,
+}: EditorToolbarProps) {
   const mod = useModLabel();
 
   return (
@@ -130,6 +140,17 @@ export function EditorToolbar({ editor, onOpenFind, onOpenHelp, findOpen }: Edit
       >
         🔍
       </ToolButton>
+
+      {onToggleDisplay && (
+        <ToolButton
+          label="본문 표시 설정"
+          hint="본문 표시 설정 (글자 크기·줄 간격·폭)"
+          active={displayOpen}
+          onClick={onToggleDisplay}
+        >
+          Aa
+        </ToolButton>
+      )}
 
       <ToolButton
         label="단축키 안내"

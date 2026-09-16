@@ -11,14 +11,21 @@ import { cn } from "./cn";
 
 type ToastVariant = "default" | "success" | "warning" | "error";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastItem {
   id: number;
   message: string;
   variant: ToastVariant;
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
-  toast: (message: string, variant?: ToastVariant) => void;
+  /** action이 있으면(예: "되돌리기") 버튼을 함께 보여주고 조금 더 오래 띄운다. */
+  toast: (message: string, variant?: ToastVariant, action?: ToastAction) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -39,12 +46,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const seq = useRef(0);
 
   const toast = useCallback(
-    (message: string, variant: ToastVariant = "default") => {
+    (message: string, variant: ToastVariant = "default", action?: ToastAction) => {
       const id = ++seq.current;
-      setItems((prev) => [...prev, { id, message, variant }]);
-      setTimeout(() => {
-        setItems((prev) => prev.filter((t) => t.id !== id));
-      }, 3000);
+      setItems((prev) => [...prev, { id, message, variant, action }]);
+      setTimeout(
+        () => {
+          setItems((prev) => prev.filter((t) => t.id !== id));
+        },
+        action ? 6000 : 3000,
+      );
     },
     [],
   );
@@ -62,11 +72,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             key={t.id}
             role="status"
             className={cn(
-              "rounded-md px-16 py-12 text-body-sm font-medium shadow-md",
+              "flex items-center gap-12 rounded-md px-16 py-12 text-body-sm font-medium shadow-md",
               variantStyles[t.variant],
             )}
           >
-            {t.message}
+            <span>{t.message}</span>
+            {t.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  t.action?.onClick();
+                  setItems((prev) => prev.filter((x) => x.id !== t.id));
+                }}
+                className="shrink-0 rounded-sm px-8 py-2 underline underline-offset-2 hover:opacity-80"
+              >
+                {t.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>

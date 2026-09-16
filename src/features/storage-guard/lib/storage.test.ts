@@ -21,8 +21,8 @@ describe("summarizeStorage", () => {
     expect(s.warn).toBe(false);
     expect(s.usageText).toBe("100 B 사용 / 1000 B 가능");
   });
-  it("미보호면 경고", () => {
-    expect(summarizeStorage("not-persisted", null).warn).toBe(true);
+  it("미보호는 흔한 상태라 경고색 없이 안내만", () => {
+    expect(summarizeStorage("not-persisted", null).warn).toBe(false);
     expect(summarizeStorage("not-persisted", null).usageText).toBeNull();
   });
   it("미지원이면 안내만", () => {

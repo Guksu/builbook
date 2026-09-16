@@ -157,6 +157,11 @@
 }
 
 /* ── Tiptap 에디터 콘텐츠 (.prose-editor) — 집필 가독성 ── */
+.prose-editor {
+  /* 본문 표시 설정(features/focus-settings)이 래퍼의 CSS 변수로 넣는다. 없으면 기본 본문 크기. */
+  font-size: var(--editor-font-size, var(--font-size-body, 16px));
+  line-height: var(--editor-line-height, var(--line-height-relaxed, 1.8));
+}
 .prose-editor > * + * {
   margin-top: var(--space-12);
 }
@@ -171,7 +176,7 @@
   line-height: var(--line-height-heading);
 }
 .prose-editor p {
-  line-height: var(--line-height-relaxed);
+  line-height: inherit;
 }
 .prose-editor ul,
 .prose-editor ol {

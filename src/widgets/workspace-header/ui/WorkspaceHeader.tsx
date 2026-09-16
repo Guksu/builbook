@@ -217,7 +217,7 @@ function PanelChip({
         aria-hidden
         className={cn(
           "h-4 w-4 rounded-full transition-colors",
-          active ? "bg-primary" : "bg-border-strong group-hover:bg-fg-muted",
+          active ? "bg-primary" : "bg-transparent group-hover:bg-fg-muted",
         )}
       />
       {label}

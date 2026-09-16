@@ -63,13 +63,14 @@ export function summarizeStorage(
     };
   }
   if (persist === "not-persisted") {
+    // 크롬은 사이트를 자주 쓰기 전엔 보호를 승인하지 않는다 — 첫 방문자 대부분이 이 상태라
+    // 빨간 경고로 겁주지 않고 차분히 알린다(공간이 정말 찼을 때만 경고).
     return {
       persist,
       usageText,
       nearlyFull,
-      warn: true,
-      message:
-        "브라우저가 공간이 부족하면 이 사이트 데이터를 지울 수 있어요. 백업을 자주 해 두세요.",
+      warn: false,
+      message: "원고는 이 브라우저에만 저장돼요. 브라우저 데이터를 지우면 사라지니 백업을 자주 해 두세요.",
     };
   }
   return {

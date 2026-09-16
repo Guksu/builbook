@@ -1,318 +1,74 @@
 "use client";
 
+// 작업실 화면 조립 — 상태·로직은 model/ 훅에, 그리기는 ui/ 컴포넌트에 있다.
+// 여기서는 그 둘을 엮어 헤더 · 바인더 · 본문 · 우측 패널 · 오버레이 배치만 한다.
+
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Dispatch, SetStateAction } from "react";
-import type { JSONContent } from "@tiptap/react";
-import { Binder } from "@widgets/binder";
-import { Editor } from "@widgets/editor";
-import { Inspector } from "@widgets/inspector";
-import { Scrivenings } from "@widgets/scrivenings";
-import { SnapshotPanel } from "@widgets/snapshot-panel";
-import { NotesPanel } from "@widgets/notes-panel";
-import { StatsPanel } from "@widgets/stats-panel";
-import { Corkboard, CorkboardToolbar } from "@widgets/corkboard";
-import {
-  isCardSize,
-  nextStatus,
-  docStatusLabel,
-  type CardLabelFilter,
-  type CardSize,
-} from "@features/corkboard";
-import { TimelinePanel } from "@widgets/timeline-panel";
-import { ConsistencyPanel } from "@widgets/consistency-panel";
-import {
-  WorkspaceHeader,
-  GoalBar,
-  type WorkspacePanelKey,
-} from "@widgets/workspace-header";
-import { planReorder, planMoveToParent } from "@features/reorder-document";
-import { computeProgress, paceToDeadline } from "@features/writing-goals";
-import { QuickOpen, useQuickOpenShortcut } from "@features/quick-open";
-import { useWritingLogs, writtenOn, dateKey } from "@entities/writing-log";
+import { WorkspaceHeader, GoalBar } from "@widgets/workspace-header";
 import { useCountUnit } from "@features/count-unit";
-import { SearchPanel } from "@features/search-document";
-import { TrashPanel } from "@features/trash-document";
-import { ExportMenu } from "@features/export-document";
-import { ReaderPreview } from "@features/reader-preview";
-import { useTabGuard, TabConflictBanner } from "@features/tab-guard";
-import {
-  useDocuments,
-  docCount,
-  sumDocCounts,
-  measureDocument,
-  type DocumentKind,
-} from "@entities/document";
+import { useTabGuard } from "@features/tab-guard";
+import { useDocuments } from "@entities/document";
 import { useProject } from "@entities/project";
-import { useToast, ProgressBar, cn, usePersistedState } from "@shared/ui";
-import { formatCount, pickCount, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
-
-// 마지막으로 열었던 문서 — 다시 들어오면 그 자리에서 이어 쓴다(작품별).
-const lastDocKey = (projectId: string) => `builbook:last-doc:${projectId}`;
-function readLastDoc(projectId: string): string | null {
-  try {
-    return localStorage.getItem(lastDocKey(projectId));
-  } catch {
-    return null;
-  }
-}
-function writeLastDoc(projectId: string, docId: string) {
-  try {
-    localStorage.setItem(lastDocKey(projectId), docId);
-  } catch {
-    /* 저장 불가 브라우저 — 무시 */
-  }
-}
-
-// 우측 패널 공통 클래스 — 넓은 화면은 본문 옆에 나란히, 좁은 화면(md 미만)은 헤더 아래 오버레이.
-// 헤더는 가리지 않아 칩으로 다시 닫을 수 있다.
-const SIDE_PANEL =
-  "shrink-0 overflow-y-auto border-l border-border bg-surface p-16 " +
-  "max-md:fixed max-md:bottom-0 max-md:right-0 max-md:top-48 max-md:z-30 max-md:!w-[min(100vw,360px)] max-md:shadow-lg";
+import { formatCount, pickCount } from "@shared/lib";
+import { useWorkspaceSelection } from "../model/useWorkspaceSelection";
+import { useWorkspacePanels } from "../model/useWorkspacePanels";
+import { useDocumentActions } from "../model/useDocumentActions";
+import { useWorkspaceShortcuts } from "../model/useWorkspaceShortcuts";
+import { useWorkspaceProgress } from "../model/useWorkspaceProgress";
+import { WorkspaceBinderPane } from "./WorkspaceBinderPane";
+import { WorkspaceMain } from "./WorkspaceMain";
+import { WorkspaceSidePanels } from "./WorkspaceSidePanels";
+import { WorkspaceOverlays } from "./WorkspaceOverlays";
 
 export function WorkspacePage() {
   const { id } = useParams<{ id: string }>();
-  const { toast } = useToast();
-  const {
-    documents,
-    trashedDocuments,
-    isLoading,
-    error,
-    mutate: mutateDocuments,
-    createDocument,
-    renameDocument,
-    deleteDocument,
-    deleteDocuments,
-    restoreDocument,
-    permanentlyDeleteDocument,
-    moveDocument,
-    reorderSiblings,
-    updateSynopsis,
-    updateGoal,
-    updateStatus,
-    updateLabel,
-    updateNote,
-    clearLabelFromDocuments,
-  } = useDocuments(id);
-  const {
-    project,
-    updateLabels,
-    updateGoal: updateProjectGoal,
-    updateDailyGoal,
-    updateEpisodeGoal,
-    updateDeadline,
-    updateCompilePresets,
-  } = useProject(id);
-  const { logs: writingLogs } = useWritingLogs(id);
-  // 빠른 열기(Ctrl/⌘+P) — 제목으로 문서를 찾아 바로 연다.
-  const [quickOpen, setQuickOpen] = useState(false);
-  const openQuick = useCallback(() => setQuickOpen(true), []);
-  useQuickOpenShortcut(openQuick);
-
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  // 좁은 화면(md 미만) 전용: 바인더를 드로어로 띄운다. 넓은 화면에서는 값과 무관하게 항상 보인다.
-  const [binderOpen, setBinderOpen] = useState(false);
-  const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [inspectorTab, setInspectorTab] = useState<"info" | "snapshots">("info");
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [trashOpen, setTrashOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [statsOpen, setStatsOpen] = useState(false);
-  const [timelineOpen, setTimelineOpen] = useState(false);
-  const [checkOpen, setCheckOpen] = useState(false);
-  // 가운데 영역 보기 모드: 본문(에디터) ↔ 카드(코르크보드).
-  const [viewMode, setViewMode] = useState<"editor" | "corkboard">("editor");
-  const [previewOpen, setPreviewOpen] = useState(false);
-  // 코르크보드 라벨 필터·카드 크기 — 작품별로 기억. 범위는 선택된 폴더가 결정한다.
-  const [cardLabelFilter, setCardLabelFilter] = usePersistedState<CardLabelFilter>(
-    `builbook:card-label-filter:${id}`,
-    null,
-    (v): v is CardLabelFilter => v === null || typeof v === "string",
-  );
-  const [cardSize, setCardSize] = usePersistedState<CardSize>(
-    `builbook:card-size:${id}`,
-    "medium",
-    isCardSize,
-  );
-  // 집중 모드: 주변 UI를 숨기고 본문에만 몰입(에디터 인스턴스는 재마운트 없이 유지).
-  const [focusMode, setFocusMode] = useState(false);
-  // 에디터가 올려주는 실시간 분량(단어·글자) — 목표·집중모드 카운터가 즉시 반영되도록.
-  const [liveMeasure, setLiveMeasure] = useState<TextMeasure>(ZERO_MEASURE);
+  const docs = useDocuments(id);
+  const { documents, isLoading, error } = docs;
+  const projectApi = useProject(id);
+  const { project } = projectApi;
   const [unit] = useCountUnit();
-  const liveWords = pickCount(liveMeasure, unit);
-  // 스냅샷 복원 시 에디터를 강제 재마운트해 교체된 content를 다시 로드하는 토큰.
-  const [reloadToken, setReloadToken] = useState(0);
+
+  const selection = useWorkspaceSelection(id, documents);
+  const { selectedId, setSelectedId, selected } = selection;
+  const liveWords = pickCount(selection.liveMeasure, unit);
   // 같은 문서를 다른 탭에서도 열었으면 경고(자동저장이 서로 덮어쓰는 사고 예방).
-  const tabConflict = useTabGuard(selectedId);
+  // 탭 가드는 자동저장 충돌 방지용 — 폴더(연속 보기)에는 걸지 않는다.
+  const tabConflict = useTabGuard(selected?.type === "DOC" ? selectedId : null);
 
-  // 마지막에 열었던 문서를 우선 복원하고, 없으면 첫 DOC 자동 선택. 선택 문서가 사라지면 해제.
-  useEffect(() => {
-    if (selectedId && !documents.some((d) => d.id === selectedId)) {
-      setSelectedId(null);
-    }
-    if (!selectedId) {
-      const last = readLastDoc(id);
-      const lastDoc = last ? documents.find((d) => d.id === last && d.type === "DOC") : null;
-      const firstDoc = lastDoc ?? documents.find((d) => d.type === "DOC");
-      if (firstDoc) setSelectedId(firstDoc.id);
-    }
-  }, [documents, selectedId, id]);
+  const panels = useWorkspacePanels(id);
+  const { openPanels, panelSetters, viewMode, focusMode } = panels;
 
-  // 폴더 선택은 기억하지 않는다 — 다시 들어왔을 때 복원하는 건 '쓰던 회차'뿐이다.
-  useEffect(() => {
-    const node = documents.find((d) => d.id === selectedId);
-    if (node?.type === "DOC") writeLastDoc(id, node.id);
-  }, [documents, id, selectedId]);
+  const {
+    reloadToken,
+    handleCreate,
+    handleRestored,
+    handleMove,
+    handleMoveToParent,
+    handleMoveManyToParent,
+  } = useDocumentActions({
+    documents,
+    createDocument: docs.createDocument,
+    moveDocument: docs.moveDocument,
+    reorderSiblings: docs.reorderSiblings,
+    mutateDocuments: docs.mutate,
+    setSelectedId,
+  });
 
-  const selected = useMemo(
-    () => documents.find((d) => d.id === selectedId) ?? null,
-    [documents, selectedId],
-  );
+  const { quickOpen, setQuickOpen } = useWorkspaceShortcuts({
+    documents,
+    selectedId,
+    updateStatus: docs.updateStatus,
+  });
 
-  // 문서 전환 시 저장된 값으로 즉시 리셋(에디터 콜백이 곧 실시간 값으로 보정).
-  useEffect(() => {
-    const d = documents.find((x) => x.id === selectedId);
-    setLiveMeasure(d ? measureDocument(d) : ZERO_MEASURE);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
-
-  // 집중 모드에서 ESC로 빠져나오기.
-  useEffect(() => {
-    if (!focusMode) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFocusMode(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [focusMode]);
-
-  // 작품 전체 분량 = 저장된 합계에서 현재 편집 문서만 실시간 값으로 치환.
-  const projectTotalWords = useMemo(() => {
-    const base = sumDocCounts(documents, unit);
-    if (!selected || selected.type !== "DOC") return base;
-    return base - docCount(selected, unit) + liveWords;
-  }, [documents, selected, liveWords, unit]);
-
-  // 집중 모드 하단에 은은하게 띄울 문서 목표 진행률.
-  const focusProgress = computeProgress(liveWords, selected?.goal);
-  // Alt+S — 현재 문서의 진행 상태를 초고→퇴고→완료 순으로 돌린다(인스펙터를 열지 않고도).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey || e.key.toLowerCase() !== "s") return;
-      const doc = documents.find((d) => d.id === selectedId);
-      if (!doc || doc.type !== "DOC") return;
-      e.preventDefault();
-      const next = nextStatus(doc.status);
-      void updateStatus(doc.id, next);
-      toast(`상태: ${docStatusLabel(next)}`, "success");
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [documents, selectedId, updateStatus, toast]);
-
-  // 헤더 목표 바 — 작품·오늘 진행률 + 마감 페이스(스크리브너 Project Targets).
-  const todayKey = dateKey(new Date());
-  const projectProgress = computeProgress(projectTotalWords, project?.goal);
-  const todayProgress = computeProgress(writtenOn(writingLogs, todayKey, unit), project?.dailyGoal);
-  const pace = project?.deadline
-    ? paceToDeadline(projectProgress.remaining, project.deadline, todayKey)
-    : null;
-
-  // 헤더 패널 표시등 ↔ 개별 open 상태 매핑.
-  const openPanels: Record<WorkspacePanelKey, boolean> = {
-    timeline: timelineOpen,
-    stats: statsOpen,
-    check: checkOpen,
-    search: searchOpen,
-    notes: notesOpen,
-    trash: trashOpen,
-    inspector: inspectorOpen,
-  };
-  const panelSetters: Record<
-    WorkspacePanelKey,
-    Dispatch<SetStateAction<boolean>>
-  > = {
-    timeline: setTimelineOpen,
-    stats: setStatsOpen,
-    check: setCheckOpen,
-    search: setSearchOpen,
-    notes: setNotesOpen,
-    trash: setTrashOpen,
-    inspector: setInspectorOpen,
-  };
-
-  async function handleCreate(input: {
-    title: string;
-    type: "FOLDER" | "DOC";
-    parentId: string | null;
-    content?: unknown;
-    kind?: DocumentKind;
-  }) {
-    // 바인더가 생성된 문서를 곧바로 인라인 이름 편집으로 열기 때문에 결과를 돌려준다.
-    try {
-      const doc = await createDocument(input);
-      if (doc?.type === "DOC") setSelectedId(doc.id);
-      return doc;
-    } catch {
-      toast("문서 생성에 실패했어요.", "error");
-      return null;
-    }
-  }
-
-  // 스냅샷 복원 완료 후: 문서 캐시 갱신 → selected.content 최신화 → 에디터 재마운트.
-  async function handleRestored() {
-    await mutateDocuments();
-    setReloadToken((t) => t + 1);
-  }
-
-  async function handleMove(
-    dragId: string,
-    targetId: string,
-    mode: "into" | "before",
-  ) {
-    const plan = planReorder(documents, dragId, targetId, mode);
-    if (!plan) return; // 순환·무의미 이동은 무시
-    try {
-      if (plan.kind === "move") {
-        await moveDocument(plan.id, plan.parentId, plan.order);
-      } else {
-        await reorderSiblings(plan.parentId, plan.orderedIds);
-      }
-    } catch {
-      toast("이동에 실패했어요.", "error");
-    }
-  }
-
-  // 메뉴 "최상위로 이동"·트리 아래 드롭: 지정 부모의 맨 끝으로.
-  async function handleMoveToParent(docId: string, parentId: string | null) {
-    const plan = planMoveToParent(documents, docId, parentId);
-    if (!plan || plan.kind !== "move") return;
-    try {
-      await moveDocument(plan.id, plan.parentId, plan.order);
-    } catch {
-      toast("이동에 실패했어요.", "error");
-    }
-  }
-
-  // 다중 선택 이동: 하나씩 옮기되, 옮긴 결과를 반영한 사본으로 다음 자리를 계산한다
-  // (매번 원래 목록으로 계산하면 전부 같은 order를 받아 한자리에 겹친다).
-  async function handleMoveManyToParent(ids: string[], parentId: string | null) {
-    let working = documents;
-    for (const docId of ids) {
-      const plan = planMoveToParent(working, docId, parentId);
-      if (!plan || plan.kind !== "move") continue;
-      try {
-        await moveDocument(plan.id, plan.parentId, plan.order);
-      } catch {
-        toast("이동에 실패했어요.", "error");
-        return;
-      }
-      working = working.map((d) =>
-        d.id === plan.id ? { ...d, parentId: plan.parentId, order: plan.order } : d,
-      );
-    }
-  }
+  const { projectTotalWords, focusProgress, projectProgress, todayProgress, pace } =
+    useWorkspaceProgress({
+      projectId: id,
+      documents,
+      selected,
+      liveWords,
+      unit,
+      project,
+    });
 
   return (
     <div className="flex h-screen flex-col">
@@ -322,350 +78,80 @@ export function WorkspacePage() {
           projectTitle={project?.title}
           totalLabel={formatCount(projectTotalWords, unit)}
           viewMode={viewMode}
-          onChangeViewMode={setViewMode}
+          onChangeViewMode={panels.setViewMode}
           openPanels={openPanels}
           onTogglePanel={(key) => panelSetters[key]((v) => !v)}
-          onOpenPreview={() => setPreviewOpen(true)}
+          onOpenPreview={() => panels.setPreviewOpen(true)}
           previewDisabled={!selected || selected.type !== "DOC"}
-          onOpenExport={() => setExportOpen(true)}
-          onEnterFocus={() => setFocusMode(true)}
-          onToggleBinder={() => setBinderOpen((v) => !v)}
-          binderOpen={binderOpen}
+          onOpenExport={() => panels.setExportOpen(true)}
+          onEnterFocus={() => panels.setFocusMode(true)}
+          onToggleBinder={() => panels.setBinderOpen((v) => !v)}
+          binderOpen={panels.binderOpen}
           goalSlot={
             <GoalBar
               project={projectProgress}
               today={todayProgress}
               pace={pace}
               unit={unit}
-              onClick={() => setStatsOpen(true)}
+              onClick={() => panelSetters.stats(true)}
             />
           }
         />
       )}
 
       <div className="flex min-h-0 flex-1">
-        {/* 좌: 바인더 — 집중 모드에서는 숨김(하지만 트리에 남겨 에디터 위치 유지 → 재마운트 방지) */}
-        {/* 좁은 화면에서는 드로어(헤더 아래 고정) — 배경을 누르면 닫힌다 */}
-        {binderOpen && !focusMode && (
-          <button
-            type="button"
-            aria-label="바인더 닫기"
-            onClick={() => setBinderOpen(false)}
-            className="fixed inset-x-0 bottom-0 top-48 z-20 bg-black/30 md:hidden"
-          />
-        )}
-        <aside
-          className={cn(
-            "w-[260px] shrink-0",
-            "max-md:fixed max-md:bottom-0 max-md:left-0 max-md:top-48 max-md:z-30 max-md:w-[min(100vw,300px)] max-md:bg-bg max-md:shadow-lg",
-            focusMode && "hidden",
-            !binderOpen && "max-md:hidden",
-          )}
-        >
-          <Binder
-            projectId={id}
-            documents={documents}
-            selectedId={selectedId}
-            onSelect={(docId) => {
-              setSelectedId(docId);
-              setBinderOpen(false); // 좁은 화면: 고르면 드로어를 닫고 본문으로
-            }}
-            onCreate={handleCreate}
-            onRename={renameDocument}
-            onDelete={deleteDocument}
-            onDeleteMany={deleteDocuments}
-            onMove={handleMove}
-            onMoveToParent={handleMoveToParent}
-            onMoveManyToParent={handleMoveManyToParent}
-            labels={project?.labels}
-          />
-        </aside>
+        <WorkspaceBinderPane
+          projectId={id}
+          documents={documents}
+          selection={selection}
+          panels={panels}
+          docs={docs}
+          project={project}
+          onCreate={handleCreate}
+          onMove={handleMove}
+          onMoveToParent={handleMoveToParent}
+          onMoveManyToParent={handleMoveManyToParent}
+        />
 
         {/* 중: 에디터 */}
-        <main className="relative min-w-0 flex-1 overflow-y-auto bg-bg">
-          {tabConflict && <TabConflictBanner />}
-          {isLoading && (
-            <p className="p-24 text-body text-fg-weak">불러오는 중…</p>
-          )}
-          {error && (
-            <p className="p-24 text-body text-error">문서를 불러오지 못했어요.</p>
-          )}
-          {!isLoading && !error && viewMode === "corkboard" && (
-            <>
-              <CorkboardToolbar
-                scopeTitle={selected?.type === "FOLDER" ? selected.title : null}
-                onClearScope={() => setSelectedId(null)}
-                labels={project?.labels}
-                labelFilter={cardLabelFilter}
-                onChangeLabelFilter={setCardLabelFilter}
-                cardSize={cardSize}
-                onChangeCardSize={setCardSize}
-              />
-            <Corkboard
-              scopeId={selected?.type === "FOLDER" ? selected.id : null}
-              scopeParentId={selected?.type === "FOLDER" ? selected.parentId : undefined}
-              onMoveToParent={handleMoveToParent}
-              labelFilter={cardLabelFilter}
-              cardSize={cardSize}
-              documents={documents}
-              selectedId={selectedId}
-              onOpen={(docId) => {
-                setSelectedId(docId);
-                setViewMode("editor"); // 카드를 열면 곧바로 본문으로
-              }}
-              onUpdateSynopsis={updateSynopsis}
-              onUpdateStatus={updateStatus}
-              labels={project?.labels}
-              onMove={handleMove}
-            />
-            </>
-          )}
-          {!isLoading && !error && !selected && viewMode === "editor" && (
-            <div className="flex h-full flex-col items-center justify-center gap-8 text-center text-fg-weak">
-              <p className="text-body-lg">왼쪽에서 문서를 선택하거나</p>
-              <p className="text-body">
-                <b className="text-fg">+ 문서</b>로 첫 글을 시작하세요.
-              </p>
-            </div>
-          )}
-          {selected && selected.type === "DOC" && viewMode === "editor" && (
-            <Editor
-              key={`${selected.id}:${reloadToken}`}
-              documentId={selected.id}
-              projectId={id}
-              initialContent={(selected.content as JSONContent | null) ?? null}
-              title={selected.title}
-              onMeasureChange={setLiveMeasure}
-              onRename={(t) => renameDocument(selected.id, t)}
-            />
-          )}
-          {/* 폴더를 고르면 그 아래 회차를 한 장으로 이어 본다(스크리브너 Scrivenings) */}
-          {selected && selected.type === "FOLDER" && viewMode === "editor" && (
-            <Scrivenings
-              key={selected.id}
-              folder={selected}
-              documents={documents}
-              projectId={id}
-              onOpenDocument={setSelectedId}
-            />
-          )}
+        <WorkspaceMain
+          projectId={id}
+          documents={documents}
+          selection={selection}
+          panels={panels}
+          project={project}
+          docs={docs}
+          isLoading={isLoading}
+          error={error}
+          tabConflict={tabConflict}
+          onMove={handleMove}
+          onMoveToParent={handleMoveToParent}
+          reloadToken={reloadToken}
+          liveWords={liveWords}
+          unit={unit}
+          focusProgress={focusProgress}
+        />
 
-          {/* 집중 모드: 은은한 단어 수/진행률 + 나가기(ESC) */}
-          {focusMode && (
-            <div className="fixed bottom-16 right-16 z-10 flex flex-col items-end gap-6">
-              <div className="flex items-center gap-8 rounded-full border border-border bg-surface px-12 py-6 text-caption text-fg-weak shadow-sm">
-                <span className="tabular-nums">{formatCount(liveWords, unit)}</span>
-                {focusProgress.hasGoal && (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span
-                      className={cn(
-                        "tabular-nums",
-                        focusProgress.reached && "text-success-strong",
-                      )}
-                    >
-                      {focusProgress.reached ? "달성" : `${focusProgress.percent}%`}
-                    </span>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="ml-4 text-fg-muted hover:text-fg"
-                  onClick={() => setFocusMode(false)}
-                >
-                  나가기 (ESC)
-                </button>
-              </div>
-              {focusProgress.hasGoal && (
-                <ProgressBar
-                  value={focusProgress.clampedPercent}
-                  reached={focusProgress.reached}
-                  aria-label="집중 모드 진행률"
-                  className="w-[200px]"
-                />
-              )}
-            </div>
-          )}
-        </main>
-
-        {/* 우: 인스펙터 (기본 접힘) — 정보 / 스냅샷 탭. 집중 모드에서는 숨김 */}
-        {inspectorOpen && !focusMode && (
-          <aside className={cn(SIDE_PANEL, "w-[280px]")}>
-            <div role="tablist" className="mb-12 flex gap-4">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={inspectorTab === "info"}
-                onClick={() => setInspectorTab("info")}
-                className={
-                  inspectorTab === "info"
-                    ? "rounded-md px-8 py-4 text-caption font-medium text-fg"
-                    : "rounded-md px-8 py-4 text-caption text-fg-weak hover:text-fg"
-                }
-              >
-                정보
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={inspectorTab === "snapshots"}
-                onClick={() => setInspectorTab("snapshots")}
-                className={
-                  inspectorTab === "snapshots"
-                    ? "rounded-md px-8 py-4 text-caption font-medium text-fg"
-                    : "rounded-md px-8 py-4 text-caption text-fg-weak hover:text-fg"
-                }
-              >
-                스냅샷
-              </button>
-            </div>
-            {inspectorTab === "info" && (
-              <Inspector
-                doc={selected}
-                onSaveSynopsis={updateSynopsis}
-                onSaveNote={updateNote}
-                onSaveStatus={updateStatus}
-                onSaveLabel={updateLabel}
-                labels={project?.labels}
-                onSaveLabels={updateLabels}
-                onClearLabelFromDocuments={clearLabelFromDocuments}
-                currentWords={liveWords}
-                onSaveDocGoal={updateGoal}
-                projectTotalWords={projectTotalWords}
-                projectGoal={project?.goal}
-                onSaveProjectGoal={updateProjectGoal}
-                deadline={project?.deadline}
-                onSaveDeadline={updateDeadline}
-              />
-            )}
-            {inspectorTab === "snapshots" &&
-              (selected && selected.type === "DOC" ? (
-                <SnapshotPanel doc={selected} onRestored={handleRestored} />
-              ) : (
-                <p className="text-body-sm text-fg-weak">
-                  본문 문서를 선택하면 스냅샷을 저장할 수 있어요.
-                </p>
-              ))}
-          </aside>
-        )}
-
-        {/* 우: 리서치 노트 (캐릭터·설정) — 바인더와 분리된 작품 단위 참고 자료 */}
-        {notesOpen && !focusMode && (
-          <aside className={cn(SIDE_PANEL, "w-[300px]")}>
-            <NotesPanel projectId={id} />
-          </aside>
-        )}
-
-        {/* 우: 타임라인(연표) — 사건 순서와 회차 연결 */}
-        {timelineOpen && !focusMode && (
-          <aside className={cn(SIDE_PANEL, "w-[320px]")}>
-            <TimelinePanel
-              projectId={id}
-              documents={documents}
-              onOpenDocument={(docId) => {
-                setSelectedId(docId);
-                setViewMode("editor");
-              }}
-            />
-          </aside>
-        )}
-
-        {/* 우: 설정 점검 — 고유명사 사전·표기 흔들림·문장 리듬 */}
-        {checkOpen && !focusMode && (
-          <aside className={cn(SIDE_PANEL, "w-[320px]")}>
-            <ConsistencyPanel
-              projectId={id}
-              documents={documents}
-              selectedDoc={selected}
-            />
-          </aside>
-        )}
-
-        {/* 우: 집필 현황 — 오늘 분량·연속 집필일·최근 추이·회차별 분량 */}
-        {statsOpen && !focusMode && (
-          <aside className={cn(SIDE_PANEL, "w-[320px]")}>
-            <StatsPanel
-              projectId={id}
-              documents={documents}
-              dailyGoal={project?.dailyGoal}
-              episodeGoal={project?.episodeGoal}
-              projectGoal={project?.goal}
-              projectWords={projectTotalWords}
-              onSaveDailyGoal={updateDailyGoal}
-              onSaveEpisodeGoal={updateEpisodeGoal}
-              onSelectDocument={setSelectedId}
-            />
-          </aside>
-        )}
-
-        {/* 우: 검색 — 제목·본문 검색, 결과 클릭 시 문서 선택 */}
-        {searchOpen && !focusMode && (
-          <aside className={cn(SIDE_PANEL, "w-[300px] overflow-hidden")}>
-            <SearchPanel
-              documents={documents}
-              onSelect={(docId) => {
-                setSelectedId(docId);
-                setSearchOpen(false);
-              }}
-            />
-          </aside>
-        )}
-
-        {/* 우: 휴지통 — 소프트 삭제 문서 복원 / 영구 삭제 */}
-        {trashOpen && !focusMode && (
-          <aside className={cn(SIDE_PANEL, "w-[300px] overflow-hidden")}>
-            <TrashPanel
-              trashedDocuments={trashedDocuments}
-              onRestore={async (docId) => {
-                const node = trashedDocuments.find((d) => d.id === docId);
-                try {
-                  await restoreDocument(docId);
-                  // 복원한 게 본문 문서면 바로 선택해 보여준다(폴더면 바인더에서 펼치도록 둔다).
-                  if (node?.type === "DOC") setSelectedId(docId);
-                } catch {
-                  toast("복원에 실패했어요.", "error");
-                }
-              }}
-              onPermanentDelete={async (docId) => {
-                try {
-                  await permanentlyDeleteDocument(docId);
-                } catch {
-                  toast("영구 삭제에 실패했어요.", "error");
-                }
-              }}
-            />
-          </aside>
-        )}
+        <WorkspaceSidePanels
+          projectId={id}
+          documents={documents}
+          selection={selection}
+          panels={panels}
+          docs={docs}
+          projectApi={projectApi}
+          liveWords={liveWords}
+          projectTotalWords={projectTotalWords}
+          onRestored={handleRestored}
+        />
       </div>
 
-      {/* 독자 뷰 — 연재본처럼 보이는 현재 회차 미리보기 */}
-      {selected && selected.type === "DOC" && (
-        <ReaderPreview
-          open={previewOpen}
-          onClose={() => setPreviewOpen(false)}
-          title={selected.title}
-          content={selected.content}
-        />
-      )}
-
-      {/* 내보내기 — txt/마크다운, 현재 문서 또는 작품 전체를 브라우저 다운로드 */}
-      <ExportMenu
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        projectTitle={project?.title ?? "작품"}
+      <WorkspaceOverlays
         documents={documents}
-        selectedDoc={selected}
-        presets={project?.compilePresets}
-        onSavePresets={updateCompilePresets}
-      />
-      <QuickOpen
-        open={quickOpen}
-        documents={documents}
-        onClose={() => setQuickOpen(false)}
-        onPick={(d) => {
-          setSelectedId(d.id);
-          setViewMode("editor");
-        }}
+        selection={selection}
+        panels={panels}
+        projectApi={projectApi}
+        quickOpen={quickOpen}
+        setQuickOpen={setQuickOpen}
       />
     </div>
   );

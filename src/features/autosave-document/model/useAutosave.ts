@@ -11,10 +11,39 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 const DEBOUNCE_MS = 800;
 const backupKey = (id: string) => `builbook:doc-backup:${id}`;
 
+export interface DocBackup {
+  content: unknown;
+  measure: TextMeasure;
+}
+
+/** 탭이 닫히거나 저장이 실패해 localStorage에 남긴 미저장 본문. 없으면 null. */
+export function readBackup(documentId: string): DocBackup | null {
+  try {
+    const raw = localStorage.getItem(backupKey(documentId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<DocBackup>;
+    return parsed && typeof parsed === "object" && "content" in parsed && parsed.measure
+      ? (parsed as DocBackup)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearBackup(documentId: string): void {
+  try {
+    localStorage.removeItem(backupKey(documentId));
+  } catch {
+    /* 무시 */
+  }
+}
+
 // 자동저장 훅(로컬 우선 · IndexedDB). 저장 상태표(idle/saving/saved/error)를 관리하고,
 // 실패 시 localStorage에 백업하여 데이터 손실을 막는다.
 export function useAutosave(documentId: string, projectId: string) {
   const [status, setStatus] = useState<SaveStatus>("idle");
+  const statusRef = useRef<SaveStatus>("idle");
+  statusRef.current = status;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<{ content: unknown; measure: TextMeasure } | null>(null);
 
@@ -60,6 +89,34 @@ export function useAutosave(documentId: string, projectId: string) {
       void flush();
     };
   }, [flush]);
+
+  // 탭을 닫거나 다른 곳으로 갈 때: debounce 대기 중인 본문을 localStorage에 즉시(동기) 남기고
+  // IndexedDB 저장도 시도한다. IndexedDB 쓰기는 탭이 먼저 죽으면 끝나지 않을 수 있어,
+  // 다음에 문서를 열 때 readBackup으로 되살린다(에디터가 처리).
+  useEffect(() => {
+    const onPageHide = () => {
+      if (!pending.current) return;
+      try {
+        localStorage.setItem(backupKey(documentId), JSON.stringify(pending.current));
+      } catch {
+        /* 저장 불가 — 아래 flush에 맡긴다 */
+      }
+      if (timer.current) clearTimeout(timer.current);
+      void flush();
+    };
+    // IndexedDB 쓰기가 진행 중인 짧은 순간에만 브라우저의 "나가시겠어요?" 확인을 띄운다.
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (statusRef.current !== "saving" && !pending.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, [documentId, flush]);
 
   return { status, schedule };
 }
