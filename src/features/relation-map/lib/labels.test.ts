@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { pillSize, placeLabels, rectsOverlap, type LabelItem } from "./labels";
+import { needsLeader, pillSize, placeLabels, rectsOverlap, type LabelItem } from "./labels";
 
 const item = (id: string, x: number, y: number, normal = { x: 0, y: 1 }): LabelItem => ({
   id, anchor: { x, y }, normal, w: 60, h: 20,
@@ -29,8 +29,22 @@ describe("labels", () => {
     const ys = new Set([out.get("a")!.y, out.get("b")!.y, out.get("c")!.y]);
     expect(ys.size).toBe(3);
   });
+  it("법선 쪽이 모두 막히면 선 방향으로 비킨다", () => {
+    // 위아래로 긴 장애물이 법선(세로) 후보를 전부 막는다 → 선 방향(가로)으로 두 칸 비킨다.
+    const wall = { x: -40, y: -200, w: 80, h: 400 };
+    const out = placeLabels([{ ...item("a", 0, 0), tangent: { x: 1, y: 0 } }], [wall]);
+    expect(Math.abs(out.get("a")!.x)).toBeGreaterThanOrEqual(70);
+  });
   it("pillSize는 12자를 넘으면 줄인다", () => {
     expect(pillSize("가나다").w).toBe(3 * 12 + 14);
     expect(pillSize("가나다라마바사아자차카타파하").text.endsWith("…")).toBe(true);
+  });
+});
+
+describe("needsLeader", () => {
+  it("제자리거나 살짝만 움직였으면 안내선이 없고, 밀려났으면 있다", () => {
+    expect(needsLeader({ x: 0, y: 0 }, { x: 0, y: 0 })).toBe(false);
+    expect(needsLeader({ x: 0, y: 0 }, { x: 5, y: 5 })).toBe(false);
+    expect(needsLeader({ x: 0, y: 0 }, { x: 0, y: 24 })).toBe(true);
   });
 });

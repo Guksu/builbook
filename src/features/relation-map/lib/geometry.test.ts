@@ -8,7 +8,9 @@ import {
   clipToRect,
   edgeGeometry,
   hitNode,
+  nodeWidth,
   resolveLayout,
+  toBoxes,
 } from "./geometry";
 
 describe("layout", () => {
@@ -69,5 +71,21 @@ describe("edges", () => {
   });
   it("같은 점이면 그대로", () => {
     expect(clipToRect({ x: 5, y: 5 }, { x: 5, y: 5 })).toEqual({ x: 5, y: 5 });
+  });
+});
+
+describe("node width", () => {
+  it("이름이 길수록 넓고, 최소·최대가 있다", () => {
+    expect(nodeWidth("루나")).toBe(112);
+    expect(nodeWidth("기사단장 로렌스")).toBe(8 * 14 + 48);
+    expect(nodeWidth("아주아주아주아주아주아주아주 긴 이름")).toBe(240);
+  });
+  it("toBoxes는 좌표에 폭·높이를 붙이고, 선은 넓은 노드의 테두리에서 시작한다", () => {
+    const boxes = toBoxes({ a: { x: 0, y: 0 }, b: { x: 400, y: 0 } }, (id) => (id === "a" ? "기사단장 로렌스" : "루나"));
+    expect(boxes.a.w).toBe(160);
+    const e = edgeGeometry(boxes.a, boxes.b);
+    expect(e.x1).toBeCloseTo(160 + 4);
+    expect(hitNode(boxes, { x: 150, y: 10 })).toBe("a");
+    expect(hitNode({ a: { x: 0, y: 0 } }, { x: 150, y: 10 })).toBeNull(); // 기본 폭 128
   });
 });

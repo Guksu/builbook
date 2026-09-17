@@ -19,8 +19,23 @@ function freezeStyles(original: Element, clone: Element) {
   }
 }
 
+export interface PngOptions {
+  /** 인쇄용 흑백 — 색을 밝기값으로 바꾸고 배경은 흰색. */
+  monochrome?: boolean;
+}
+
+/** 픽셀을 밝기값(ITU-R BT.601)으로 — 색맹·흑백 인쇄에서도 진하기 차이는 남는다. */
+export function toGrayscale(data: Uint8ClampedArray): void {
+  for (let i = 0; i < data.length; i += 4) {
+    const y = Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+    data[i] = y;
+    data[i + 1] = y;
+    data[i + 2] = y;
+  }
+}
+
 /** 화면의 SVG를 PNG Blob으로. scale은 선명도(2 = 레티나). */
-export function svgToPngBlob(svg: SVGSVGElement, scale = 2): Promise<Blob> {
+export function svgToPngBlob(svg: SVGSVGElement, scale = 2, options: PngOptions = {}): Promise<Blob> {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   freezeStyles(svg, clone);
   const width = svg.width.baseVal.value || svg.clientWidth;
@@ -29,7 +44,7 @@ export function svgToPngBlob(svg: SVGSVGElement, scale = 2): Promise<Blob> {
   clone.setAttribute("width", String(width));
   clone.setAttribute("height", String(height));
   // 배경 — 화면의 surface 색을 그대로.
-  const bg = getComputedStyle(svg).backgroundColor || "#ffffff";
+  const bg = options.monochrome ? "#ffffff" : getComputedStyle(svg).backgroundColor || "#ffffff";
   const xml = new XMLSerializer().serializeToString(clone);
   const url = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
   return new Promise((resolve, reject) => {
@@ -45,6 +60,11 @@ export function svgToPngBlob(svg: SVGSVGElement, scale = 2): Promise<Blob> {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.scale(scale, scale);
       ctx.drawImage(img, 0, 0);
+      if (options.monochrome) {
+        const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        toGrayscale(image.data);
+        ctx.putImageData(image, 0, 0);
+      }
       canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("PNG 변환 실패"))), "image/png");
     };
     img.onerror = () => {
@@ -56,10 +76,10 @@ export function svgToPngBlob(svg: SVGSVGElement, scale = 2): Promise<Blob> {
 }
 
 /** 파일명 — 작품 제목 + 날짜. 파일명에 못 쓰는 글자는 뺀다. */
-export function pngFileName(projectTitle: string, date = new Date()): string {
+export function pngFileName(projectTitle: string, date = new Date(), monochrome = false): string {
   const safe = projectTitle.replace(/[\\/:*?"<>|]/g, "").trim() || "작품";
   const ymd = date.toISOString().slice(0, 10);
-  return `${safe}-관계도-${ymd}.png`;
+  return `${safe}-관계도${monochrome ? "-흑백" : ""}-${ymd}.png`;
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

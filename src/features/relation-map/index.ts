@@ -11,9 +11,13 @@ export {
   hitNode,
   edgeGeometry,
   clipToRect,
+  nodeWidth,
+  toBoxes,
   type Layout,
+  type NodeBox,
+  type Boxes,
   type EdgeGeometry,
 } from "./lib/geometry";
 export { episodeDocs, episodeOrder } from "./lib/episodes";
-export { placeLabels, pillSize, rectsOverlap, type LabelItem, type Rect } from "./lib/labels";
-export { svgToPngBlob, pngFileName, downloadBlob } from "./lib/exportPng";
+export { placeLabels, pillSize, rectsOverlap, needsLeader, type LabelItem, type Rect } from "./lib/labels";
+export { svgToPngBlob, pngFileName, downloadBlob, toGrayscale, type PngOptions } from "./lib/exportPng";

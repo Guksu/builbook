@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Button, cn, usePersistedState, useToast } from "@shared/ui";
+import { Button, ContextMenu, cn, usePersistedState, useToast } from "@shared/ui";
 import { isOneOf } from "@shared/lib";
 import type { DocumentNode } from "@entities/document";
 import { findLabel, withDefaultLabels, type NodePosition, type ProjectLabel } from "@entities/project";
@@ -68,6 +68,7 @@ export function RelationMapView({
   const { events } = useStoryEvents(projectId);
   const svgRef = useRef<SVGSVGElement>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number } | null>(null);
   const characters = useMemo(
     () => documents.filter((d) => d.type === "DOC" && d.kind === "character"),
     [documents],
@@ -137,14 +138,14 @@ export function RelationMapView({
     [events, orderOf],
   );
 
-  async function exportPng() {
+  async function exportPng(monochrome: boolean) {
     const svg = svgRef.current;
     if (!svg || exporting) return;
     setExporting(true);
     try {
-      const blob = await svgToPngBlob(svg, 2);
-      downloadBlob(blob, pngFileName(projectTitle));
-      toast("관계도 이미지를 내려받았어요.", "success");
+      const blob = await svgToPngBlob(svg, 2, { monochrome });
+      downloadBlob(blob, pngFileName(projectTitle, new Date(), monochrome));
+      toast(monochrome ? "흑백 관계도 이미지를 내려받았어요." : "관계도 이미지를 내려받았어요.", "success");
     } catch {
       toast("이미지를 만들지 못했어요.", "error");
     } finally {
@@ -218,7 +219,12 @@ export function RelationMapView({
               size="sm"
               variant="ghost"
               disabled={characters.length === 0 || exporting}
-              onClick={() => void exportPng()}
+              aria-haspopup="menu"
+              aria-expanded={!!exportMenu}
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setExportMenu({ x: r.right - 180, y: r.bottom + 4 });
+              }}
             >
               {exporting ? "만드는 중…" : "이미지 저장"}
             </Button>
@@ -265,6 +271,19 @@ export function RelationMapView({
           onConnect={connect}
           onEditRelation={(r) => setForm({ fromId: r.fromId, toId: r.toId, existing: r })}
           onOpenNode={onOpenDocument}
+        />
+      )}
+
+      {exportMenu && (
+        <ContextMenu
+          x={exportMenu.x}
+          y={exportMenu.y}
+          label="이미지 저장 메뉴"
+          items={[
+            { label: "컬러 PNG", onSelect: () => void exportPng(false) },
+            { label: "흑백 PNG (인쇄용)", onSelect: () => void exportPng(true) },
+          ]}
+          onClose={() => setExportMenu(null)}
         />
       )}
 

@@ -15,13 +15,17 @@ export interface LabelItem {
   anchor: NodePosition;
   /** 밀어낼 방향(단위 벡터, 선의 법선). */
   normal: NodePosition;
+  /** 선 방향(단위 벡터, 선택). 법선 쪽이 다 막히면 이 방향으로도 비켜 본다. */
+  tangent?: NodePosition;
   w: number;
   h: number;
 }
 
 const GAP = 4;
-/** 후보 순서: 제자리, +1, -1, +2, -2, +3, -3 칸. */
+/** 법선 방향 후보 순서: 제자리, +1, -1, +2, -2, +3, -3 칸. */
 const STEPS = [0, 1, -1, 2, -2, 3, -3];
+/** 법선 쪽이 다 막혔을 때 선 방향으로 비키는 후보(칸 = 라벨 폭의 절반 + 여백). */
+const TANGENT_STEPS = [1, -1, 2, -2];
 
 export function rectsOverlap(a: Rect, b: Rect, gap = GAP): boolean {
   return !(a.x + a.w + gap <= b.x || b.x + b.w + gap <= a.x || a.y + a.h + gap <= b.y || b.y + b.h + gap <= a.y);
@@ -46,9 +50,23 @@ export function placeLabels(items: readonly LabelItem[], obstacles: readonly Rec
   const out = new Map<string, NodePosition>();
   for (const item of items) {
     const step = item.h + GAP;
+    const candidates: NodePosition[] = STEPS.map((k) => ({
+      x: item.anchor.x + item.normal.x * step * k,
+      y: item.anchor.y + item.normal.y * step * k,
+    }));
+    if (item.tangent) {
+      const along = item.w / 2 + GAP * 2;
+      for (const k of TANGENT_STEPS) {
+        for (const side of [1, -1]) {
+          candidates.push({
+            x: item.anchor.x + item.tangent.x * along * k + item.normal.x * step * side,
+            y: item.anchor.y + item.tangent.y * along * k + item.normal.y * step * side,
+          });
+        }
+      }
+    }
     let chosen: NodePosition = item.anchor;
-    for (const k of STEPS) {
-      const c = { x: item.anchor.x + item.normal.x * step * k, y: item.anchor.y + item.normal.y * step * k };
+    for (const c of candidates) {
       const r = rectAt(c, item.w, item.h);
       const clash = obstacles.some((o) => rectsOverlap(r, o)) || placed.some((p) => rectsOverlap(r, p));
       if (!clash) {
@@ -60,4 +78,11 @@ export function placeLabels(items: readonly LabelItem[], obstacles: readonly Rec
     out.set(item.id, chosen);
   }
   return out;
+}
+
+/** 라벨이 처음 자리에서 이만큼 넘게 밀렸으면 안내선을 그린다(px). */
+export const LEADER_MIN_DISTANCE = 8;
+
+export function needsLeader(anchor: NodePosition, placed: NodePosition): boolean {
+  return Math.hypot(placed.x - anchor.x, placed.y - anchor.y) > LEADER_MIN_DISTANCE;
 }

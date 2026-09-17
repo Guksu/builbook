@@ -113,6 +113,14 @@
 - **연표 사건 시점** — "시점" 선택에 "연표 사건 (연결된 회차 기준)" 묶음. 회차에 연결된 사건만 후보이고 값은 그 회차 id(변화 계산은 그대로 회차 순서).
 - **e2e** — `relation-map.spec.ts` 2개 추가(종류 색·저장·PNG, 사건 시점).
 
+### 루프 12 (2026-09-17) — 인물 관계도 후속 4건 (명세 `docs/loops/2026-09-17-relation-map-4.md`)
+- **안내선** — `needsLeader(anchor, placed)`: 8px 넘게 밀린 라벨만 처음 자리(선 위)와 라벨 중심을 점선(`2 3`, 투명도 0.7)으로 잇는다. 알약보다 먼저 그려 알약 아래로 들어간다.
+- **흑백 PNG** — `svgToPngBlob(svg, scale, { monochrome })`: 캔버스에 그린 뒤 `getImageData`로 픽셀을 BT.601 밝기값으로 바꾸고(`toGrayscale`), 배경은 흰색. 캔버스 `filter` 속성은 Safari 지원이 불확실해 쓰지 않았다. 파일명 `-흑백` 접미. "이미지 저장" 버튼은 `ContextMenu`(컬러 / 흑백)로.
+- **노드 폭** — `nodeWidth(name)` = 글자 수 × 14 + 48, 112~240. `toBoxes(layout, nameOf)`가 좌표에 폭·높이를 붙이고, `nodeCenter/canvasSize/hitNode/edgeGeometry/clipToRect`가 `NodeBox`(w·h 선택, 없으면 기본 128×44)를 받는다. 저장 좌표는 왼쪽 위 기준이라 폭이 바뀌어도 그대로. 이름은 13자 넘으면 말줄임.
+- **인스펙터 요약** — `CharacterRelationsSummary`(widgets/relation-map): 인물 카드가 열렸을 때 "정보" 탭 아래. 이 인물이 얽힌 관계를 상대 이름순으로 상대·종류(색 점)·(→ 이 인물이 상대에게 / ← 상대가 이 인물에게). "관계도 열기"는 가운데 보기를 관계로 바꾼다. 데이터는 `useRelations`로 직접 읽어 Inspector 위젯은 손대지 않았다.
+- **배치·라벨 보강(스크린샷 검수 결과)** — 원형 배치 반지름 최소 140 → 190, 인물당 간격 (128+24) → (128+56). 라벨 후보에 접선 방향(±1·±2칸 × 법선 ±1칸 = 8곳)을 더해 법선 쪽이 다 막혀도 자리를 찾는다(`LabelItem.tangent`, 캔버스가 법선에서 접선을 만든다).
+- **e2e** — 1개 추가(노드 폭 112/160, 흑백 파일명, 요약·열기), 기존 PNG 테스트는 메뉴 경유로 수정.
+
 ## 3. 주의사항
 
 - **헤더 e2e 계약**: 패널은 `getByRole("button", { name: "패널", exact: true })` → `getByRole("menuitemcheckbox", { name: "<패널명>" })`, 미리보기·내보내기·테마는 `getByRole("button", { name: "더 보기" })` → `getByRole("menuitem", …)`. 인스펙터·집중·본문/카드는 그대로 버튼.
@@ -127,6 +135,7 @@
 - **폴더 선택**: 이제 폴더 클릭은 접기가 아니라 선택(연속 보기)이다. 접기는 chevron과 ←/→ 키.
 - **카드 문서는 원고가 아니다**: `kind`가 character/setting이면 회차 분량표·내보내기에서 빠진다. 코르크보드·검색·백업에는 포함된다.
 
+- **관계도 기하 함수는 상자(`NodeBox`)를 받는다**: 좌표(`Layout`)만 넘기면 기본 폭 128로 계산돼 넓은 노드에서 선이 네모 안으로 들어간다. 캔버스처럼 `toBoxes`로 바꿔 넘길 것.
 - **SVG를 그림으로 뽑을 때**: 클래스에 기댄 스타일은 `<img>`로 그리는 순간 사라진다. `exportPng.ts`처럼 계산된 스타일을 속성으로 굳혀야 한다. 새 SVG 요소에 색 클래스를 더하면 `STYLE_PROPS`에 그 속성이 있는지 확인할 것.
 - **라벨 색을 쓰는 새 화면은 `withDefaultLabels`부터**: `Project.labels`는 한 번도 안 건드린 작품에서 `undefined`다. `findLabel(labels, id)`에 그대로 넘기면 null이 나와 색이 사라진다(관계도 첫 e2e에서 겪음).
 - **개발 서버를 죽일 때 같은 명령줄에 서버 시작 문자열을 넣지 말 것**: `(npx next dev -p 3100 &) … pkill -f "next dev -p 31[0]0"`처럼 한 Bash 호출에 두면 pkill이 자기 셸(명령줄에 "next dev -p 3100"이 있음)을 죽인다(exit 144, 두 번 겪음). 시작과 종료는 별도 호출로.

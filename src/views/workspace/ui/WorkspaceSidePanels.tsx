@@ -10,6 +10,7 @@ import { StatsPanel } from "@widgets/stats-panel";
 import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
 import { IdeaPanel } from "@widgets/idea-panel";
+import { CharacterRelationsSummary } from "@widgets/relation-map";
 import { SearchPanel } from "@features/search-document";
 import { TrashPanel } from "@features/trash-document";
 import type { DocumentNode } from "@entities/document";
@@ -111,6 +112,15 @@ export function WorkspaceSidePanels({
               deadline={project?.deadline}
               onSaveDeadline={projectApi.updateDeadline}
             />
+            {selected && selected.type === "DOC" && selected.kind === "character" && (
+              <CharacterRelationsSummary
+                projectId={projectId}
+                doc={selected}
+                documents={documents}
+                typeColors={project?.relationTypeColors}
+                onOpenRelations={() => setViewMode("relations")}
+              />
+            )}
             </div>
           )}
           {inspectorTab === "snapshots" && (

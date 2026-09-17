@@ -12,9 +12,11 @@ import {
   clampPosition,
   edgeGeometry,
   hitNode,
+  needsLeader,
   nodeCenter,
   pillSize,
   placeLabels,
+  toBoxes,
   type LabelItem,
   type Layout,
   type Rect,
@@ -80,21 +82,24 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
   const dragRef = useRef<Drag>(null);
   dragRef.current = drag;
 
-  const size = canvasSize(layout);
   const nameOf = new Map(nodes.map((n) => [n.id, n.name]));
+  // 노드 상자 — 폭은 이름 길이에 따라 다르다(저장 좌표는 왼쪽 위 기준이라 그대로).
+  const boxes = toBoxes(layout, (id) => nameOf.get(id) ?? "");
+  const size = canvasSize(boxes);
 
   // 선 기하를 먼저 다 구한 뒤, 라벨 자리를 한꺼번에 정한다(겹침 회피는 전체를 봐야 한다).
   const edges = relations.flatMap((r) => {
-    const a = layout[r.fromId];
-    const b = layout[r.toId];
+    const a = boxes[r.fromId];
+    const b = boxes[r.toId];
     if (!a || !b) return [];
     return [{ r, g: edgeGeometry(a, b), change: changeNoteOf?.get(r.id) ?? null }];
   });
   const labelItems: LabelItem[] = [];
   for (const { r, g, change } of edges) {
+    const tangent = { x: g.normal.y, y: -g.normal.x };
     const push = (id: string, anchor: NodePosition, text: string) => {
       const { w, h } = pillSize(text);
-      labelItems.push({ id, anchor, normal: g.normal, w, h });
+      labelItems.push({ id, anchor, normal: g.normal, tangent, w, h });
     };
     push(`${r.id}:type`, g.mid, r.type);
     if (change) push(`${r.id}:change`, g.changeSlot, change);
@@ -102,8 +107,8 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
     if (r.toLabel) push(`${r.id}:to`, g.nearB, r.toLabel);
   }
   const obstacles: Rect[] = nodes
-    .filter((n) => layout[n.id])
-    .map((n) => ({ x: layout[n.id].x, y: layout[n.id].y, w: NODE_W, h: NODE_H }));
+    .filter((n) => boxes[n.id])
+    .map((n) => ({ x: boxes[n.id].x, y: boxes[n.id].y, w: boxes[n.id].w ?? NODE_W, h: NODE_H }));
   const labelPos = placeLabels(labelItems, obstacles);
   const at = (id: string, fallback: NodePosition) => labelPos.get(id) ?? fallback;
 
@@ -124,7 +129,7 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
     if (e.button !== 0) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
-    const c = nodeCenter(layout[id]);
+    const c = nodeCenter(boxes[id]);
     setDrag({ kind: "connect", fromId: id, x: c.x, y: c.y, overId: null });
   }
 
@@ -137,7 +142,7 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
       setLayout((prev) => ({ ...prev, [d.id]: next }));
       if (!d.moved) setDrag({ ...d, moved: true });
     } else {
-      const over = hitNode(layout, p);
+      const over = hitNode(boxes, p);
       setDrag({ ...d, x: p.x, y: p.y, overId: over && over !== d.fromId ? over : null });
     }
   }
@@ -207,6 +212,11 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
                 markerEnd={r.fromLabel ? "url(#rel-arrow)" : undefined}
                 markerStart={r.toLabel ? "url(#rel-arrow)" : undefined}
               />
+              {/* 밀려난 라벨은 원래 자리(선 위)와 점선으로 잇는다 — 어느 선의 라벨인지 잃지 않게 */}
+              <Leader from={g.mid} to={typeAt} />
+              {change && <Leader from={g.changeSlot} to={changeAtPos} />}
+              {r.fromLabel && <Leader from={g.nearA} to={fromAt} />}
+              {r.toLabel && <Leader from={g.nearB} to={toAt} />}
               <Pill x={typeAt.x} y={typeAt.y} text={r.type} strong />
               {change && <Pill x={changeAtPos.x} y={changeAtPos.y} text={change} accent />}
               {r.fromLabel && <Pill x={fromAt.x} y={fromAt.y} text={r.fromLabel} />}
@@ -218,8 +228,8 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
         {/* 연결 중인 임시 선 */}
         {drag?.kind === "connect" && (
           <line
-            x1={nodeCenter(layout[drag.fromId]).x}
-            y1={nodeCenter(layout[drag.fromId]).y}
+            x1={nodeCenter(boxes[drag.fromId]).x}
+            y1={nodeCenter(boxes[drag.fromId]).y}
             x2={drag.x}
             y2={drag.y}
             stroke="currentColor"
@@ -230,8 +240,9 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
 
         {/* 노드 */}
         {nodes.map((n) => {
-          const pos = layout[n.id];
+          const pos = boxes[n.id];
           if (!pos) return null;
+          const w = pos.w ?? NODE_W;
           const active = drag?.kind === "connect" && drag.overId === n.id;
           const dragging = drag?.kind === "move" && drag.id === n.id;
           return (
@@ -250,9 +261,10 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
               }}
             >
               <rect
-                width={NODE_W}
+                width={w}
                 height={NODE_H}
                 rx={10}
+                data-node-width={w}
                 className={cn(
                   "fill-bg stroke-border",
                   active && "stroke-primary",
@@ -273,16 +285,16 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
                 />
               )}
               <text
-                x={NODE_W / 2 - 6}
+                x={w / 2 - 6}
                 y={NODE_H / 2}
                 dominantBaseline="middle"
                 textAnchor="middle"
                 className="fill-fg text-body-sm font-medium"
               >
-                {n.name.length > 9 ? `${n.name.slice(0, 8)}…` : n.name}
+                {n.name.length > 13 ? `${n.name.slice(0, 12)}…` : n.name}
               </text>
               <circle
-                cx={NODE_W}
+                cx={w}
                 cy={NODE_H / 2}
                 r={HANDLE_R}
                 className="pointer-events-none fill-surface stroke-border"
@@ -290,7 +302,7 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
               />
               {/* 보이는 원보다 넓은 투명한 누르기 영역 — 손가락으로도 잡힌다 */}
               <circle
-                cx={NODE_W}
+                cx={w}
                 cy={NODE_H / 2}
                 r={HANDLE_HIT_R}
                 role="button"
@@ -306,6 +318,24 @@ export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(fun
     </div>
   );
 });
+
+/** 밀려난 라벨의 안내선 — 처음 자리와 라벨 중심 사이. 안 밀렸으면 아무것도 안 그린다. */
+function Leader({ from, to }: { from: NodePosition; to: NodePosition }) {
+  if (!needsLeader(from, to)) return null;
+  return (
+    <line
+      x1={from.x}
+      y1={from.y}
+      x2={to.x}
+      y2={to.y}
+      stroke="currentColor"
+      strokeWidth={1}
+      strokeDasharray="2 3"
+      opacity={0.7}
+      data-leader
+    />
+  );
+}
 
 /** 선 위의 작은 라벨 — 글자 수로 너비를 어림한다(측정 없이). */
 function Pill({ x, y, text, strong, accent }: { x: number; y: number; text: string; strong?: boolean; accent?: boolean }) {

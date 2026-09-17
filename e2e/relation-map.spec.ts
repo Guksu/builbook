@@ -209,6 +209,7 @@ test("종류 색을 고르면 같은 종류의 선이 모두 바뀌고, 이미�
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "이미지 저장" }).click();
+  await page.getByRole("menuitem", { name: "컬러 PNG" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toMatch(/^관계도 테스트-관계도-\d{4}-\d{2}-\d{2}\.png$/);
   await expect(page.getByText("관계도 이미지를 내려받았어요.")).toBeVisible();
@@ -240,4 +241,42 @@ test("회차에 연결된 연표 사건은 시점으로 고를 수 있다", asyn
   const point = page.getByLabel("시점");
   await point.selectOption({ label: "주인공 회귀 · 1화" });
   await expect(page.getByRole("button", { name: /관계 테아르 – 루나/ })).toContainText("서로 알아본다");
+});
+
+test("노드 폭은 이름 길이를 따르고, 흑백 이미지도 내려받으며, 인스펙터에 이 인물의 관계가 요약된다", async ({ page }) => {
+  await createProjectAndOpen(page);
+  await createCharacter(page, "루나");
+  await createCharacter(page, "기사단장 로렌스");
+  await openRelations(page);
+  const narrow = page.getByRole("button", { name: "인물 루나", exact: true }).locator("rect[data-node-width]");
+  const wide = page.getByRole("button", { name: "인물 기사단장 로렌스", exact: true }).locator("rect[data-node-width]");
+  await expect(narrow).toHaveAttribute("data-node-width", "112");
+  await expect(wide).toHaveAttribute("data-node-width", "160");
+
+  await dragCenter(
+    page,
+    page.getByRole("button", { name: "루나에서 관계 잇기" }),
+    page.getByRole("button", { name: "인물 기사단장 로렌스", exact: true }),
+  );
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("종류", { exact: true }).selectOption("스승");
+  await dialog.getByLabel("루나 → 기사단장 로렌스").fill("존경");
+  await dialog.getByRole("button", { name: "만들기" }).click();
+  await expect(page.getByRole("button", { name: "관계 루나 – 기사단장 로렌스: 스승" })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "이미지 저장" }).click();
+  await page.getByRole("menuitem", { name: "흑백 PNG (인쇄용)" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/-관계도-흑백-\d{4}-\d{2}-\d{2}\.png$/);
+
+  // 인스펙터 요약
+  await page.getByRole("treeitem", { name: "루나" }).click();
+  await page.keyboard.press("Control+Shift+Digit8");
+  const summary = page.getByRole("region", { name: "이 인물의 관계" });
+  await expect(summary).toContainText("기사단장 로렌스");
+  await expect(summary).toContainText("스승");
+  await expect(summary).toContainText("→ 존경");
+  await summary.getByRole("button", { name: "관계도 열기" }).click();
+  await expect(page.getByText("인물 관계도")).toBeVisible();
 });
