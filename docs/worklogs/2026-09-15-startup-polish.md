@@ -71,7 +71,16 @@
 - **본문 표시 설정** — `features/focus-settings`(글자 크기 4단·줄 간격 3단·폭 3단·타이프라이터). 브라우저 전체 설정(localStorage). 에디터는 CSS 변수(`--editor-font-size`·`--editor-line-height`)로 받는다 — 클래스(`text-body`)로 두면 설정이 못 이긴다. 집중 모드에서는 제목·툴바가 hover/포커스 때만 보이고, 타이프라이터가 켜지면 커서 줄을 `main` 스크롤 가운데로.
 - **UX 감사 수정** — Tailwind spacing에 `28`·`36` 추가(`h-28`을 쓰던 select·input이 높이 없이 늘어나던 버그), 저장 공간 미보호 안내를 경고색에서 일반 안내로, 헤더 칩 꺼진 점 숨김, 휴지통 이동 "되돌리기" 토스트(`Toast`에 action 지원), Alt+S 리스너 ref화, 탭 가드 문서 한정.
 
+### 루프 6 (2026-09-17) — 작업실 냄새 정리 + 헤더 정비 (명세 `docs/loops/2026-09-17-workspace-smells.md`)
+- **선택 복원 한 패스** — `useWorkspaceSelection`: 선택 문서가 살아 있으면 그대로, 아니면 마지막 문서→첫 문서를 한 번에 고른다.
+- **여러 개 이동 롤백** — `handleMoveManyToParent`: 실패 시 앞서 옮긴 항목을 역순으로 원래 자리로. 롤백까지 실패하면 토스트로만 알린다.
+- **인스펙터 탭 접근성** — `id`/`aria-controls`/`role=tabpanel`/`aria-labelledby`.
+- **`useDocuments` 안정화** — 액션 묶음을 `useMemo([projectId, mutate])`로. 그래서 액션 안에서는 `allDocuments`(SWR 캐시) 대신 `dbGetAllByProject`로 읽는다(휴지통 이동·복원·영구 삭제·라벨 정리). 소비처의 리스너·memo가 렌더마다 깨지지 않는다.
+- **헤더 정비(사용자 요청)** — 칩 7개를 "패널" 메뉴(열린 수 배지, `menuitemcheckbox`)로, 미리보기·내보내기·테마 전환은 "더 보기" 메뉴로. 인스펙터와 집중만 밖에 남김. `ContextMenu`에 `checkbox`·`disabled` 추가. e2e는 `패널` 버튼 → `menuitemcheckbox`, `더 보기` → `menuitem` 경유로 바꿨다(12개 스펙).
+
 ## 3. 주의사항
+
+- **헤더 e2e 계약**: 패널은 `getByRole("button", { name: "패널", exact: true })` → `getByRole("menuitemcheckbox", { name: "<패널명>" })`, 미리보기·내보내기·테마는 `getByRole("button", { name: "더 보기" })` → `getByRole("menuitem", …)`. 인스펙터·집중·본문/카드는 그대로 버튼.
 
 - **Tailwind 눈금**: `h-28`·`h-36`처럼 눈금에 없는 값을 쓰면 클래스가 조용히 무시된다. 새 값을 쓰기 전에 `tailwind.config.ts` spacing을 확인할 것.
 

@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ThemeToggle } from "@features/toggle-theme";
-import { cn } from "@shared/ui";
+import { useState } from "react";
+import { useTheme } from "next-themes";
+import { cn, ContextMenu } from "@shared/ui";
 
 /** 오른쪽 레일 패널 식별자 — 열림 표시등·토글이 공유하는 단일 키. */
 export type WorkspacePanelKey =
@@ -14,20 +15,18 @@ export type WorkspacePanelKey =
   | "trash"
   | "inspector";
 
-// 성격이 같은 패널끼리 묶어 간격으로 구분한다: 집필 관리 / 자료 / 보조 뷰.
-const PANEL_GROUPS: { key: WorkspacePanelKey; label: string }[][] = [
-  [
-    { key: "timeline", label: "연표" },
-    { key: "stats", label: "현황" },
-    { key: "check", label: "점검" },
-  ],
-  [
-    { key: "search", label: "검색" },
-    { key: "notes", label: "리서치" },
-    { key: "trash", label: "휴지통" },
-  ],
-  [{ key: "inspector", label: "인스펙터" }],
+// 헤더에 칩 7개를 늘어놓으면 눈이 갈 곳이 없다(사용자 피드백). 자주 쓰는 인스펙터만 남기고
+// 나머지 패널은 "패널" 메뉴 하나로, 일회성 동작·테마는 "더 보기" 메뉴로 모은다.
+const PANEL_MENU: { key: WorkspacePanelKey; label: string }[] = [
+  { key: "timeline", label: "연표" },
+  { key: "stats", label: "현황" },
+  { key: "check", label: "점검" },
+  { key: "search", label: "검색" },
+  { key: "notes", label: "리서치" },
+  { key: "trash", label: "휴지통" },
 ];
+
+type HeaderMenu = { kind: "panels" | "more"; x: number; y: number } | null;
 
 interface WorkspaceHeaderProps {
   projectTitle?: string;
@@ -67,6 +66,14 @@ export function WorkspaceHeader({
   binderOpen,
   goalSlot,
 }: WorkspaceHeaderProps) {
+  const [menu, setMenu] = useState<HeaderMenu>(null);
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const openCount = PANEL_MENU.filter((p) => openPanels[p.key]).length;
+  const openMenu = (kind: "panels" | "more") => (e: React.MouseEvent<HTMLButtonElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenu({ kind, x: r.right - 200, y: r.bottom + 4 });
+  };
   return (
     <header className="flex h-48 items-center gap-16 border-b border-border pl-8 pr-12 max-md:gap-8 max-md:overflow-x-auto">
       {/* 좌: 어디에서 얼마나 쓰고 있는지 — 좁은 화면에서는 줄어들지 않고 제목만 자른다 */}
@@ -125,32 +132,46 @@ export function WorkspaceHeader({
         aria-label="작업 패널과 도구"
         className="flex items-center gap-10 overflow-x-auto"
       >
-        {PANEL_GROUPS.map((group) => (
-          <div key={group[0].key} className="flex items-center gap-2">
-            {group.map(({ key, label }) => (
-              <PanelChip
-                key={key}
-                label={label}
-                active={openPanels[key]}
-                onClick={() => onTogglePanel(key)}
-              />
-            ))}
-          </div>
-        ))}
+        {/* 패널 메뉴 — 열린 패널 수를 배지로 */}
+        <button
+          type="button"
+          aria-label="패널"
+          aria-haspopup="menu"
+          aria-expanded={menu?.kind === "panels"}
+          onClick={openMenu("panels")}
+          className={cn(
+            "flex h-28 shrink-0 items-center gap-6 rounded-full px-10 text-caption transition-colors",
+            openCount > 0 ? "bg-primary-weak text-fg" : "text-fg-weak hover:bg-surface hover:text-fg",
+          )}
+        >
+          <IconPanels />
+          패널
+          {openCount > 0 && (
+            <span className="rounded-full bg-primary px-6 text-[11px] leading-[16px] text-primary-fg">
+              {openCount}
+            </span>
+          )}
+          <IconCaret />
+        </button>
+        <PanelChip
+          label="인스펙터"
+          active={openPanels.inspector}
+          onClick={() => onTogglePanel("inspector")}
+        />
 
         <Divider />
 
-        {/* 일회성 동작 — 패널 토글과 달리 표시등이 없다 */}
-        <div className="flex items-center gap-2">
-          <ActionButton onClick={onOpenPreview} disabled={previewDisabled}>
-            미리보기
-          </ActionButton>
-          <ActionButton onClick={onOpenExport}>내보내기</ActionButton>
-        </div>
-
-        <Divider />
-
-        <ThemeToggle />
+        {/* 더 보기 — 미리보기·내보내기·테마 */}
+        <button
+          type="button"
+          aria-label="더 보기"
+          aria-haspopup="menu"
+          aria-expanded={menu?.kind === "more"}
+          onClick={openMenu("more")}
+          className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full text-fg-weak transition-colors hover:bg-surface hover:text-fg"
+        >
+          <IconMore />
+        </button>
         <button
           type="button"
           onClick={onEnterFocus}
@@ -160,7 +181,65 @@ export function WorkspaceHeader({
           집중
         </button>
       </div>
+
+      {menu?.kind === "panels" && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label="패널 메뉴"
+          items={PANEL_MENU.map((p) => ({
+            label: p.label,
+            checked: openPanels[p.key],
+            checkbox: true,
+            onSelect: () => onTogglePanel(p.key),
+          }))}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      {menu?.kind === "more" && (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label="더 보기 메뉴"
+          items={[
+            { label: "미리보기", disabled: previewDisabled, onSelect: onOpenPreview },
+            { label: "내보내기", onSelect: onOpenExport },
+            {
+              label: isDark ? "라이트 모드로 전환" : "다크 모드로 전환",
+              onSelect: () => setTheme(isDark ? "light" : "dark"),
+            },
+          ]}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </header>
+  );
+}
+
+function IconPanels() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <rect x="2.5" y="2.5" width="11" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 2.5v11" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function IconCaret() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconMore() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+      <circle cx="3.5" cy="8" r="1.5" />
+      <circle cx="8" cy="8" r="1.5" />
+      <circle cx="12.5" cy="8" r="1.5" />
+    </svg>
   );
 }
 
@@ -222,16 +301,6 @@ function PanelChip({
       />
       {label}
     </button>
-  );
-}
-
-function ActionButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return (
-    <button
-      type="button"
-      {...props}
-      className="h-28 shrink-0 rounded-full px-10 text-caption text-fg-weak transition-colors hover:bg-surface hover:text-fg disabled:pointer-events-none disabled:opacity-40"
-    />
   );
 }
 

@@ -57,7 +57,8 @@ test("탭이 닫히기 전 남긴 백업을 다음에 열 때 되살린다", asy
 
 test("내보내기 옵션의 select·input 높이가 28px로 고정된다", async ({ page }) => {
   await createProjectAndOpen(page);
-  await page.getByRole("button", { name: "내보내기", exact: true }).click();
+  await page.getByRole("button", { name: "더 보기" }).click();
+  await page.getByRole("menuitem", { name: "내보내기" }).click();
   const dialog = page.getByRole("dialog", { name: "내보내기" });
   await expect(dialog.getByLabel("회차 구분")).toHaveCSS("height", "28px");
   await expect(dialog.getByLabel("시작 회차")).toHaveCSS("height", "28px");

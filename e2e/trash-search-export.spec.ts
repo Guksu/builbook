@@ -36,7 +36,8 @@ test("문서 삭제 → 휴지통에 나타남 → 복원 → 바인더 복귀",
   await expect(page.locator("nav").getByText("복원될 문서")).toHaveCount(0);
 
   // 휴지통을 열면 삭제된 문서가 보인다
-  await page.getByRole("button", { name: "휴지통", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "휴지통" }).click();
   const trashList = page.getByRole("list", { name: "휴지통 목록" });
   await expect(trashList.getByText("복원될 문서")).toBeVisible();
 
@@ -60,7 +61,8 @@ test("검색으로 문서를 찾아 선택한다 (제목·본문)", async ({ pag
   await createDoc(page, "에필로그");
 
   // 검색 패널 열기 → 본문 단어로 검색
-  await page.getByRole("button", { name: "검색", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "검색" }).click();
   await page.getByLabel("문서 검색").fill("방패");
 
   const results = page.getByRole("list", { name: "검색 결과" });
@@ -81,7 +83,8 @@ test("작품 전체를 파일로 내보낸다 (다운로드 트리거)", async (
   await page.waitForTimeout(1500);
 
   // 내보내기 모달 → 작품 전체 TXT 다운로드
-  await page.getByRole("button", { name: "내보내기", exact: true }).click();
+  await page.getByRole("button", { name: "더 보기" }).click();
+  await page.getByRole("menuitem", { name: "내보내기" }).click();
   const dialog = page.getByRole("dialog", { name: "내보내기" });
   await expect(dialog).toBeVisible();
 

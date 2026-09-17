@@ -33,7 +33,8 @@ test("컴파일 옵션: 회차 범위와 구분선, 제목 제외가 TXT에 반�
   await newDoc(page, "3화");
   await typeBody(page, "셋째 본문");
 
-  await page.getByRole("button", { name: "내보내기", exact: true }).click();
+  await page.getByRole("button", { name: "더 보기" }).click();
+  await page.getByRole("menuitem", { name: "내보내기" }).click();
   const dialog = page.getByRole("dialog", { name: "내보내기" });
   await expect(dialog.getByText("전체 3회차")).toBeVisible();
   await dialog.getByLabel("시작 회차").fill("2");

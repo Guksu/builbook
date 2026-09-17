@@ -42,17 +42,14 @@ export function useWorkspaceSelection(
   // 에디터가 올려주는 실시간 분량(단어·글자) — 목표·집중모드 카운터가 즉시 반영되도록.
   const [liveMeasure, setLiveMeasure] = useState<TextMeasure>(ZERO_MEASURE);
 
-  // 마지막에 열었던 문서를 우선 복원하고, 없으면 첫 DOC 자동 선택. 선택 문서가 사라지면 해제.
+  // 선택 문서가 살아 있으면 그대로. 없거나 사라졌으면 마지막에 열었던 문서 → 첫 DOC 순으로 한 번에 고른다.
+  // (해제와 재선택을 두 패스로 나누면 한 렌더 동안 빈 화면이 스친다.)
   useEffect(() => {
-    if (selectedId && !documents.some((d) => d.id === selectedId)) {
-      setSelectedId(null);
-    }
-    if (!selectedId) {
-      const last = readLastDoc(projectId);
-      const lastDoc = last ? documents.find((d) => d.id === last && d.type === "DOC") : null;
-      const firstDoc = lastDoc ?? documents.find((d) => d.type === "DOC");
-      if (firstDoc) setSelectedId(firstDoc.id);
-    }
+    if (selectedId !== null && documents.some((d) => d.id === selectedId)) return;
+    const last = readLastDoc(projectId);
+    const lastDoc = last ? documents.find((d) => d.id === last && d.type === "DOC") : null;
+    const next = (lastDoc ?? documents.find((d) => d.type === "DOC"))?.id ?? null;
+    if (next !== selectedId) setSelectedId(next);
   }, [documents, selectedId, projectId]);
 
   // 폴더 선택은 기억하지 않는다 — 다시 들어왔을 때 복원하는 건 '쓰던 회차'뿐이다.

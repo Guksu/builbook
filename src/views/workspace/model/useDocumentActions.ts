@@ -88,15 +88,31 @@ export function useDocumentActions({
   // (매번 원래 목록으로 계산하면 전부 같은 order를 받아 한자리에 겹친다).
   async function handleMoveManyToParent(ids: string[], parentId: string | null) {
     let working = documents;
+    // 중간에 실패하면 앞서 옮긴 것을 원래 자리로 되돌린다 — 절반만 옮겨진 채 남지 않게.
+    const moved: { id: string; parentId: string | null; order: number }[] = [];
     for (const docId of ids) {
       const plan = planMoveToParent(working, docId, parentId);
       if (!plan || plan.kind !== "move") continue;
+      const before = working.find((d) => d.id === plan.id);
       try {
         await moveDocument(plan.id, plan.parentId, plan.order);
       } catch {
-        toast("이동에 실패했어요.", "error");
+        for (const m of moved.reverse()) {
+          try {
+            await moveDocument(m.id, m.parentId, m.order);
+          } catch {
+            /* 롤백까지 실패하면 남은 것은 그대로 — 아래 토스트로 알린다 */
+          }
+        }
+        toast(
+          moved.length > 0
+            ? "이동에 실패해 옮긴 항목을 원래 자리로 되돌렸어요."
+            : "이동에 실패했어요.",
+          "error",
+        );
         return;
       }
+      if (before) moved.push({ id: before.id, parentId: before.parentId, order: before.order });
       working = working.map((d) =>
         d.id === plan.id ? { ...d, parentId: plan.parentId, order: plan.order } : d,
       );

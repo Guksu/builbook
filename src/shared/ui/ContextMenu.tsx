@@ -16,6 +16,9 @@ export interface ContextMenuItem {
   checked?: boolean;
   /** 이름 앞에 찍을 색 점의 배경 유틸 클래스(라벨 색 등). 없으면 점을 그리지 않는다. */
   dotClass?: string;
+  /** checked와 함께 쓰면 라디오 대신 체크박스 항목(여러 개 동시 켜짐 — 패널 목록 같은 것). */
+  checkbox?: boolean;
+  disabled?: boolean;
 }
 
 export interface ContextMenuProps {
@@ -99,12 +102,16 @@ export function ContextMenu({ x, y, items, onClose, label }: ContextMenuProps) {
         <button
           key={item.label}
           type="button"
-          role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+          role={
+            item.checked === undefined ? "menuitem" : item.checkbox ? "menuitemcheckbox" : "menuitemradio"
+          }
           aria-checked={item.checked}
+          disabled={item.disabled}
           className={cn(
             "flex w-full items-center gap-6 rounded-sm px-8 py-6 text-left text-body-sm",
             "hover:bg-surface focus-visible:bg-surface focus-visible:outline-none",
             item.danger ? "text-error" : "text-fg",
+            item.disabled && "pointer-events-none opacity-40",
           )}
           onClick={() => {
             onClose();

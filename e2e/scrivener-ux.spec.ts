@@ -72,6 +72,7 @@ test("인물 카드 템플릿으로 문서를 만들면 틀이 채워지고 회�
   await expect(page.getByRole("treeitem", { name: "주인공 카드" })).toContainText("인물 카드");
 
   // 회차 분량표에는 회차(1화)만
-  await page.getByRole("button", { name: "현황" }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "현황" }).click();
   await expect(page.getByRole("list", { name: "회차 분량 목록" }).getByRole("button")).toHaveCount(1);
 });

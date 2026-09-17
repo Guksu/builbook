@@ -65,7 +65,8 @@ test("연표에 사건을 세우고 회차와 연결한다", async ({ page }) =>
   await createProjectAndOpen(page);
   await createDoc(page, "1화 회귀");
 
-  await page.getByRole("button", { name: "연표", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "연표" }).click();
   await page.getByRole("button", { name: "+ 사건" }).click();
   await page.getByLabel("사건 이름").fill("주인공 회귀");
   await page.getByLabel("작중 시점").fill("1024년 봄");
@@ -80,7 +81,8 @@ test("연표에 사건을 세우고 회차와 연결한다", async ({ page }) =>
 
 test("연표 사건 순서를 위아래로 바꾼다", async ({ page }) => {
   await createProjectAndOpen(page);
-  await page.getByRole("button", { name: "연표", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "연표" }).click();
 
   for (const name of ["첫 번째 사건", "두 번째 사건"]) {
     await page.getByRole("button", { name: "+ 사건" }).click();
@@ -96,7 +98,8 @@ test("연표 사건 순서를 위아래로 바꾼다", async ({ page }) => {
 
   // 새로고침해도 순서가 유지된다
   await page.reload();
-  await page.getByRole("button", { name: "연표", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "연표" }).click();
   await expect(
     page.getByRole("list", { name: "타임라인 목록" }).getByRole("listitem").first(),
   ).toContainText("두 번째 사건");

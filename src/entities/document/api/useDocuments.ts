@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import useSWR from "swr";
 import {
   STORES,
@@ -70,13 +71,10 @@ export function useDocuments(projectId: string) {
   // 휴지통 패널이 소비할 삭제 문서(루트 선별은 패널이 selectTrashRoots로 처리).
   const trashedDocuments = selectTrashedDocuments(allDocuments);
 
-  return {
-    documents,
-    trashedDocuments,
-    isLoading,
-    error,
-    mutate,
-
+  // 액션 묶음은 projectId·mutate에만 묶어 렌더마다 새 함수가 생기지 않게 한다 —
+  // 소비처(단축키 리스너·memo)가 매 타이핑마다 다시 붙는 낭비를 막는다.
+  // 그래서 액션 안에서는 SWR 캐시(allDocuments) 대신 DB를 신선하게 읽는다(stale 방지도 겸함).
+  const actions = useMemo(() => ({
     async createDocument(input: {
       title: string;
       type?: DocType;
@@ -160,7 +158,8 @@ export function useDocuments(projectId: string) {
     // 작품에서 라벨을 지울 때, 그 라벨을 달고 있던 문서들의 참조를 함께 비운다(죽은 id 방지).
     async clearLabelFromDocuments(labelId: string) {
       const ts = now();
-      const targets = allDocuments.filter((d) => d.label === labelId);
+      const all = await dbGetAllByProject<DocumentNode>(STORES.documents, projectId);
+      const targets = all.filter((d) => d.label === labelId);
       if (targets.length === 0) return;
       const updated = targets.map((d) => {
         const next = { ...d, updatedAt: ts };
@@ -196,9 +195,12 @@ export function useDocuments(projectId: string) {
     async deleteDocument(id: string) {
       const ts = now();
       // 현재 정상 문서들 기준으로 서브트리를 모은다(이미 휴지통인 노드는 대상 아님).
-      const subtree = collectSubtreeIds(documents, id);
+      const active = selectActiveDocuments(
+        await dbGetAllByProject<DocumentNode>(STORES.documents, projectId),
+      );
+      const subtree = collectSubtreeIds(active, id);
       const targets = new Set(subtree);
-      const updated = documents
+      const updated = active
         .filter((d) => targets.has(d.id))
         .map((d) => ({ ...d, trashedAt: ts, updatedAt: ts }));
       await dbBulkPut(STORES.documents, updated);
@@ -209,10 +211,11 @@ export function useDocuments(projectId: string) {
     // 한 번만 갱신한다 — deleteDocument를 반복하면 그 사이 목록이 갈아엎히며 순서가 꼬인다.
     async deleteDocuments(ids: string[]) {
       const ts = now();
-      const targets = new Set(
-        ids.flatMap((id) => collectSubtreeIds(documents, id)),
+      const active = selectActiveDocuments(
+        await dbGetAllByProject<DocumentNode>(STORES.documents, projectId),
       );
-      const updated = documents
+      const targets = new Set(ids.flatMap((id) => collectSubtreeIds(active, id)));
+      const updated = active
         .filter((d) => targets.has(d.id))
         .map((d) => ({ ...d, trashedAt: ts, updatedAt: ts }));
       if (updated.length === 0) return;
@@ -223,10 +226,11 @@ export function useDocuments(projectId: string) {
     // 휴지통에서 복원(trashedAt 제거). 폴더면 서브트리 전체를 함께 복원.
     async restoreDocument(id: string) {
       const ts = now();
-      // 휴지통 포함 전체(allDocuments)에서 서브트리를 모은다(자손도 휴지통 상태이므로).
-      const subtree = collectSubtreeIds(allDocuments, id);
+      // 휴지통 포함 전체(DB)에서 서브트리를 모은다(자손도 휴지통 상태이므로).
+      const all = await dbGetAllByProject<DocumentNode>(STORES.documents, projectId);
+      const subtree = collectSubtreeIds(all, id);
       const targets = new Set(subtree);
-      const updated = allDocuments
+      const updated = all
         .filter((d) => targets.has(d.id) && d.trashedAt)
         .map((d) => {
           const next = { ...d, updatedAt: ts };
@@ -239,7 +243,8 @@ export function useDocuments(projectId: string) {
 
     // 영구 삭제(진짜 하드 삭제 + 스냅샷 정리). 폴더면 서브트리 전체를 완전 제거.
     async permanentlyDeleteDocument(id: string) {
-      const subtree = collectSubtreeIds(allDocuments, id);
+      const all = await dbGetAllByProject<DocumentNode>(STORES.documents, projectId);
+      const subtree = collectSubtreeIds(all, id);
       await dbBulkDelete(STORES.documents, subtree);
       // 딸린 스냅샷도 함께 정리 — 고아 스냅샷 누적 방지(하드 삭제 로직이 여기로 이동).
       await deleteSnapshotsForDocuments(subtree);
@@ -264,5 +269,7 @@ export function useDocuments(projectId: string) {
       await dbBulkPut(STORES.documents, updated);
       await mutate();
     },
-  };
+  }), [projectId, mutate]);
+
+  return { documents, trashedDocuments, isLoading, error, mutate, ...actions };
 }

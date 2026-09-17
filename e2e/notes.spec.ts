@@ -29,7 +29,8 @@ async function createProjectAndOpen(page: Page) {
 
 // 헤더의 '리서치' 토글로 노트 패널 열기
 async function openNotes(page: Page) {
-  await page.getByRole("button", { name: "리서치", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "리서치" }).click();
 }
 
 test("캐릭터 노트 추가 → 목록 표시 → 편집 → 삭제", async ({ page }) => {

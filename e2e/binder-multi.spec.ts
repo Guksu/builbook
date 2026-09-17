@@ -50,7 +50,8 @@ test("Shift+클릭으로 범위를 골라 한꺼번에 휴지통으로 보낸다
   // 셋 다 사라지고 휴지통에 그대로 있다(되살릴 수 있다).
   await expect(tree(page).getByRole("treeitem")).toHaveCount(0);
   await expect(page.getByText("3개 선택")).toHaveCount(0);
-  await page.getByRole("button", { name: "휴지통", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "휴지통" }).click();
   await expect(
     page.getByRole("list", { name: "휴지통 목록" }).getByRole("listitem"),
   ).toHaveCount(3);

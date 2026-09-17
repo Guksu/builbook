@@ -135,7 +135,8 @@ test("영구 삭제 시 그 문서의 스냅샷도 cascade 삭제된다 (고아 
   expect(await count(page, "snapshots")).toBe(1);
 
   // 휴지통에서 영구 삭제 → 이제 문서·스냅샷 모두 완전 제거(고아 누적 방지)
-  await page.getByRole("button", { name: "휴지통", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "휴지통" }).click();
   await page
     .getByRole("list", { name: "휴지통 목록" })
     .getByRole("button", { name: "영구 삭제" })

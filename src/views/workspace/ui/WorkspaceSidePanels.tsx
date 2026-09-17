@@ -59,10 +59,12 @@ export function WorkspaceSidePanels({
       {/* 우: 인스펙터 (기본 접힘) — 정보 / 스냅샷 탭. 집중 모드에서는 숨김 */}
       {openPanels.inspector && !focusMode && (
         <aside className={cn(SIDE_PANEL, "w-[280px]")}>
-          <div role="tablist" className="mb-12 flex gap-4">
+          <div role="tablist" aria-label="인스펙터 탭" className="mb-12 flex gap-4">
             <button
               type="button"
               role="tab"
+              id="inspector-tab-info"
+              aria-controls="inspector-panel-info"
               aria-selected={inspectorTab === "info"}
               onClick={() => setInspectorTab("info")}
               className={
@@ -76,6 +78,8 @@ export function WorkspaceSidePanels({
             <button
               type="button"
               role="tab"
+              id="inspector-tab-snapshots"
+              aria-controls="inspector-panel-snapshots"
               aria-selected={inspectorTab === "snapshots"}
               onClick={() => setInspectorTab("snapshots")}
               className={
@@ -88,6 +92,7 @@ export function WorkspaceSidePanels({
             </button>
           </div>
           {inspectorTab === "info" && (
+            <div role="tabpanel" id="inspector-panel-info" aria-labelledby="inspector-tab-info">
             <Inspector
               doc={selected}
               onSaveSynopsis={docs.updateSynopsis}
@@ -105,15 +110,23 @@ export function WorkspaceSidePanels({
               deadline={project?.deadline}
               onSaveDeadline={projectApi.updateDeadline}
             />
+            </div>
           )}
-          {inspectorTab === "snapshots" &&
-            (selected && selected.type === "DOC" ? (
-              <SnapshotPanel doc={selected} onRestored={onRestored} />
-            ) : (
-              <p className="text-body-sm text-fg-weak">
-                본문 문서를 선택하면 스냅샷을 저장할 수 있어요.
-              </p>
-            ))}
+          {inspectorTab === "snapshots" && (
+            <div
+              role="tabpanel"
+              id="inspector-panel-snapshots"
+              aria-labelledby="inspector-tab-snapshots"
+            >
+              {selected && selected.type === "DOC" ? (
+                <SnapshotPanel doc={selected} onRestored={onRestored} />
+              ) : (
+                <p className="text-body-sm text-fg-weak">
+                  본문 문서를 선택하면 스냅샷을 저장할 수 있어요.
+                </p>
+              )}
+            </div>
+          )}
         </aside>
       )}
 

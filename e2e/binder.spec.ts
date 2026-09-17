@@ -103,7 +103,8 @@ test("우클릭 메뉴로 문서를 삭제한다", async ({ page }) => {
 
   await expect(tree(page).getByRole("treeitem", { name: "지울 문서" })).toHaveCount(0);
   // 휴지통으로 갔을 뿐이라 되살릴 수 있다.
-  await page.getByRole("button", { name: "휴지통", exact: true }).click();
+  await page.getByRole("button", { name: "패널", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "휴지통" }).click();
   await expect(
     page.getByRole("list", { name: "휴지통 목록" }).getByText("지울 문서"),
   ).toBeVisible();

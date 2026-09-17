@@ -32,7 +32,8 @@ test("코르크보드 카드 크기는 새로고침 후에도 유지된다", asy
 
 test("컴파일 프리셋을 저장하면 다시 열었을 때 옵션이 되살아난다", async ({ page }) => {
   await createProjectAndOpen(page);
-  await page.getByRole("button", { name: "내보내기", exact: true }).click();
+  await page.getByRole("button", { name: "더 보기" }).click();
+  await page.getByRole("menuitem", { name: "내보내기" }).click();
   const dialog = page.getByRole("dialog", { name: "내보내기" });
   await dialog.getByLabel("회차 구분").selectOption("stars");
   await dialog.getByLabel("회차 제목 포함").uncheck();
@@ -41,7 +42,8 @@ test("컴파일 프리셋을 저장하면 다시 열었을 때 옵션이 되살�
   await expect(dialog.getByLabel("컴파일 프리셋")).toHaveValue(/.+/);
 
   await page.reload();
-  await page.getByRole("button", { name: "내보내기", exact: true }).click();
+  await page.getByRole("button", { name: "더 보기" }).click();
+  await page.getByRole("menuitem", { name: "내보내기" }).click();
   const again = page.getByRole("dialog", { name: "내보내기" });
   await expect(again.getByLabel("회차 구분")).toHaveValue("none"); // 열 때는 기본값
   await again.getByLabel("컴파일 프리셋").selectOption({ label: "플랫폼용" });
