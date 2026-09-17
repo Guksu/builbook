@@ -16,7 +16,8 @@ import { deleteWritingLogsForProject } from "@entities/writing-log";
 import { deleteStoryEventsForProject } from "@entities/story-event";
 import { deleteTermsForProject } from "@entities/term";
 import { deleteIdeasForProject } from "@entities/idea";
-import type { Project, CompilePreset, AiModelChoice } from "../model/types";
+import { deleteRelationsForProject } from "@entities/relation";
+import type { Project, CompilePreset, AiModelChoice, NodePosition } from "../model/types";
 import type { ProjectLabel } from "../lib/labels";
 
 const KEY = "projects";
@@ -93,6 +94,13 @@ export function useProject(projectId: string) {
       await dbPut(STORES.projects, { ...p, aiModel, updatedAt: new Date().toISOString() });
       await mutate();
     },
+    // 관계도 노드 배치 통째 교체(드래그를 놓을 때 한 번).
+    async updateRelationLayout(layout: Record<string, NodePosition>) {
+      const p = await dbGet<Project>(STORES.projects, projectId);
+      if (!p) return;
+      await dbPut(STORES.projects, { ...p, relationLayout: layout, updatedAt: new Date().toISOString() });
+      await mutate();
+    },
     // 마감일(YYYY-MM-DD). null이면 해제.
     async updateDeadline(deadline: string | null) {
       const p = await dbGet<Project>(STORES.projects, projectId);
@@ -148,6 +156,8 @@ export function useProjects() {
       await deleteTermsForProject(id);
       // 영감 서랍 메모도 함께 정리.
       await deleteIdeasForProject(id);
+      // 인물 관계선도 함께 정리.
+      await deleteRelationsForProject(id);
       await dbDelete(STORES.projects, id);
       await mutate();
     },

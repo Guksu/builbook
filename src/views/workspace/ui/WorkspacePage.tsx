@@ -121,6 +121,7 @@ export function WorkspacePage() {
           selection={selection}
           panels={panels}
           project={project}
+          projectApi={projectApi}
           docs={docs}
           isLoading={isLoading}
           error={error}

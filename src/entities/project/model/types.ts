@@ -1,5 +1,11 @@
 import type { ProjectLabel } from "../lib/labels";
 
+/** 관계도 노드 좌표(관계도 캔버스 기준 px). */
+export interface NodePosition {
+  x: number;
+  y: number;
+}
+
 /** AI 발상 모델 선택지 — 실제 모델 id는 shared/ai-client가 맞춘다. */
 export type AiModelChoice = "opus" | "sonnet";
 
@@ -39,6 +45,8 @@ export interface Project {
   genre?: string;
   // AI 발상에 쓸 모델(선택). 미설정이면 기본값(opus)으로 본다.
   aiModel?: AiModelChoice;
+  // 인물 관계도의 노드 배치(인물 카드 문서 id → 좌표, 선택). 없는 인물은 자동 배치.
+  relationLayout?: Record<string, NodePosition>;
   createdAt: string;
   updatedAt: string;
 }

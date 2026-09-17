@@ -9,8 +9,9 @@ const DB_NAME = "builbook";
 // v5: events 스토어 추가(타임라인 사건).
 // v6: terms 스토어 추가(고유명사 사전).
 // v7: ideas 스토어 추가(영감 서랍 — 카드·조합·AI 답·메모).
+// v8: relations 스토어 추가(인물 관계도의 관계선).
 // 백업 파일에 기록해 진단에 쓴다(복원 로직은 버전이 아니라 레코드 형태만 본다).
-export const DB_VERSION = 7;
+export const DB_VERSION = 8;
 
 export const STORES = {
   projects: "projects",
@@ -21,6 +22,7 @@ export const STORES = {
   events: "events",
   terms: "terms",
   ideas: "ideas",
+  relations: "relations",
 } as const;
 export type StoreName = (typeof STORES)[keyof typeof STORES];
 
@@ -64,6 +66,10 @@ function getDB() {
       if (!db.objectStoreNames.contains(STORES.ideas)) {
         const ideas = db.createObjectStore(STORES.ideas, { keyPath: "id" });
         ideas.createIndex("by-project", "projectId");
+      }
+      if (!db.objectStoreNames.contains(STORES.relations)) {
+        const relations = db.createObjectStore(STORES.relations, { keyPath: "id" });
+        relations.createIndex("by-project", "projectId");
       }
     },
   });

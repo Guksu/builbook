@@ -5,6 +5,9 @@ import { useState } from "react";
 import { useTheme } from "next-themes";
 import { cn, ContextMenu, useModLabel } from "@shared/ui";
 
+/** 가운데 화면 — 본문(에디터) · 카드(코르크보드) · 관계(인물 관계도). */
+export type WorkspaceViewMode = "editor" | "corkboard" | "relations";
+
 /** 오른쪽 레일 패널 식별자 — 열림 표시등·토글이 공유하는 단일 키. */
 export type WorkspacePanelKey =
   | "timeline"
@@ -34,8 +37,8 @@ interface WorkspaceHeaderProps {
   projectTitle?: string;
   /** 작품 전체 분량 표기(예: "12,345자") — 편집 중 문서는 실시간 값으로 치환된 합계. */
   totalLabel: string;
-  viewMode: "editor" | "corkboard";
-  onChangeViewMode: (mode: "editor" | "corkboard") => void;
+  viewMode: WorkspaceViewMode;
+  onChangeViewMode: (mode: WorkspaceViewMode) => void;
   openPanels: Record<WorkspacePanelKey, boolean>;
   onTogglePanel: (key: WorkspacePanelKey) => void;
   onOpenPreview: () => void;
@@ -110,7 +113,7 @@ export function WorkspaceHeader({
         {goalSlot}
       </div>
 
-      {/* 중: 가운데 화면 전환 — 본문 ↔ 카드 */}
+      {/* 중: 가운데 화면 전환 — 본문 · 카드 · 관계 */}
       <div
         role="group"
         aria-label="가운데 화면 전환"
@@ -127,6 +130,12 @@ export function WorkspaceHeader({
           onClick={() => onChangeViewMode("corkboard")}
           icon={<IconCards />}
           label="카드"
+        />
+        <SegmentButton
+          active={viewMode === "relations"}
+          onClick={() => onChangeViewMode("relations")}
+          icon={<IconRelations />}
+          label="관계"
         />
       </div>
 
@@ -348,6 +357,17 @@ function IconLines() {
         strokeWidth="1.5"
         strokeLinecap="round"
       />
+    </svg>
+  );
+}
+
+function IconRelations() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden>
+      <circle cx="4" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="4" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="8" cy="12" r="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M6 4h4M5 6l2 4M11 6l-2 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
 }

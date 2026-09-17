@@ -66,6 +66,7 @@ describe("buildBackup / serializeBackup", () => {
       events: 0,
       terms: 0,
       ideas: 0,
+      relations: 0,
     });
   });
 

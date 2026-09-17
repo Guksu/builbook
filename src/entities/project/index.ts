@@ -1,4 +1,4 @@
-export type { Project, CompilePreset, AiModelChoice } from "./model/types";
+export type { Project, CompilePreset, AiModelChoice, NodePosition } from "./model/types";
 export { useProjects, useProject, projectKey } from "./api/useProjects";
 export {
   LABEL_COLORS,

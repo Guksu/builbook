@@ -12,6 +12,7 @@ import {
 } from "@shared/db";
 import { deleteSnapshotsForDocuments } from "@entities/snapshot";
 import { recordWriting } from "@entities/writing-log";
+import { deleteRelationsForDocuments } from "@entities/relation";
 import type { TextMeasure } from "@shared/lib";
 import type { DocumentNode, DocType } from "../model/types";
 import type { DocumentKind } from "../lib/templates";
@@ -248,6 +249,8 @@ export function useDocuments(projectId: string) {
       await dbBulkDelete(STORES.documents, subtree);
       // 딸린 스냅샷도 함께 정리 — 고아 스냅샷 누적 방지(하드 삭제 로직이 여기로 이동).
       await deleteSnapshotsForDocuments(subtree);
+      // 인물 카드였다면 관계도의 선도 함께 정리.
+      await deleteRelationsForDocuments(projectId, subtree);
       await mutate();
     },
 

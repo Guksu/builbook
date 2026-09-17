@@ -92,6 +92,13 @@
 - **e2e** — `idea-drawer.spec.ts` 5개: 카드 뽑기·고정·장르 기억, 메모 저장·새로고침, 조합기 게이팅, AI 흐름(Anthropic 응답을 `page.route`로 SSE 흉내 — 미리보기 토큰 수·스트리밍 결과·전송 본문 검증·키가 본문에 없음), 401 처리.
 - **번들** — 작업실 첫 로드 254KB → 280KB(카드 덱·패널 UI 포함, SDK 제외).
 
+### 루프 9 (2026-09-17) — 인물 관계도 (명세 `docs/loops/2026-09-17-relation-map.md`)
+- **데이터** — `entities/relation`(IndexedDB v8 `relations`, `by-project`): `fromId/toId`(인물 카드 문서 id)·`type`·`fromLabel`(A→B)·`toLabel`(B→A)·`note`. 두 인물 사이 관계는 방향 무관 1개(`findRelationBetween`). 배치는 `Project.relationLayout`(문서 id → 좌표), 드래그를 놓을 때 한 번 저장. 작품 삭제·인물 카드 영구 삭제 시 관계선 cascade, 백업 형식에 `relations` 추가.
+- **기하** — `features/relation-map/lib/geometry.ts`: 원형 자동 배치(`circleLayout`, 인물 수에 따라 반지름), 저장 배치 병합(`resolveLayout`: 없는 인물은 자동 자리, 지운 인물 좌표는 버림), 선 끝을 노드 테두리에서 자름(`clipToRect`), 라벨 자리(종류 라벨은 선 가운데에서 법선 방향 14px, 방향 라벨은 반대쪽·끝에서 40px 안쪽 — 원형 배치의 마주 보는 두 선이 한 중심을 지나도 라벨이 겹치지 않게).
+- **캔버스** — `widgets/relation-map/RelationCanvas`: SVG + 포인터 이벤트(캡처). 노드 드래그는 로컬 상태로 움직이고 놓을 때 저장. 노드 오른쪽 손잡이(circle)에서 시작해 다른 노드 위에서 놓으면 `onConnect`. 선은 투명한 굵은 선을 겹쳐 클릭 영역 확보, `role="button"`으로 키보드 접근. 화살표는 방향 라벨이 있는 쪽에만.
+- **결합** — 헤더 가운데 전환 3단(본문·카드·관계), `WorkspaceViewMode`를 헤더가 정의하고 views가 재수출. 빈 상태에서 "첫 인물 카드 만들기"(템플릿 본문으로 생성).
+- **e2e** — `relation-map.spec.ts` 3개: 빈 상태→첫 카드, 손잡이 드래그→폼→선·라벨·요약·새로고침·재연결 시 고치기·삭제, 노드 드래그 저장·자동 배치 복귀.
+
 ## 3. 주의사항
 
 - **헤더 e2e 계약**: 패널은 `getByRole("button", { name: "패널", exact: true })` → `getByRole("menuitemcheckbox", { name: "<패널명>" })`, 미리보기·내보내기·테마는 `getByRole("button", { name: "더 보기" })` → `getByRole("menuitem", …)`. 인스펙터·집중·본문/카드는 그대로 버튼.
@@ -106,6 +113,8 @@
 - **폴더 선택**: 이제 폴더 클릭은 접기가 아니라 선택(연속 보기)이다. 접기는 chevron과 ←/→ 키.
 - **카드 문서는 원고가 아니다**: `kind`가 character/setting이면 회차 분량표·내보내기에서 빠진다. 코르크보드·검색·백업에는 포함된다.
 
+- **개발 서버를 죽일 때 같은 명령줄에 서버 시작 문자열을 넣지 말 것**: `(npx next dev -p 3100 &) … pkill -f "next dev -p 31[0]0"`처럼 한 Bash 호출에 두면 pkill이 자기 셸(명령줄에 "next dev -p 3100"이 있음)을 죽인다(exit 144, 두 번 겪음). 시작과 종료는 별도 호출로.
+- **SVG 요소의 role**: Playwright `getByRole`은 `<g role="button" aria-label>`·`<circle role="button">`을 잡는다. 관계도 e2e는 이 이름(`인물 {이름}`, `{이름}에서 관계 잇기`, `관계 A – B: 종류`)에 의존한다.
 - **API 키는 어디에도 남기지 않는다**: 백업 JSON·IndexedDB·로그·e2e 스냅샷에 키가 들어가면 안 된다. e2e는 요청 본문에 키가 없음을 검사한다. 키를 다루는 코드는 `shared/ai-client/keyStore.ts` 한 곳뿐이어야 한다.
 - **Anthropic SDK 정적 import 금지**: `@anthropic-ai/sdk`는 `shared/ai-client/client.ts`에서만 `import()`로 부른다. 배럴에서 재수출하면 작업실 번들이 커진다(docx와 같은 규칙).
 - **패널 번호 = PANEL_KEYS 순서**: 패널을 추가하면 `PANEL_KEYS`, 헤더 `PANEL_MENU`, 단축키 정규식(`[1-8]`), `ShortcutHelp`, e2e `panel-shortcuts.spec`을 함께 바꾼다. 인스펙터는 항상 마지막 번호.

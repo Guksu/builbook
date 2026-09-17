@@ -7,10 +7,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { isCardSize, type CardLabelFilter, type CardSize } from "@features/corkboard";
-import type { WorkspacePanelKey } from "@widgets/workspace-header";
+import type { WorkspacePanelKey, WorkspaceViewMode } from "@widgets/workspace-header";
 import { usePersistedState } from "@shared/ui";
 
-export type WorkspaceViewMode = "editor" | "corkboard";
+export type { WorkspaceViewMode };
 
 /** 패널 순서 = 단축키 번호(Ctrl/⌘+Shift+1~8)와 헤더 메뉴 순서. */
 export const PANEL_KEYS: readonly WorkspacePanelKey[] = [
@@ -84,7 +84,7 @@ export function useWorkspacePanels(projectId: string): WorkspacePanels {
     }
     return out;
   }, [setOpenPanels]);
-  // 가운데 영역 보기 모드: 본문(에디터) ↔ 카드(코르크보드).
+  // 가운데 영역 보기 모드: 본문(에디터) · 카드(코르크보드) · 관계(인물 관계도).
   const [viewMode, setViewMode] = useState<WorkspaceViewMode>("editor");
   const [previewOpen, setPreviewOpen] = useState(false);
   // 코르크보드 라벨 필터·카드 크기 — 작품별로 기억. 범위는 선택된 폴더가 결정한다.

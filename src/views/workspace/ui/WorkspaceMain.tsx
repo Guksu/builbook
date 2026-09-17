@@ -1,15 +1,16 @@
 "use client";
 
 // 작업실 가운데 영역. 로딩·오류·탭 충돌 배너부터 코르크보드(툴바 포함)·빈 상태·
-// 에디터·스크리브닝 연속 보기·집중 모드 오버레이까지, 본문 자리에 오는 것들을 모두 그린다.
+// 에디터·스크리브닝 연속 보기·인물 관계도·집중 모드 오버레이까지, 본문 자리에 오는 것들을 모두 그린다.
 
 import type { JSONContent } from "@tiptap/react";
 import { Editor } from "@widgets/editor";
 import { Scrivenings } from "@widgets/scrivenings";
 import { Corkboard, CorkboardToolbar } from "@widgets/corkboard";
+import { RelationMapView } from "@widgets/relation-map";
 import type { GoalProgress } from "@features/writing-goals";
 import { TabConflictBanner } from "@features/tab-guard";
-import type { DocumentNode } from "@entities/document";
+import { buildTemplateContent, defaultTitleForKind, type DocumentNode } from "@entities/document";
 import { ProgressBar, cn } from "@shared/ui";
 import { formatCount, type CountUnit } from "@shared/lib";
 import type { DocumentsApi, ProjectApi } from "../model/types";
@@ -22,6 +23,7 @@ interface WorkspaceMainProps {
   selection: WorkspaceSelection;
   panels: WorkspacePanels;
   project: ProjectApi["project"];
+  projectApi: ProjectApi;
   docs: DocumentsApi;
   isLoading: boolean;
   error: DocumentsApi["error"];
@@ -42,6 +44,7 @@ export function WorkspaceMain({
   selection,
   panels,
   project,
+  projectApi,
   docs,
   isLoading,
   error,
@@ -103,6 +106,28 @@ export function WorkspaceMain({
             onMove={onMove}
           />
         </>
+      )}
+      {!isLoading && !error && viewMode === "relations" && (
+        <RelationMapView
+          projectId={projectId}
+          documents={documents}
+          savedLayout={project?.relationLayout}
+          onSaveLayout={projectApi.updateRelationLayout}
+          onOpenDocument={(docId) => {
+            setSelectedId(docId);
+            setViewMode("editor");
+          }}
+          onCreateCharacter={async () => {
+            const doc = await docs.createDocument({
+              title: defaultTitleForKind("character", documents),
+              type: "DOC",
+              parentId: null,
+              kind: "character",
+              content: buildTemplateContent("character"),
+            });
+            if (doc) setSelectedId(doc.id);
+          }}
+        />
       )}
       {!isLoading && !error && !selected && viewMode === "editor" && (
         <div className="flex h-full flex-col items-center justify-center gap-8 text-center text-fg-weak">
