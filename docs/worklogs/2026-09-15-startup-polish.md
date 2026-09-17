@@ -106,6 +106,13 @@
 - **회차별 변화** — `Relation.changes?: { documentId, note }[]`(별도 스토어 없음 — 관계와 함께 지워지고 백업된다). 회차 순서는 바인더 순서의 원고 회차(`features/relation-map/lib/episodes.ts`, 폴더 안 포함·카드 제외). `changeAt(relation, orderOf, pointDocId)`가 시점까지의 마지막 변화를 고른다(지워진 회차의 변화는 무시, `sortChanges`는 뒤로). 관계도 툴바 "시점"(최신 / N화까지)은 변화가 하나라도 있을 때만 보인다. 선 아래에 강조 알약으로 표시(`edgeGeometry.changeSlot`). 연표 패널 아래 "관계 변화" 절(`RelationChangesSection`)은 회차 순으로 나열하고 회차를 누르면 그 회차를 연다.
 - **e2e** — `relation-map.spec.ts` 2개 추가(색·목록·기억, 변화·시점·표·연표).
 
+### 루프 11 (2026-09-17) — 인물 관계도 후속 4건 (명세 `docs/loops/2026-09-17-relation-map-3.md`)
+- **라벨 겹침 회피** — `features/relation-map/lib/labels.ts`: 선마다 라벨 4종(종류·변화·A→B·B→A)의 처음 자리와 법선을 모아 `placeLabels`가 탐욕 배치(제자리 → ±1 → ±2 → ±3칸, 칸 = 높이+4px). 노드 네모는 장애물. 어디도 안 비면 제자리. 알약 크기 어림(`pillSize`)을 캔버스 `Pill`과 한 함수로 공유해 계산과 그림이 어긋나지 않게 했다.
+- **종류 색 지정** — `Project.relationTypeColors`(종류 → 라벨 색 이름), `updateRelationTypeColor(type, color|null)`. 폼의 "이 종류의 선 색"은 저장할 때만 반영(고르지 않으면 건드리지 않음). `relationTypeColor(type, overrides)`가 표·캔버스 양쪽의 단일 출처.
+- **PNG 내보내기** — `lib/exportPng.ts`: SVG 복제 후 원본의 `getComputedStyle`에서 fill·stroke·글꼴을 속성으로 새기고 `class`를 지운다(그림 안에서는 CSS 변수·Tailwind가 안 먹는다). Blob URL → `Image` → 캔버스 2배 → `toBlob` → `<a download>`. 파일명 `{작품}-관계도-{YYYY-MM-DD}.png`. e2e는 `download` 이벤트의 파일명을 검사한다.
+- **연표 사건 시점** — "시점" 선택에 "연표 사건 (연결된 회차 기준)" 묶음. 회차에 연결된 사건만 후보이고 값은 그 회차 id(변화 계산은 그대로 회차 순서).
+- **e2e** — `relation-map.spec.ts` 2개 추가(종류 색·저장·PNG, 사건 시점).
+
 ## 3. 주의사항
 
 - **헤더 e2e 계약**: 패널은 `getByRole("button", { name: "패널", exact: true })` → `getByRole("menuitemcheckbox", { name: "<패널명>" })`, 미리보기·내보내기·테마는 `getByRole("button", { name: "더 보기" })` → `getByRole("menuitem", …)`. 인스펙터·집중·본문/카드는 그대로 버튼.
@@ -120,6 +127,7 @@
 - **폴더 선택**: 이제 폴더 클릭은 접기가 아니라 선택(연속 보기)이다. 접기는 chevron과 ←/→ 키.
 - **카드 문서는 원고가 아니다**: `kind`가 character/setting이면 회차 분량표·내보내기에서 빠진다. 코르크보드·검색·백업에는 포함된다.
 
+- **SVG를 그림으로 뽑을 때**: 클래스에 기댄 스타일은 `<img>`로 그리는 순간 사라진다. `exportPng.ts`처럼 계산된 스타일을 속성으로 굳혀야 한다. 새 SVG 요소에 색 클래스를 더하면 `STYLE_PROPS`에 그 속성이 있는지 확인할 것.
 - **라벨 색을 쓰는 새 화면은 `withDefaultLabels`부터**: `Project.labels`는 한 번도 안 건드린 작품에서 `undefined`다. `findLabel(labels, id)`에 그대로 넘기면 null이 나와 색이 사라진다(관계도 첫 e2e에서 겪음).
 - **개발 서버를 죽일 때 같은 명령줄에 서버 시작 문자열을 넣지 말 것**: `(npx next dev -p 3100 &) … pkill -f "next dev -p 31[0]0"`처럼 한 Bash 호출에 두면 pkill이 자기 셸(명령줄에 "next dev -p 3100"이 있음)을 죽인다(exit 144, 두 번 겪음). 시작과 종료는 별도 호출로.
 - **SVG 요소의 role**: Playwright `getByRole`은 `<g role="button" aria-label>`·`<circle role="button">`을 잡는다. 관계도 e2e는 이 이름(`인물 {이름}`, `{이름}에서 관계 잇기`, `관계 A – B: 종류`)에 의존한다.

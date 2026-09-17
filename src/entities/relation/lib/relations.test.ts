@@ -64,5 +64,7 @@ describe("relation changes", () => {
   it("종류별 색 — 직접 입력은 gray", () => {
     expect(relationTypeColor("연인")).toBe("pink");
     expect(relationTypeColor("옛 스승")).toBe("gray");
+    expect(relationTypeColor("연인", { 연인: "purple" })).toBe("purple");
+    expect(relationTypeColor("옛 스승", { "옛 스승": "blue" })).toBe("blue");
   });
 });

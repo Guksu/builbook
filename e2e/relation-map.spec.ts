@@ -184,3 +184,60 @@ test("회차별 변화를 적으면 시점 보기·연표에 나타난다", asyn
   await expect(section).toContainText("테아르 – 루나");
   await expect(section).toContainText("동맹이 된다");
 });
+
+test("종류 색을 고르면 같은 종류의 선이 모두 바뀌고, 이미지로 내려받을 수 있다", async ({ page }) => {
+  await createProjectAndOpen(page);
+  await createCharacter(page, "테아르");
+  await createCharacter(page, "루나");
+  await openRelations(page);
+  await dragCenter(
+    page,
+    page.getByRole("button", { name: "테아르에서 관계 잇기" }),
+    page.getByRole("button", { name: "인물 루나", exact: true }),
+  );
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("종류", { exact: true }).selectOption("연인");
+  await dialog.getByLabel(/이 종류의 선 색/).selectOption("purple");
+  await dialog.getByRole("button", { name: "만들기" }).click();
+  const edge = page.getByRole("button", { name: "관계 테아르 – 루나: 연인" });
+  await expect(edge).toHaveClass(/text-label-purple/);
+
+  // 색 선택은 작품에 저장된다
+  await page.reload();
+  await openRelations(page);
+  await expect(page.getByRole("button", { name: "관계 테아르 – 루나: 연인" })).toHaveClass(/text-label-purple/);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "이미지 저장" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/^관계도 테스트-관계도-\d{4}-\d{2}-\d{2}\.png$/);
+  await expect(page.getByText("관계도 이미지를 내려받았어요.")).toBeVisible();
+});
+
+test("회차에 연결된 연표 사건은 시점으로 고를 수 있다", async ({ page }) => {
+  await createProjectAndOpen(page);
+  // 연표 사건 하나를 1화에 연결
+  await page.keyboard.press("Control+Shift+Digit1");
+  await page.getByRole("button", { name: "+ 사건" }).click();
+  await page.getByLabel("사건 이름").fill("주인공 회귀");
+  await page.getByLabel("연결할 회차").selectOption({ label: "1화" });
+  await page.getByRole("button", { name: "추가", exact: true }).click();
+  await page.keyboard.press("Control+Shift+Digit1");
+
+  await createCharacter(page, "테아르");
+  await createCharacter(page, "루나");
+  await openRelations(page);
+  await dragCenter(
+    page,
+    page.getByRole("button", { name: "테아르에서 관계 잇기" }),
+    page.getByRole("button", { name: "인물 루나", exact: true }),
+  );
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "+ 변화 추가" }).click();
+  await dialog.getByLabel("변화 내용").fill("서로 알아본다");
+  await dialog.getByRole("button", { name: "만들기" }).click();
+
+  const point = page.getByLabel("시점");
+  await point.selectOption({ label: "주인공 회귀 · 1화" });
+  await expect(page.getByRole("button", { name: /관계 테아르 – 루나/ })).toContainText("서로 알아본다");
+});

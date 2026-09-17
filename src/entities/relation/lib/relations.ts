@@ -44,8 +44,9 @@ export const RELATION_TYPE_COLOR: Record<string, string> = {
   기타: "gray",
 };
 
-export function relationTypeColor(type: string): string {
-  return RELATION_TYPE_COLOR[type] ?? "gray";
+/** 종류의 색 — 작품에서 고른 색(overrides)이 있으면 그것, 없으면 기본 표, 그것도 없으면 gray. */
+export function relationTypeColor(type: string, overrides?: Readonly<Record<string, string>> | null): string {
+  return overrides?.[type] ?? RELATION_TYPE_COLOR[type] ?? "gray";
 }
 
 /** 빈 줄·없는 회차를 뺀 변화 목록(저장 전 정리). */

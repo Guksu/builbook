@@ -101,6 +101,16 @@ export function useProject(projectId: string) {
       await dbPut(STORES.projects, { ...p, relationLayout: layout, updatedAt: new Date().toISOString() });
       await mutate();
     },
+    // 관계 종류 하나의 색 지정(라벨 색 이름). null이면 기본 색으로 되돌림.
+    async updateRelationTypeColor(type: string, color: string | null) {
+      const p = await dbGet<Project>(STORES.projects, projectId);
+      if (!p) return;
+      const next = { ...(p.relationTypeColors ?? {}) };
+      if (color) next[type] = color;
+      else delete next[type];
+      await dbPut(STORES.projects, { ...p, relationTypeColors: next, updatedAt: new Date().toISOString() });
+      await mutate();
+    },
     // 마감일(YYYY-MM-DD). null이면 해제.
     async updateDeadline(deadline: string | null) {
       const p = await dbGet<Project>(STORES.projects, projectId);

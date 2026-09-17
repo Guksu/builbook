@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Button, Input, Modal, Textarea } from "@shared/ui";
+import { LABEL_COLORS, LABEL_COLOR_LABEL } from "@entities/project";
 import {
   RELATION_TYPES,
   isValidRelationType,
+  relationTypeColor,
   type Relation,
   type RelationChange,
   type RelationInput,
@@ -22,10 +24,25 @@ export interface RelationFormProps {
   onDelete?: () => void | Promise<void>;
   /** 회차별 변화에 고를 회차 목록(바인더 순서). */
   episodes: readonly { id: string; title: string }[];
+  /** 작품에서 고른 종류별 색. */
+  typeColors?: Readonly<Record<string, string>> | null;
+  /** 종류의 색을 바꾸면(모든 같은 종류의 선에 적용). null = 기본 색으로. */
+  onSaveTypeColor?: (type: string, color: string | null) => void | Promise<void>;
 }
 
 /** 관계 하나를 적는 폼 — 종류(프리셋 또는 직접), 방향별 한 줄, 메모. */
-export function RelationForm({ open, onClose, fromName, toName, existing, onSubmit, onDelete, episodes }: RelationFormProps) {
+export function RelationForm({
+  open,
+  onClose,
+  fromName,
+  toName,
+  existing,
+  onSubmit,
+  onDelete,
+  episodes,
+  typeColors,
+  onSaveTypeColor,
+}: RelationFormProps) {
   const initialPreset = existing && RELATION_TYPES.includes(existing.type) ? existing.type : existing ? "직접 입력" : RELATION_TYPES[0];
   const [preset, setPreset] = useState<string>(initialPreset);
   const [custom, setCustom] = useState(existing && !RELATION_TYPES.includes(existing.type) ? existing.type : "");
@@ -41,12 +58,18 @@ export function RelationForm({ open, onClose, fromName, toName, existing, onSubm
 
   const type = preset === "직접 입력" ? custom : preset;
   const valid = isValidRelationType(type);
+  // 종류 색 — ""는 "바꾸지 않음". 고르면 저장 시 작품에 반영된다.
+  const [colorChoice, setColorChoice] = useState<string>("");
+  const currentColor = relationTypeColor(type, typeColors);
 
   async function submit() {
     if (!valid || busy) return;
     setBusy(true);
     try {
       await onSubmit({ type, fromLabel, toLabel, note, changes });
+      if (colorChoice && onSaveTypeColor) {
+        await onSaveTypeColor(type, colorChoice === "default" ? null : colorChoice);
+      }
       onClose();
     } finally {
       setBusy(false);
@@ -112,6 +135,24 @@ export function RelationForm({ open, onClose, fromName, toName, existing, onSubm
               />
             )}
           </div>
+        </div>
+        <div className="flex items-center justify-between gap-8">
+          <label htmlFor="relation-type-color" className="text-caption text-fg-weak">
+            이 종류의 선 색 <span className="text-fg-muted">(같은 종류 모두)</span>
+          </label>
+          <select
+            id="relation-type-color"
+            value={colorChoice || currentColor}
+            onChange={(e) => setColorChoice(e.target.value)}
+            className="h-32 rounded-md border border-border bg-bg px-8 text-body-sm text-fg"
+          >
+            {LABEL_COLORS.map((c) => (
+              <option key={c} value={c}>
+                {LABEL_COLOR_LABEL[c]}
+              </option>
+            ))}
+            <option value="default">기본 색</option>
+          </select>
         </div>
         <div className="flex flex-col gap-4">
           <label htmlFor="relation-from" className="text-caption text-fg-weak">

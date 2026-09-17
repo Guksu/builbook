@@ -110,8 +110,11 @@ export function WorkspaceMain({
       {!isLoading && !error && viewMode === "relations" && (
         <RelationMapView
           projectId={projectId}
+          projectTitle={project?.title ?? "작품"}
           documents={documents}
           labels={project?.labels}
+          typeColors={project?.relationTypeColors}
+          onSaveTypeColor={projectApi.updateRelationTypeColor}
           savedLayout={project?.relationLayout}
           onSaveLayout={projectApi.updateRelationLayout}
           onOpenDocument={(docId) => {

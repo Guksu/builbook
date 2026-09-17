@@ -9,11 +9,12 @@ export interface RelationTableProps {
   nameOf: (id: string) => string;
   episodeTitleOf: (id: string) => string | null;
   orderOf: ReadonlyMap<string, number>;
+  typeColors?: Readonly<Record<string, string>> | null;
   onEdit: (relation: Relation) => void;
 }
 
 /** 관계 목록(표) — 다이어그램이 복잡할 때 한눈에 훑는 용도. 줄을 누르면 고친다. */
-export function RelationTable({ relations, nameOf, episodeTitleOf, orderOf, onEdit }: RelationTableProps) {
+export function RelationTable({ relations, nameOf, episodeTitleOf, orderOf, typeColors, onEdit }: RelationTableProps) {
   const rows = [...relations].sort((a, b) => nameOf(a.fromId).localeCompare(nameOf(b.fromId), "ko"));
   if (rows.length === 0) {
     return <p className="p-24 text-body-sm text-fg-weak">아직 관계가 없어요. 도표에서 인물을 이어 보세요.</p>;
@@ -46,7 +47,7 @@ export function RelationTable({ relations, nameOf, episodeTitleOf, orderOf, onEd
                 <td className="py-8 pr-12 text-fg">
                   <span
                     aria-hidden
-                    className={cn("mr-6 inline-block h-8 w-8 rounded-full align-middle", DOT_BG_CLASS[relationTypeColor(r.type)])}
+                    className={cn("mr-6 inline-block h-8 w-8 rounded-full align-middle", DOT_BG_CLASS[relationTypeColor(r.type, typeColors)])}
                   />
                   {r.type}
                 </td>

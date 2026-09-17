@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@shared/ui";
 import type { NodePosition } from "@entities/project";
@@ -13,7 +13,11 @@ import {
   edgeGeometry,
   hitNode,
   nodeCenter,
+  pillSize,
+  placeLabels,
+  type LabelItem,
   type Layout,
+  type Rect,
 } from "@features/relation-map";
 import { EDGE_TEXT_CLASS, NODE_FILL_CLASS } from "../lib/colors";
 
@@ -30,6 +34,8 @@ export interface RelationCanvasProps {
   layout: Layout;
   /** 시점 보기에서 관계 id → 그 회차까지의 마지막 변화 한 줄. */
   changeNoteOf?: ReadonlyMap<string, string>;
+  /** 작품에서 고른 종류별 색(종류 → 라벨 색 이름). */
+  typeColors?: Readonly<Record<string, string>> | null;
   /** 드래그를 놓았을 때 한 번(저장은 호출부가). */
   onMoveNode: (id: string, pos: NodePosition) => void;
   /** 노드에서 노드로 끌어 놓았을 때. */
@@ -51,17 +57,22 @@ const HANDLE_HIT_R = 20;
  * SVG 관계도 캔버스 — 노드를 끌어 옮기고, 오른쪽 손잡이에서 다른 노드로 끌어 선을 만든다.
  * 라이브러리 없이 포인터 이벤트만 쓴다(번들 0 추가, 좌표 변환은 SVG 기준 1:1).
  */
-export function RelationCanvas({
-  nodes,
-  relations,
-  layout: savedLayout,
-  changeNoteOf,
-  onMoveNode,
-  onConnect,
-  onEditRelation,
-  onOpenNode,
-}: RelationCanvasProps) {
+export const RelationCanvas = forwardRef<SVGSVGElement, RelationCanvasProps>(function RelationCanvas(
+  {
+    nodes,
+    relations,
+    layout: savedLayout,
+    changeNoteOf,
+    typeColors,
+    onMoveNode,
+    onConnect,
+    onEditRelation,
+    onOpenNode,
+  },
+  ref,
+) {
   const svgRef = useRef<SVGSVGElement>(null);
+  useImperativeHandle(ref, () => svgRef.current as SVGSVGElement);
   // 드래그 중에는 로컬 배치를 움직이고, 놓을 때만 저장한다(저장은 DB 왕복이라 매 픽셀 하면 느리다).
   const [layout, setLayout] = useState<Layout>(savedLayout);
   useEffect(() => setLayout(savedLayout), [savedLayout]);
@@ -71,6 +82,30 @@ export function RelationCanvas({
 
   const size = canvasSize(layout);
   const nameOf = new Map(nodes.map((n) => [n.id, n.name]));
+
+  // 선 기하를 먼저 다 구한 뒤, 라벨 자리를 한꺼번에 정한다(겹침 회피는 전체를 봐야 한다).
+  const edges = relations.flatMap((r) => {
+    const a = layout[r.fromId];
+    const b = layout[r.toId];
+    if (!a || !b) return [];
+    return [{ r, g: edgeGeometry(a, b), change: changeNoteOf?.get(r.id) ?? null }];
+  });
+  const labelItems: LabelItem[] = [];
+  for (const { r, g, change } of edges) {
+    const push = (id: string, anchor: NodePosition, text: string) => {
+      const { w, h } = pillSize(text);
+      labelItems.push({ id, anchor, normal: g.normal, w, h });
+    };
+    push(`${r.id}:type`, g.mid, r.type);
+    if (change) push(`${r.id}:change`, g.changeSlot, change);
+    if (r.fromLabel) push(`${r.id}:from`, g.nearA, r.fromLabel);
+    if (r.toLabel) push(`${r.id}:to`, g.nearB, r.toLabel);
+  }
+  const obstacles: Rect[] = nodes
+    .filter((n) => layout[n.id])
+    .map((n) => ({ x: layout[n.id].x, y: layout[n.id].y, w: NODE_W, h: NODE_H }));
+  const labelPos = placeLabels(labelItems, obstacles);
+  const at = (id: string, fallback: NodePosition) => labelPos.get(id) ?? fallback;
 
   function toSvg(e: { clientX: number; clientY: number }): NodePosition {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -139,14 +174,13 @@ export function RelationCanvas({
         </defs>
 
         {/* 선 — 노드보다 아래에 그린다 */}
-        {relations.map((r) => {
-          const a = layout[r.fromId];
-          const b = layout[r.toId];
-          if (!a || !b) return null;
-          const g = edgeGeometry(a, b);
+        {edges.map(({ r, g, change }) => {
           const label = `${nameOf.get(r.fromId) ?? "?"} – ${nameOf.get(r.toId) ?? "?"}: ${r.type}`;
-          const colorClass = EDGE_TEXT_CLASS[relationTypeColor(r.type)] ?? EDGE_TEXT_CLASS.gray;
-          const change = changeNoteOf?.get(r.id);
+          const colorClass = EDGE_TEXT_CLASS[relationTypeColor(r.type, typeColors)] ?? EDGE_TEXT_CLASS.gray;
+          const typeAt = at(`${r.id}:type`, g.mid);
+          const changeAtPos = at(`${r.id}:change`, g.changeSlot);
+          const fromAt = at(`${r.id}:from`, g.nearA);
+          const toAt = at(`${r.id}:to`, g.nearB);
           return (
             <g
               key={r.id}
@@ -173,10 +207,10 @@ export function RelationCanvas({
                 markerEnd={r.fromLabel ? "url(#rel-arrow)" : undefined}
                 markerStart={r.toLabel ? "url(#rel-arrow)" : undefined}
               />
-              <Pill x={g.mid.x} y={g.mid.y} text={r.type} strong />
-              {change && <Pill x={g.changeSlot.x} y={g.changeSlot.y} text={change} accent />}
-              {r.fromLabel && <Pill x={g.nearA.x} y={g.nearA.y} text={r.fromLabel} />}
-              {r.toLabel && <Pill x={g.nearB.x} y={g.nearB.y} text={r.toLabel} />}
+              <Pill x={typeAt.x} y={typeAt.y} text={r.type} strong />
+              {change && <Pill x={changeAtPos.x} y={changeAtPos.y} text={change} accent />}
+              {r.fromLabel && <Pill x={fromAt.x} y={fromAt.y} text={r.fromLabel} />}
+              {r.toLabel && <Pill x={toAt.x} y={toAt.y} text={r.toLabel} />}
             </g>
           );
         })}
@@ -271,13 +305,11 @@ export function RelationCanvas({
       </svg>
     </div>
   );
-}
+});
 
 /** 선 위의 작은 라벨 — 글자 수로 너비를 어림한다(측정 없이). */
 function Pill({ x, y, text, strong, accent }: { x: number; y: number; text: string; strong?: boolean; accent?: boolean }) {
-  const t = text.length > 12 ? `${text.slice(0, 11)}…` : text;
-  const w = t.length * 12 + 14;
-  const h = 20;
+  const { w, h, text: t } = pillSize(text);
   return (
     <g transform={`translate(${x - w / 2} ${y - h / 2})`}>
       <rect

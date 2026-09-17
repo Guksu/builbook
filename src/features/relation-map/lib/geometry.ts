@@ -85,6 +85,8 @@ export interface EdgeGeometry {
   nearB: NodePosition;
   /** 시점 보기에서 "그 회차의 변화" 라벨 자리 — 종류 라벨 아래(같은 쪽으로 더 멀리). */
   changeSlot: NodePosition;
+  /** 선의 법선(단위 벡터) — 라벨 겹침 회피가 이 방향으로 민다. */
+  normal: NodePosition;
 }
 
 /** 종류 라벨을 선에서 띄우는 거리(px). */
@@ -119,6 +121,7 @@ export function edgeGeometry(a: NodePosition, b: NodePosition): EdgeGeometry {
     y2: p2.y,
     mid: at(p1, len / 2 + Math.min(TYPE_ALONG, len * 0.15), TYPE_OFFSET),
     changeSlot: at(p1, len / 2 + Math.min(TYPE_ALONG, len * 0.15), TYPE_OFFSET + 24),
+    normal: n,
     nearA: at(p1, inset, -DIR_OFFSET),
     nearB: at(p2, -inset, -DIR_OFFSET),
   };

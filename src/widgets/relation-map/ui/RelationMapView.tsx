@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Button, cn, usePersistedState, useToast } from "@shared/ui";
 import { isOneOf } from "@shared/lib";
 import type { DocumentNode } from "@entities/document";
@@ -13,15 +13,29 @@ import {
   type Relation,
   type RelationInput,
 } from "@entities/relation";
-import { circleLayout, episodeDocs, episodeOrder, resolveLayout, type Layout } from "@features/relation-map";
+import { sortEvents, useStoryEvents } from "@entities/story-event";
+import {
+  circleLayout,
+  downloadBlob,
+  episodeDocs,
+  episodeOrder,
+  pngFileName,
+  resolveLayout,
+  svgToPngBlob,
+  type Layout,
+} from "@features/relation-map";
 import { RelationCanvas } from "./RelationCanvas";
 import { RelationForm } from "./RelationForm";
 import { RelationTable } from "./RelationTable";
 
 export interface RelationMapViewProps {
   projectId: string;
+  projectTitle: string;
   documents: readonly DocumentNode[];
   labels?: ProjectLabel[];
+  /** 작품에서 고른 종류별 색. */
+  typeColors?: Record<string, string>;
+  onSaveTypeColor: (type: string, color: string | null) => void | Promise<void>;
   savedLayout: Layout | undefined;
   onSaveLayout: (layout: Layout) => void | Promise<void>;
   onOpenDocument: (id: string) => void;
@@ -39,8 +53,11 @@ const isViewKind = isOneOf(["map", "list"] as const);
  */
 export function RelationMapView({
   projectId,
+  projectTitle,
   documents,
   labels,
+  typeColors,
+  onSaveTypeColor,
   savedLayout,
   onSaveLayout,
   onOpenDocument,
@@ -48,6 +65,9 @@ export function RelationMapView({
 }: RelationMapViewProps) {
   const { toast } = useToast();
   const { relations, isLoading, createRelation, updateRelation, deleteRelation } = useRelations(projectId);
+  const { events } = useStoryEvents(projectId);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [exporting, setExporting] = useState(false);
   const characters = useMemo(
     () => documents.filter((d) => d.type === "DOC" && d.kind === "character"),
     [documents],
@@ -108,6 +128,29 @@ export function RelationMapView({
   }
 
   const changeCount = visible.reduce((n, r) => n + (r.changes?.length ?? 0), 0);
+  // 연표 사건 중 회차에 연결된 것 — "시점"으로 고를 수 있다(그 회차 기준).
+  const eventPoints = useMemo(
+    () =>
+      sortEvents(events)
+        .filter((e) => e.documentId && orderOf.has(e.documentId))
+        .map((e) => ({ id: e.id, title: e.title, documentId: e.documentId as string })),
+    [events, orderOf],
+  );
+
+  async function exportPng() {
+    const svg = svgRef.current;
+    if (!svg || exporting) return;
+    setExporting(true);
+    try {
+      const blob = await svgToPngBlob(svg, 2);
+      downloadBlob(blob, pngFileName(projectTitle));
+      toast("관계도 이미지를 내려받았어요.", "success");
+    } catch {
+      toast("이미지를 만들지 못했어요.", "error");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="flex h-full flex-col">
@@ -145,11 +188,22 @@ export function RelationMapView({
               className="h-28 rounded-md border border-border bg-bg px-8 text-caption text-fg"
             >
               <option value="">최신</option>
-              {episodes.map((ep) => (
-                <option key={ep.id} value={ep.id}>
-                  {ep.title}까지
-                </option>
-              ))}
+              <optgroup label="회차">
+                {episodes.map((ep) => (
+                  <option key={ep.id} value={ep.id}>
+                    {ep.title}까지
+                  </option>
+                ))}
+              </optgroup>
+              {eventPoints.length > 0 && (
+                <optgroup label="연표 사건 (연결된 회차 기준)">
+                  {eventPoints.map((ev) => (
+                    <option key={ev.id} value={ev.documentId}>
+                      {ev.title} · {episodeTitleOf(ev.documentId)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </>
         )}
@@ -159,15 +213,24 @@ export function RelationMapView({
             : "줄을 누르면 관계를 고쳐요."}
         </span>
         {view === "map" && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="ml-auto"
-            disabled={characters.length === 0}
-            onClick={() => void onSaveLayout(circleLayout(ids))}
-          >
-            자동 배치
-          </Button>
+          <div className="ml-auto flex gap-4">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={characters.length === 0 || exporting}
+              onClick={() => void exportPng()}
+            >
+              {exporting ? "만드는 중…" : "이미지 저장"}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={characters.length === 0}
+              onClick={() => void onSaveLayout(circleLayout(ids))}
+            >
+              자동 배치
+            </Button>
+          </div>
         )}
       </div>
 
@@ -187,10 +250,13 @@ export function RelationMapView({
           nameOf={nameOf}
           episodeTitleOf={episodeTitleOf}
           orderOf={orderOf}
+          typeColors={typeColors}
           onEdit={(r) => setForm({ fromId: r.fromId, toId: r.toId, existing: r })}
         />
       ) : (
         <RelationCanvas
+          ref={svgRef}
+          typeColors={typeColors}
           nodes={nodes}
           relations={visible}
           layout={layout}
@@ -211,6 +277,8 @@ export function RelationMapView({
           toName={nameOf(form.toId)}
           existing={form.existing}
           episodes={episodes}
+          typeColors={typeColors}
+          onSaveTypeColor={onSaveTypeColor}
           onSubmit={submit}
           onDelete={
             form.existing

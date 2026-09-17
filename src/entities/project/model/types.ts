@@ -47,6 +47,8 @@ export interface Project {
   aiModel?: AiModelChoice;
   // 인물 관계도의 노드 배치(인물 카드 문서 id → 좌표, 선택). 없는 인물은 자동 배치.
   relationLayout?: Record<string, NodePosition>;
+  // 관계 종류별 색(종류 이름 → 라벨 색 이름, 선택). 없는 종류는 기본 표를 따른다.
+  relationTypeColors?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }

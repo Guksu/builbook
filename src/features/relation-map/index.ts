@@ -15,3 +15,5 @@ export {
   type EdgeGeometry,
 } from "./lib/geometry";
 export { episodeDocs, episodeOrder } from "./lib/episodes";
+export { placeLabels, pillSize, rectsOverlap, type LabelItem, type Rect } from "./lib/labels";
+export { svgToPngBlob, pngFileName, downloadBlob } from "./lib/exportPng";
