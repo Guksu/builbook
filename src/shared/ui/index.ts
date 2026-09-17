@@ -25,3 +25,4 @@ export {
 } from "./ContextMenu";
 export { ToastProvider, useToast, type ToastAction } from "./Toast";
 export { usePersistedState } from "./usePersistedState";
+export { useModLabel, detectIsMac, type ModLabel } from "./useModLabel";

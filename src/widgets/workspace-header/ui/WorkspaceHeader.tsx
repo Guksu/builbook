@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useTheme } from "next-themes";
-import { cn, ContextMenu } from "@shared/ui";
+import { cn, ContextMenu, useModLabel } from "@shared/ui";
 
 /** 오른쪽 레일 패널 식별자 — 열림 표시등·토글이 공유하는 단일 키. */
 export type WorkspacePanelKey =
@@ -70,6 +70,8 @@ export function WorkspaceHeader({
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const openCount = PANEL_MENU.filter((p) => openPanels[p.key]).length;
+  const mod = useModLabel();
+  const shortcutHint = (n: number) => `${mod}+Shift+${n}`;
   const openMenu = (kind: "panels" | "more") => (e: React.MouseEvent<HTMLButtonElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     setMenu({ kind, x: r.right - 200, y: r.bottom + 4 });
@@ -155,6 +157,7 @@ export function WorkspaceHeader({
         </button>
         <PanelChip
           label="인스펙터"
+          hint={shortcutHint(7)}
           active={openPanels.inspector}
           onClick={() => onTogglePanel("inspector")}
         />
@@ -187,10 +190,11 @@ export function WorkspaceHeader({
           x={menu.x}
           y={menu.y}
           label="패널 메뉴"
-          items={PANEL_MENU.map((p) => ({
+          items={PANEL_MENU.map((p, i) => ({
             label: p.label,
             checked: openPanels[p.key],
             checkbox: true,
+            hint: shortcutHint(i + 1),
             onSelect: () => onTogglePanel(p.key),
           }))}
           onClose={() => setMenu(null)}
@@ -272,10 +276,12 @@ function SegmentButton({
 
 function PanelChip({
   label,
+  hint,
   active,
   onClick,
 }: {
   label: string;
+  hint?: string;
   active: boolean;
   onClick: () => void;
 }) {
@@ -283,6 +289,7 @@ function PanelChip({
     <button
       type="button"
       aria-pressed={active}
+      title={hint ? `${label} (${hint})` : label}
       onClick={onClick}
       className={cn(
         "group flex h-28 shrink-0 items-center gap-6 rounded-full px-10 text-caption transition-colors",

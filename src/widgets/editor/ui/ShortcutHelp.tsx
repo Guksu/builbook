@@ -22,6 +22,8 @@ function rows(mod: ModLabel): { keys: string; what: string }[] {
     { keys: "F2", what: "제목 편집 (제목을 눌러도 됩니다)" },
     { keys: `${mod}+P`, what: "빠른 열기 (문서 이름으로 이동)" },
     { keys: "Alt+S", what: "진행 상태 바꾸기 (초고 → 퇴고 → 완료)" },
+    { keys: `${mod}+Shift+1~6`, what: "패널 열고 닫기 (연표·현황·점검·검색·리서치·휴지통)" },
+    { keys: `${mod}+Shift+7`, what: "인스펙터 열고 닫기" },
     { keys: "# + 공백", what: "제목 줄로 바꾸기" },
     { keys: "> + 공백", what: "인용 줄로 바꾸기" },
   ];

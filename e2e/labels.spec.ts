@@ -63,7 +63,7 @@ test("라벨을 만들어 문서에 달고, 메모와 함께 새로고침 뒤에
   await page.getByLabel("문서 상태").selectOption("revise");
 
   await page.reload();
-  await openInspector(page);
+  // 열린 패널은 작품별로 기억된다 — 인스펙터가 그대로 열려 있다.
   await expect(page.getByLabel("문서 메모")).toHaveValue("떡밥 회수 잊지 말 것");
   await expect(page.getByLabel("문서 상태")).toHaveValue("revise");
   await expect(page.getByLabel("문서 라벨")).toHaveValue(/.+/);
@@ -98,7 +98,6 @@ test("라벨을 지우면 그 라벨을 달고 있던 문서의 라벨도 비워
 
   // 새로고침해도 지워진 상태 그대로.
   await page.reload();
-  await openInspector(page);
   await expect(page.getByLabel("문서 라벨")).toHaveValue("");
   await expect(tree(page).getByTitle("라벨: 복선")).toHaveCount(0);
 });

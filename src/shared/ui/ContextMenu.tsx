@@ -19,6 +19,8 @@ export interface ContextMenuItem {
   /** checked와 함께 쓰면 라디오 대신 체크박스 항목(여러 개 동시 켜짐 — 패널 목록 같은 것). */
   checkbox?: boolean;
   disabled?: boolean;
+  /** 오른쪽에 흐리게 보이는 보조 표기(단축키 등). */
+  hint?: string;
 }
 
 export interface ContextMenuProps {
@@ -121,6 +123,11 @@ export function ContextMenu({ x, y, items, onClose, label }: ContextMenuProps) {
           {item.checked !== undefined && (
             <span aria-hidden className="w-12 shrink-0 text-primary">
               {item.checked ? "✓" : ""}
+            </span>
+          )}
+          {item.hint && (
+            <span aria-hidden className="ml-auto pl-12 text-caption tabular-nums text-fg-muted">
+              {item.hint}
             </span>
           )}
           {item.dotClass && (

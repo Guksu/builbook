@@ -43,8 +43,7 @@ test("용어를 등록하면 사전에 남고 새로고침해도 유지된다", 
   await expect(list.getByText("테아르")).toBeVisible();
 
   await page.reload();
-  await page.getByRole("button", { name: "패널", exact: true }).click();
-  await page.getByRole("menuitemcheckbox", { name: "점검" }).click();
+  // 열린 패널은 작품별로 기억되므로 새로고침 뒤에도 점검 패널이 그대로 열려 있다.
   await expect(page.getByRole("list", { name: "용어 목록" }).getByText("테아르")).toBeVisible();
 });
 

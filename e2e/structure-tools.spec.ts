@@ -98,8 +98,7 @@ test("연표 사건 순서를 위아래로 바꾼다", async ({ page }) => {
 
   // 새로고침해도 순서가 유지된다
   await page.reload();
-  await page.getByRole("button", { name: "패널", exact: true }).click();
-  await page.getByRole("menuitemcheckbox", { name: "연표" }).click();
+  // 열린 패널은 작품별로 기억되므로 연표 패널이 그대로 열려 있다.
   await expect(
     page.getByRole("list", { name: "타임라인 목록" }).getByRole("listitem").first(),
   ).toContainText("두 번째 사건");

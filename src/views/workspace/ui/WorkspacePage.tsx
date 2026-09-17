@@ -58,6 +58,7 @@ export function WorkspacePage() {
     documents,
     selectedId,
     updateStatus: docs.updateStatus,
+    onTogglePanel: (key) => panelSetters[key]((v) => !v),
   });
 
   const { projectTotalWords, focusProgress, projectProgress, todayProgress, pace } =
