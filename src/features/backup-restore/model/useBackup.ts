@@ -10,6 +10,7 @@ import type { Note } from "@entities/note";
 import type { WritingLog } from "@entities/writing-log";
 import type { StoryEvent } from "@entities/story-event";
 import type { Term } from "@entities/term";
+import type { Idea } from "@entities/idea";
 import {
   backupFileName,
   backupStatus,
@@ -40,7 +41,7 @@ function readLastBackupAt(): string {
 
 // IndexedDB 전 스토어를 한 벌로 읽는다 — 백업의 원천.
 export async function readAllData(): Promise<BackupData> {
-  const [projects, documents, snapshots, notes, writingLogs, events, terms] = await Promise.all([
+  const [projects, documents, snapshots, notes, writingLogs, events, terms, ideas] = await Promise.all([
     dbGetAll<Project>(STORES.projects),
     dbGetAll<DocumentNode>(STORES.documents),
     dbGetAll<Snapshot>(STORES.snapshots),
@@ -48,8 +49,9 @@ export async function readAllData(): Promise<BackupData> {
     dbGetAll<WritingLog>(STORES.writingLogs),
     dbGetAll<StoryEvent>(STORES.events),
     dbGetAll<Term>(STORES.terms),
+    dbGetAll<Idea>(STORES.ideas),
   ]);
-  return { projects, documents, snapshots, notes, writingLogs, events, terms };
+  return { projects, documents, snapshots, notes, writingLogs, events, terms, ideas };
 }
 
 export type ImportResult =
@@ -107,6 +109,7 @@ export function useBackup(projectCount: number) {
         await dbReplaceAll(STORES.writingLogs, plan.data.writingLogs);
         await dbReplaceAll(STORES.events, plan.data.events);
         await dbReplaceAll(STORES.terms, plan.data.terms);
+        await dbReplaceAll(STORES.ideas, plan.data.ideas);
         await mutate(() => true); // 열려 있는 모든 SWR 키 재검증
         return { ok: true, summary: plan.summary };
       } catch {

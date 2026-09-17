@@ -10,6 +10,7 @@ import type { Note } from "@entities/note";
 import type { WritingLog } from "@entities/writing-log";
 import type { StoryEvent } from "@entities/story-event";
 import type { Term } from "@entities/term";
+import type { Idea } from "@entities/idea";
 
 export const BACKUP_FORMAT = "builbook-backup";
 /** 백업 파일 스키마 버전. 구조가 바뀌면 올린다(읽기 호환은 아래 parseBackup이 판정). */
@@ -23,6 +24,8 @@ export interface BackupData {
   writingLogs: WritingLog[];
   events: StoryEvent[];
   terms: Term[];
+  /** v1 파일에는 없을 수 있다 — parseBackup이 빈 배열로 채운다. */
+  ideas: Idea[];
 }
 
 export type BackupStore = keyof BackupData;
@@ -35,6 +38,7 @@ export const BACKUP_STORES: readonly BackupStore[] = [
   "writingLogs",
   "events",
   "terms",
+  "ideas",
 ];
 
 export interface BackupFile {
@@ -56,6 +60,7 @@ export const emptyBackupData = (): BackupData => ({
   writingLogs: [],
   events: [],
   terms: [],
+  ideas: [],
 });
 
 export function countBackupData(data: BackupData): Record<BackupStore, number> {
@@ -67,6 +72,7 @@ export function countBackupData(data: BackupData): Record<BackupStore, number> {
     writingLogs: data.writingLogs.length,
     events: data.events.length,
     terms: data.terms.length,
+    ideas: data.ideas.length,
   };
 }
 
@@ -228,6 +234,7 @@ export function dropOrphans(data: BackupData): BackupData {
     writingLogs: data.writingLogs.filter((l) => projectIds.has(l.projectId)),
     events: data.events.filter((e) => projectIds.has(e.projectId)),
     terms: data.terms.filter((t) => projectIds.has(t.projectId)),
+    ideas: data.ideas.filter((i) => projectIds.has(i.projectId)),
   };
 }
 
@@ -259,6 +266,7 @@ export function planImport(
         writingLogs: { added: data.writingLogs.length, updated: 0, kept: 0 },
         events: { added: data.events.length, updated: 0, kept: 0 },
         terms: { added: data.terms.length, updated: 0, kept: 0 },
+        ideas: { added: data.ideas.length, updated: 0, kept: 0 },
       },
     };
   }
@@ -269,6 +277,7 @@ export function planImport(
   const writingLogs = mergeById(existing.writingLogs, incoming.writingLogs);
   const events = mergeById(existing.events, incoming.events);
   const terms = mergeById(existing.terms, incoming.terms);
+  const ideas = mergeById(existing.ideas, incoming.ideas);
   const merged = dropOrphans({
     projects: projects.items,
     documents: documents.items,
@@ -277,6 +286,7 @@ export function planImport(
     writingLogs: writingLogs.items,
     events: events.items,
     terms: terms.items,
+    ideas: ideas.items,
   });
   return {
     data: merged,
@@ -288,6 +298,7 @@ export function planImport(
       writingLogs: writingLogs.diff,
       events: events.diff,
       terms: terms.diff,
+      ideas: ideas.diff,
     },
   };
 }
@@ -300,6 +311,7 @@ const STORE_LABEL: Record<BackupStore, string> = {
   writingLogs: "집필 기록",
   events: "사건",
   terms: "용어",
+  ideas: "아이디어",
 };
 
 // "작품 2개 추가 · 문서 5개 갱신" 같은 사람이 읽는 한 줄. 변화 없는 스토어는 생략한다.

@@ -6,7 +6,9 @@
 
 **MVP-1 범위:** 문서 트리 + 에디터 + 자동저장 (Project·Document, 로컬). 로그인/User·Character·Snapshot 없음. 데이터 계층은 `src/shared/db`(idb) + entities 훅(SWR).
 
-**AI 문답: 제거됨(2026-09-15).** 온디바이스 Transformers.js 문답은 사용자 테스트에서 실용성 부족(0.6B 모델 한국어 품질, 919MB 다운로드, 원고를 못 보는 구조)으로 제거했다. 규칙 기반 도구(표기 흔들림 검사·문장 진단)는 유지. 재도입하려면 사용자 API 키 기반 클라우드 호출(서버 없음 유지)이 후보이며, 제품 결정 후 진행한다.
+**AI 문답: 제거됨(2026-09-15).** 온디바이스 Transformers.js 문답은 사용자 테스트에서 실용성 부족(0.6B 모델 한국어 품질, 919MB 다운로드, 원고를 못 보는 구조)으로 제거했다. 규칙 기반 도구(표기 흔들림 검사·문장 진단)는 유지.
+
+**AI 발상: 재도입(2026-09-17, 영감 서랍 2층).** 작가 본인의 Anthropic API 키로 브라우저에서 `@anthropic-ai/sdk`를 직접 호출한다(`dangerouslyAllowBrowser`, 서버 없음 유지). 키는 기본 세션 메모리(선택 시 localStorage), 백업·IndexedDB에는 넣지 않는다. 요청마다 보낼 내용을 미리 보여 주고 동의를 받으며, 결과는 메모로만 저장한다(본문 자동 삽입 없음). 코드: `src/shared/ai-client`, `src/features/idea-ai`.
 
 > 참고: 백엔드 하네스 에이전트/스킬(backend-engineer·data-modeler, nextjs-api·prisma-data-model)과 오케스트레이터 Phase 3, 그리고 **AI 하네스(ai-inference-engineer·client-ai-inference, 오케스트레이터 "AI 문답 기능 빌드")**는 현재 **휴면**(미사용). 추후 동기화/서버·AI 재도입 시 재가동.
 
@@ -40,4 +42,5 @@
 | 2026-09-16 | **UX 다듬기 루프**: 작업실 화면 코드 분할(`src/views/workspace/{model,ui}`), 탭 닫기 저장 보강(pagehide 백업·복구), 본문 표시 설정(`features/focus-settings`, 타이프라이터), UX 감사 수정(Tailwind `h-28` 눈금 누락 버그, 저장 안내 톤, 헤더 칩, 휴지통 되돌리기 토스트) | views/workspace, features/{autosave-document,focus-settings}, widgets/editor, shared/ui | 사용자 요청: "기능보다 UX", 탭 닫기 저장·집중 모드 설정·코드 정리 선택. 명세: `docs/loops/2026-09-16-ux-polish.md` |
 | 2026-09-17 | **작업실 냄새 정리 + 헤더 정비**: 선택 복원 한 패스, 여러 개 이동 롤백, 인스펙터 탭 접근성, `useDocuments` 액션 `useMemo` 고정(액션은 DB에서 신선하게 읽음), 헤더 칩 7개 → "패널" 메뉴 + "더 보기" 메뉴(`ContextMenu` checkbox·disabled) | views/workspace, entities/document, widgets/workspace-header, shared/ui | 사용자 요청: "다음 후보 모두 진행" + "헤더 옵션이 많아 가시성이 나쁨". 명세: `docs/loops/2026-09-17-workspace-smells.md` |
 | 2026-09-17 | **패널 단축키·열린 패널 기억**: Ctrl/⌘+Shift+1~7 패널 토글, 열린 패널 작품별 기억(`useWorkspacePanels`), `ContextMenu.hint`, `useModLabel` shared/ui 이동 | views/workspace, widgets/workspace-header, shared/ui | 사용자 요청: "다음 후보 모두 진행". 명세: `docs/loops/2026-09-17-panel-shortcuts.md` |
+| 2026-09-17 | **영감 서랍(아이디어 얻기)**: 1층 오프라인(장르 카드 6×60 `features/idea-cards`, 질문 카드, 인물×설정×사건 조합기, 아이디어 메모 `entities/idea`·IndexedDB v7 `ideas`·백업 포함) + 2층 AI(작가 본인 API 키, `@anthropic-ai/sdk` 브라우저 직접 호출 `shared/ai-client`, 상태 머신 `features/idea-ai`, 전송 미리보기·동의·스트리밍·중단, 결과는 메모까지만). 패널 `widgets/idea-panel`(Ctrl/⌘+Shift+7, 인스펙터는 8), 에디터 선택 공유 `features/editor-selection`, `Project.genre/aiModel` | shared/{db,ai-client}, entities/{idea,project}, features/{idea-cards,idea-ai,editor-selection,backup-restore}, widgets/{idea-panel,workspace-header,editor}, views/workspace | 사용자 요청: "아이디어를 얻는 기능, AI 사용도 좋아" → 설계 `docs/specs/2026-09-17-idea-feature.md` → 문답 결정(1층+2층, 키 세션 보관, Opus 5 기본, 덱 6×60, 본문 붙여넣기 없음). 명세: `docs/loops/2026-09-17-idea-drawer.md` |
 | 2026-06-06 | **AI 문답 도메인 추가**: 에이전트 `ai-inference-engineer` + 스킬 `client-ai-inference` 신설, 오케스트레이터에 AI 빌드 흐름 추가 및 스택 drift(Postgres/Prisma→local-first) 정정 | ai-inference-engineer, client-ai-inference, webnovel-editor-orchestrator, CLAUDE.md | 사용자 요청: Transformers.js 온디바이스 AI 문답(사이드바, "기능 사용" 게이팅, postMessage 스트리밍). assignment(회사 코드)는 엣지케이스/개념만 참조, 구조 미복제 |

@@ -13,6 +13,7 @@ export type WorkspacePanelKey =
   | "search"
   | "notes"
   | "trash"
+  | "ideas"
   | "inspector";
 
 // 헤더에 칩 7개를 늘어놓으면 눈이 갈 곳이 없다(사용자 피드백). 자주 쓰는 인스펙터만 남기고
@@ -24,6 +25,7 @@ const PANEL_MENU: { key: WorkspacePanelKey; label: string }[] = [
   { key: "search", label: "검색" },
   { key: "notes", label: "리서치" },
   { key: "trash", label: "휴지통" },
+  { key: "ideas", label: "영감" },
 ];
 
 type HeaderMenu = { kind: "panels" | "more"; x: number; y: number } | null;
@@ -157,7 +159,7 @@ export function WorkspaceHeader({
         </button>
         <PanelChip
           label="인스펙터"
-          hint={shortcutHint(7)}
+          hint={shortcutHint(PANEL_MENU.length + 1)}
           active={openPanels.inspector}
           onClick={() => onTogglePanel("inspector")}
         />

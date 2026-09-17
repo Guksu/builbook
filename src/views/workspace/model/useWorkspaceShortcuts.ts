@@ -17,7 +17,7 @@ interface UseWorkspaceShortcutsParams {
   documents: DocumentNode[];
   selectedId: string | null;
   updateStatus: DocumentsApi["updateStatus"];
-  /** Ctrl/⌘+Shift+1~7 → 패널 토글(순서는 PANEL_KEYS). */
+  /** Ctrl/⌘+Shift+1~8 → 패널 토글(순서는 PANEL_KEYS). */
   onTogglePanel: (key: WorkspacePanelKey) => void;
 }
 
@@ -43,8 +43,8 @@ export function useWorkspaceShortcuts({
   latest.current = { documents, selectedId, updateStatus, toast, onTogglePanel };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Ctrl/⌘+Shift+1~7 — 패널 토글. (Ctrl/⌘+숫자만 쓰면 브라우저 탭 전환에 먹힌다.)
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && /^(Digit|Numpad)[1-7]$/.test(e.code)) {
+      // Ctrl/⌘+Shift+1~8 — 패널 토글. (Ctrl/⌘+숫자만 쓰면 브라우저 탭 전환에 먹힌다.)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey && /^(Digit|Numpad)[1-8]$/.test(e.code)) {
         const idx = Number(e.code.slice(-1)) - 1;
         const key = PANEL_KEYS[idx];
         if (key) {

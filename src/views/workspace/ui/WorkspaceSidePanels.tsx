@@ -1,6 +1,6 @@
 "use client";
 
-// 작업실 우측 패널 모음(인스펙터·노트·타임라인·설정 점검·집필 현황·검색·휴지통).
+// 작업실 우측 패널 모음(인스펙터·노트·타임라인·설정 점검·집필 현황·검색·영감·휴지통).
 // 모두 집중 모드에서는 숨고, 열림 여부는 헤더 칩과 같은 상태(openPanels)를 본다.
 
 import { Inspector } from "@widgets/inspector";
@@ -9,6 +9,7 @@ import { NotesPanel } from "@widgets/notes-panel";
 import { StatsPanel } from "@widgets/stats-panel";
 import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
+import { IdeaPanel } from "@widgets/idea-panel";
 import { SearchPanel } from "@features/search-document";
 import { TrashPanel } from "@features/trash-document";
 import type { DocumentNode } from "@entities/document";
@@ -187,6 +188,24 @@ export function WorkspaceSidePanels({
             onSelect={(docId) => {
               setSelectedId(docId);
               panelSetters.search(false);
+            }}
+          />
+        </aside>
+      )}
+
+      {/* 우: 영감 서랍 — 카드 뽑기·조합기(오프라인) / AI 발상(내 키) / 아이디어 메모 */}
+      {openPanels.ideas && !focusMode && (
+        <aside className={cn(SIDE_PANEL, "w-[340px]")}>
+          <IdeaPanel
+            projectId={projectId}
+            project={project}
+            documents={documents}
+            selectedDoc={selected}
+            onSaveGenre={projectApi.updateGenre}
+            onSaveAiModel={projectApi.updateAiModel}
+            onOpenDocument={(docId) => {
+              setSelectedId(docId);
+              setViewMode("editor");
             }}
           />
         </aside>

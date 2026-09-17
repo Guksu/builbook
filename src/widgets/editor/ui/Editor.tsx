@@ -11,6 +11,7 @@ import { useToast, cn } from "@shared/ui";
 import { measureText, pickCount, formatCount, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
 import { useCountUnit } from "@features/count-unit";
 import { FindHighlight, FindReplaceBar } from "@features/find-replace";
+import { publishSelectionText } from "@features/editor-selection";
 import type { JSONContent } from "@tiptap/react";
 import { EditorShortcuts } from "../lib/editorShortcuts";
 import { EditorToolbar } from "./EditorToolbar";
@@ -102,6 +103,22 @@ export function Editor({
       editor.off("update", center);
     };
   }, [editor, focusMode, display.typewriter]);
+
+  // 선택한 문단을 영감 서랍(AI 탭)이 읽을 수 있게 알린다. 문서를 떠나면 비운다.
+  useEffect(() => {
+    if (!editor) return;
+    const publish = () => {
+      const { from, to, empty } = editor.state.selection;
+      publishSelectionText(empty ? "" : editor.state.doc.textBetween(from, to, "\n"));
+    };
+    editor.on("selectionUpdate", publish);
+    editor.on("blur", publish);
+    return () => {
+      editor.off("selectionUpdate", publish);
+      editor.off("blur", publish);
+      publishSelectionText("");
+    };
+  }, [editor]);
 
   // 문서 전환 시 content 교체 + 단어 수 초기화.
   useEffect(() => {

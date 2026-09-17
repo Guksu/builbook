@@ -83,6 +83,15 @@
 - **패널 단축키** — Ctrl/⌘+Shift+1~7(연표·현황·점검·검색·리서치·휴지통·인스펙터). `e.code`(Digit/Numpad)로 판별해 키보드 배열과 무관. 메뉴 항목 오른쪽에 힌트(`ContextMenu.hint`), 인스펙터 칩 title, 단축키 안내 모달에 표기.
 - **e2e 영향** — 새로고침 뒤 패널을 다시 열던 테스트는 이제 "열려 있음"을 전제로 한다.
 
+### 루프 8 (2026-09-17) — 영감 서랍: 아이디어 얻기 (명세 `docs/loops/2026-09-17-idea-drawer.md`, 설계 `docs/specs/2026-09-17-idea-feature.md`)
+- **1층 오프라인** — `features/idea-cards`: 장르 6개(현판·로판·무협·현대·SF·공포) × 60장 상황 카드(태그 6종 × 10장, `data/*.ts`, 형식은 `decks.test.ts`가 검수), `drawCards`(고정 카드 유지·직전과 겹침 방지·태그 분산, 난수 주입), 질문 카드 12개, 조합기 `buildCombo`(바인더의 인물/설정 카드 제목 × 사건 유형 16개, 이/가 조사 처리).
+- **아이디어 메모** — `entities/idea`(IndexedDB v7 `ideas` 스토어, `by-project`), 작품 삭제 cascade, 백업 형식에 `ideas` 추가(옛 백업 파일은 빈 배열로 읽힘). 메모는 저장 시점의 선택 회차에 붙는다(문서가 지워져도 메모는 남음).
+- **2층 AI** — `shared/ai-client`: 모델 표(Opus 5 / Sonnet 5, 단가), 키 보관(`keyStore`: 세션 메모리 기본, 선택 시 localStorage, `useSyncExternalStore`), SDK 래퍼(`streamCompletion`·`countInputTokens`·`classifyAiError`). SDK는 `import()`로 지연 로드해 작업실 첫 로드 번들에 들어가지 않는다. `features/idea-ai`: 맥락 조립(`buildContext`: 선택 문단 > 현재 회차, 본문 끝 8,000자·부속 1,000자 상한), 프롬프트 6종(`prompts.ts`, 시스템 프롬프트 고정·`cache_control`), 상태 머신(`reducer.ts`: no-key/ready/confirm/streaming/done/error, 401은 키 지우고 이유 보존), 훅 `useIdeaAi`(AbortController 중단, 언마운트 시 중단).
+- **에디터 선택 공유** — `features/editor-selection`(작은 외부 스토어). 에디터가 `selectionUpdate`/`blur`에 선택 텍스트를 publish, AI 탭이 구독. 묘사 다듬기·대사 대안은 선택이 있을 때만 켜진다.
+- **패널** — `widgets/idea-panel`(뽑기/AI/메모 탭). 헤더 패널 메뉴 7번째 "영감", Ctrl/⌘+Shift+7(인스펙터는 8로 이동). `Project.genre`(덱 선택), `Project.aiModel`(모델) 저장.
+- **e2e** — `idea-drawer.spec.ts` 5개: 카드 뽑기·고정·장르 기억, 메모 저장·새로고침, 조합기 게이팅, AI 흐름(Anthropic 응답을 `page.route`로 SSE 흉내 — 미리보기 토큰 수·스트리밍 결과·전송 본문 검증·키가 본문에 없음), 401 처리.
+- **번들** — 작업실 첫 로드 254KB → 280KB(카드 덱·패널 UI 포함, SDK 제외).
+
 ## 3. 주의사항
 
 - **헤더 e2e 계약**: 패널은 `getByRole("button", { name: "패널", exact: true })` → `getByRole("menuitemcheckbox", { name: "<패널명>" })`, 미리보기·내보내기·테마는 `getByRole("button", { name: "더 보기" })` → `getByRole("menuitem", …)`. 인스펙터·집중·본문/카드는 그대로 버튼.
@@ -96,6 +105,10 @@
 - **e2e 버튼 이름 규칙**: Playwright `getByRole(name)`은 부분 일치라 새 버튼 이름에 기존 이름("새 문서" 등)을 포함하면 기존 스펙 27개가 한꺼번에 깨진다(실제로 겪음). 새 버튼은 겹치지 않는 이름으로.
 - **폴더 선택**: 이제 폴더 클릭은 접기가 아니라 선택(연속 보기)이다. 접기는 chevron과 ←/→ 키.
 - **카드 문서는 원고가 아니다**: `kind`가 character/setting이면 회차 분량표·내보내기에서 빠진다. 코르크보드·검색·백업에는 포함된다.
+
+- **API 키는 어디에도 남기지 않는다**: 백업 JSON·IndexedDB·로그·e2e 스냅샷에 키가 들어가면 안 된다. e2e는 요청 본문에 키가 없음을 검사한다. 키를 다루는 코드는 `shared/ai-client/keyStore.ts` 한 곳뿐이어야 한다.
+- **Anthropic SDK 정적 import 금지**: `@anthropic-ai/sdk`는 `shared/ai-client/client.ts`에서만 `import()`로 부른다. 배럴에서 재수출하면 작업실 번들이 커진다(docx와 같은 규칙).
+- **패널 번호 = PANEL_KEYS 순서**: 패널을 추가하면 `PANEL_KEYS`, 헤더 `PANEL_MENU`, 단축키 정규식(`[1-8]`), `ShortcutHelp`, e2e `panel-shortcuts.spec`을 함께 바꾼다. 인스펙터는 항상 마지막 번호.
 
 - **F2 키**: 에디터가 window에 F2 리스너를 달아 제목 편집을 연다. 바인더는 자기 F2 처리에서 `stopPropagation`으로 막는다. 에디터 리스너를 capture 단계로 바꾸면 바인더 인라인 편집이 깨진다.
 - **docx 패키지는 배럴에서 재수출하지 말 것**: `features/export-document/index.ts`에서 재수출하면 작업실 첫 로드가 +100KB(실측 240→344KB)가 된다. `ExportMenu`가 버튼 클릭 시 `import("../lib/docx")`로 가져온다.

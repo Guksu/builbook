@@ -15,7 +15,8 @@ import { deleteNotesForProject } from "@entities/note";
 import { deleteWritingLogsForProject } from "@entities/writing-log";
 import { deleteStoryEventsForProject } from "@entities/story-event";
 import { deleteTermsForProject } from "@entities/term";
-import type { Project, CompilePreset } from "../model/types";
+import { deleteIdeasForProject } from "@entities/idea";
+import type { Project, CompilePreset, AiModelChoice } from "../model/types";
 import type { ProjectLabel } from "../lib/labels";
 
 const KEY = "projects";
@@ -78,6 +79,20 @@ export function useProject(projectId: string) {
       await dbPut(STORES.projects, { ...p, compilePresets: presets, updatedAt: new Date().toISOString() });
       await mutate();
     },
+    // 작품 장르 키(영감 서랍 카드 덱). null이면 해제.
+    async updateGenre(genre: string | null) {
+      const p = await dbGet<Project>(STORES.projects, projectId);
+      if (!p) return;
+      await dbPut(STORES.projects, { ...p, genre: genre ?? undefined, updatedAt: new Date().toISOString() });
+      await mutate();
+    },
+    // AI 발상 모델 선택.
+    async updateAiModel(aiModel: AiModelChoice) {
+      const p = await dbGet<Project>(STORES.projects, projectId);
+      if (!p) return;
+      await dbPut(STORES.projects, { ...p, aiModel, updatedAt: new Date().toISOString() });
+      await mutate();
+    },
     // 마감일(YYYY-MM-DD). null이면 해제.
     async updateDeadline(deadline: string | null) {
       const p = await dbGet<Project>(STORES.projects, projectId);
@@ -131,6 +146,8 @@ export function useProjects() {
       await deleteStoryEventsForProject(id);
       // 고유명사 사전도 함께 정리 — 고아 용어 누적 방지.
       await deleteTermsForProject(id);
+      // 영감 서랍 메모도 함께 정리.
+      await deleteIdeasForProject(id);
       await dbDelete(STORES.projects, id);
       await mutate();
     },

@@ -11,6 +11,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.126.0",
     "@tiptap/extension-placeholder": "^2.27.3",
     "@tiptap/pm": "^2.10.0",
     "@tiptap/react": "^2.10.0",
