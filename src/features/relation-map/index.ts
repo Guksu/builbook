@@ -14,3 +14,4 @@ export {
   type Layout,
   type EdgeGeometry,
 } from "./lib/geometry";
+export { episodeDocs, episodeOrder } from "./lib/episodes";

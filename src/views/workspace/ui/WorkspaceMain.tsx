@@ -111,6 +111,7 @@ export function WorkspaceMain({
         <RelationMapView
           projectId={projectId}
           documents={documents}
+          labels={project?.labels}
           savedLayout={project?.relationLayout}
           onSaveLayout={projectApi.updateRelationLayout}
           onOpenDocument={(docId) => {

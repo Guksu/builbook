@@ -1,5 +1,11 @@
 // Relation(인물 관계선) 엔티티 — 인물 카드 두 장 사이의 관계. 관계도에서 선 하나.
 // 방향이 다른 두 줄(A→B, B→A)을 한 레코드에 두어 "짝사랑"처럼 비대칭인 관계를 적을 수 있다.
+/** 회차별 변화 — "이 회차에서 관계가 이렇게 된다" 한 줄. 회차 문서가 지워지면 연결만 끊긴다. */
+export interface RelationChange {
+  documentId: string;
+  note: string;
+}
+
 export interface Relation {
   id: string;
   projectId: string;
@@ -14,6 +20,8 @@ export interface Relation {
   /** B가 A를 어떻게 보나 — 한 줄(선택). */
   toLabel: string;
   note: string;
+  /** 회차별 변화(선택). 옛 레코드에는 없다. */
+  changes?: RelationChange[];
   createdAt: string;
   updatedAt: string;
 }

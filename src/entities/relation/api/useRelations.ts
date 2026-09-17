@@ -2,8 +2,8 @@
 
 import useSWR from "swr";
 import { STORES, dbBulkDelete, dbDelete, dbGet, dbGetAllByProject, dbPut } from "@shared/db";
-import type { Relation } from "../model/types";
-import { isValidRelationType } from "../lib/relations";
+import type { Relation, RelationChange } from "../model/types";
+import { cleanChanges, isValidRelationType } from "../lib/relations";
 
 export const relationsKey = (projectId: string) => `relations:${projectId}`;
 const now = () => new Date().toISOString();
@@ -13,6 +13,7 @@ export interface RelationInput {
   fromLabel?: string;
   toLabel?: string;
   note?: string;
+  changes?: RelationChange[];
 }
 
 /** 작품 삭제 cascade. */
@@ -61,6 +62,7 @@ export function useRelations(projectId: string) {
         fromLabel: input.fromLabel?.trim() ?? "",
         toLabel: input.toLabel?.trim() ?? "",
         note: input.note?.trim() ?? "",
+        ...(input.changes?.length ? { changes: cleanChanges(input.changes) } : {}),
         createdAt: ts,
         updatedAt: ts,
       };
@@ -79,6 +81,7 @@ export function useRelations(projectId: string) {
         fromLabel: input.fromLabel?.trim() ?? r.fromLabel,
         toLabel: input.toLabel?.trim() ?? r.toLabel,
         note: input.note?.trim() ?? r.note,
+        changes: input.changes ? cleanChanges(input.changes) : r.changes,
         updatedAt: now(),
       });
       await mutate();

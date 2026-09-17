@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { cn } from "@shared/ui";
 import type { NodePosition } from "@entities/project";
-import type { Relation } from "@entities/relation";
+import { relationTypeColor, type Relation } from "@entities/relation";
 import {
   NODE_H,
   NODE_W,
@@ -15,16 +15,21 @@ import {
   nodeCenter,
   type Layout,
 } from "@features/relation-map";
+import { EDGE_TEXT_CLASS, NODE_FILL_CLASS } from "../lib/colors";
 
 export interface CanvasNode {
   id: string;
   name: string;
+  /** 인물 카드의 라벨 색 키(없으면 null). */
+  color: string | null;
 }
 
 export interface RelationCanvasProps {
   nodes: readonly CanvasNode[];
   relations: readonly Relation[];
   layout: Layout;
+  /** 시점 보기에서 관계 id → 그 회차까지의 마지막 변화 한 줄. */
+  changeNoteOf?: ReadonlyMap<string, string>;
   /** 드래그를 놓았을 때 한 번(저장은 호출부가). */
   onMoveNode: (id: string, pos: NodePosition) => void;
   /** 노드에서 노드로 끌어 놓았을 때. */
@@ -39,6 +44,8 @@ type Drag =
   | null;
 
 const HANDLE_R = 7;
+/** 손잡이의 실제 누르는 영역 — 보이는 원보다 넓게(손가락 크기, 약 40px). */
+const HANDLE_HIT_R = 20;
 
 /**
  * SVG 관계도 캔버스 — 노드를 끌어 옮기고, 오른쪽 손잡이에서 다른 노드로 끌어 선을 만든다.
@@ -48,6 +55,7 @@ export function RelationCanvas({
   nodes,
   relations,
   layout: savedLayout,
+  changeNoteOf,
   onMoveNode,
   onConnect,
   onEditRelation,
@@ -119,6 +127,7 @@ export function RelationCanvas({
         width={size.width}
         height={size.height}
         className="select-none rounded-lg border border-border bg-surface"
+        style={{ touchAction: "none" }}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => setDrag(null)}
@@ -136,13 +145,15 @@ export function RelationCanvas({
           if (!a || !b) return null;
           const g = edgeGeometry(a, b);
           const label = `${nameOf.get(r.fromId) ?? "?"} – ${nameOf.get(r.toId) ?? "?"}: ${r.type}`;
+          const colorClass = EDGE_TEXT_CLASS[relationTypeColor(r.type)] ?? EDGE_TEXT_CLASS.gray;
+          const change = changeNoteOf?.get(r.id);
           return (
             <g
               key={r.id}
               role="button"
               tabIndex={0}
               aria-label={`관계 ${label}`}
-              className="cursor-pointer text-fg-weak hover:text-primary focus:outline-none focus-visible:text-primary"
+              className={cn("cursor-pointer hover:text-primary focus:outline-none focus-visible:text-primary", colorClass)}
               onClick={() => onEditRelation(r)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -158,11 +169,12 @@ export function RelationCanvas({
                 x2={g.x2}
                 y2={g.y2}
                 stroke="currentColor"
-                strokeWidth={1.5}
+                strokeWidth={2}
                 markerEnd={r.fromLabel ? "url(#rel-arrow)" : undefined}
                 markerStart={r.toLabel ? "url(#rel-arrow)" : undefined}
               />
               <Pill x={g.mid.x} y={g.mid.y} text={r.type} strong />
+              {change && <Pill x={g.changeSlot.x} y={g.changeSlot.y} text={change} accent />}
               {r.fromLabel && <Pill x={g.nearA.x} y={g.nearA.y} text={r.fromLabel} />}
               {r.toLabel && <Pill x={g.nearB.x} y={g.nearB.y} text={r.toLabel} />}
             </g>
@@ -214,6 +226,18 @@ export function RelationCanvas({
                 )}
                 strokeWidth={active ? 2 : 1.5}
               />
+              {/* 라벨 색 띠 — 인물 카드에 라벨이 있으면 왼쪽에 */}
+              {n.color && (
+                <rect
+                  x={6}
+                  y={10}
+                  width={5}
+                  height={NODE_H - 20}
+                  rx={2.5}
+                  className={NODE_FILL_CLASS[n.color] ?? NODE_FILL_CLASS.gray}
+                  data-label-color={n.color}
+                />
+              )}
               <text
                 x={NODE_W / 2 - 6}
                 y={NODE_H / 2}
@@ -227,10 +251,18 @@ export function RelationCanvas({
                 cx={NODE_W}
                 cy={NODE_H / 2}
                 r={HANDLE_R}
+                className="pointer-events-none fill-surface stroke-border"
+                strokeWidth={1.5}
+              />
+              {/* 보이는 원보다 넓은 투명한 누르기 영역 — 손가락으로도 잡힌다 */}
+              <circle
+                cx={NODE_W}
+                cy={NODE_H / 2}
+                r={HANDLE_HIT_R}
                 role="button"
                 aria-label={`${n.name}에서 관계 잇기`}
-                className="cursor-crosshair fill-surface stroke-border hover:fill-primary-weak hover:stroke-primary"
-                strokeWidth={1.5}
+                className="cursor-crosshair fill-transparent hover:fill-primary-weak"
+                fillOpacity={0.6}
                 onPointerDown={(e) => startConnect(n.id, e)}
               />
             </g>
@@ -242,19 +274,28 @@ export function RelationCanvas({
 }
 
 /** 선 위의 작은 라벨 — 글자 수로 너비를 어림한다(측정 없이). */
-function Pill({ x, y, text, strong }: { x: number; y: number; text: string; strong?: boolean }) {
+function Pill({ x, y, text, strong, accent }: { x: number; y: number; text: string; strong?: boolean; accent?: boolean }) {
   const t = text.length > 12 ? `${text.slice(0, 11)}…` : text;
   const w = t.length * 12 + 14;
   const h = 20;
   return (
     <g transform={`translate(${x - w / 2} ${y - h / 2})`}>
-      <rect width={w} height={h} rx={10} className={cn("fill-surface", strong ? "stroke-border-strong" : "stroke-border")} strokeWidth={1} />
+      <rect
+        width={w}
+        height={h}
+        rx={10}
+        className={cn(
+          accent ? "fill-primary-weak stroke-primary" : "fill-surface",
+          !accent && (strong ? "stroke-current" : "stroke-border"),
+        )}
+        strokeWidth={1}
+      />
       <text
         x={w / 2}
         y={h / 2}
         dominantBaseline="middle"
         textAnchor="middle"
-        className={cn("text-caption", strong ? "fill-fg font-medium" : "fill-fg-weak")}
+        className={cn("text-caption", strong ? "fill-fg font-medium" : accent ? "fill-primary" : "fill-fg-weak")}
       >
         {t}
       </text>

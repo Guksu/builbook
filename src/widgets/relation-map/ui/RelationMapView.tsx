@@ -1,23 +1,27 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Button, useToast } from "@shared/ui";
+import { Button, cn, usePersistedState, useToast } from "@shared/ui";
+import { isOneOf } from "@shared/lib";
 import type { DocumentNode } from "@entities/document";
-import type { NodePosition } from "@entities/project";
+import { findLabel, withDefaultLabels, type NodePosition, type ProjectLabel } from "@entities/project";
 import {
+  changeAt,
   findRelationBetween,
   liveRelations,
   useRelations,
   type Relation,
   type RelationInput,
 } from "@entities/relation";
-import { circleLayout, resolveLayout, type Layout } from "@features/relation-map";
+import { circleLayout, episodeDocs, episodeOrder, resolveLayout, type Layout } from "@features/relation-map";
 import { RelationCanvas } from "./RelationCanvas";
 import { RelationForm } from "./RelationForm";
+import { RelationTable } from "./RelationTable";
 
 export interface RelationMapViewProps {
   projectId: string;
   documents: readonly DocumentNode[];
+  labels?: ProjectLabel[];
   savedLayout: Layout | undefined;
   onSaveLayout: (layout: Layout) => void | Promise<void>;
   onOpenDocument: (id: string) => void;
@@ -26,14 +30,17 @@ export interface RelationMapViewProps {
 }
 
 type FormState = { fromId: string; toId: string; existing: Relation | null } | null;
+type ViewKind = "map" | "list";
+const isViewKind = isOneOf(["map", "list"] as const);
 
 /**
  * 인물 관계도 — 바인더의 인물 카드가 노드, 관계선은 relations 스토어.
- * 배치는 작품(Project.relationLayout)에 저장한다.
+ * 배치는 작품(Project.relationLayout)에 저장한다. 도표/목록 전환, 회차 시점 보기.
  */
 export function RelationMapView({
   projectId,
   documents,
+  labels,
   savedLayout,
   onSaveLayout,
   onOpenDocument,
@@ -48,8 +55,33 @@ export function RelationMapView({
   const ids = useMemo(() => characters.map((c) => c.id), [characters]);
   const layout = useMemo(() => resolveLayout(ids, savedLayout), [ids, savedLayout]);
   const visible = useMemo(() => liveRelations(relations, new Set(ids)), [relations, ids]);
+  const episodes = useMemo(() => episodeDocs(documents), [documents]);
+  const orderOf = useMemo(() => episodeOrder(documents), [documents]);
   const [form, setForm] = useState<FormState>(null);
+  const [view, setView] = usePersistedState<ViewKind>(`builbook:relation-view:${projectId}`, "map", isViewKind);
+  // 시점 — null이면 최신. 회차를 고르면 그 회차까지의 마지막 변화를 선에 표시한다.
+  const [pointDocId, setPointDocId] = useState<string | null>(null);
   const nameOf = (id: string) => characters.find((c) => c.id === id)?.title ?? "?";
+  const episodeTitleOf = (id: string) => episodes.find((e) => e.id === id)?.title ?? null;
+
+  const changeNoteOf = useMemo(() => {
+    const out = new Map<string, string>();
+    for (const r of visible) {
+      const c = changeAt(r, orderOf, pointDocId);
+      if (c) out.set(r.id, c.note);
+    }
+    return out;
+  }, [visible, orderOf, pointDocId]);
+
+  // 라벨 목록이 저장된 적 없는 작품은 기본 라벨을 쓴다(바인더·코르크보드와 같은 규칙).
+  const nodes = useMemo(() => {
+    const labelList = withDefaultLabels(labels);
+    return characters.map((c) => ({
+      id: c.id,
+      name: c.title,
+      color: findLabel(labelList, c.label)?.color ?? null,
+    }));
+  }, [characters, labels]);
 
   async function moveNode(id: string, pos: NodePosition) {
     try {
@@ -75,6 +107,8 @@ export function RelationMapView({
     }
   }
 
+  const changeCount = visible.reduce((n, r) => n + (r.changes?.length ?? 0), 0);
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex flex-wrap items-center gap-8 border-b border-border px-24 py-8 text-body-sm">
@@ -83,18 +117,58 @@ export function RelationMapView({
           인물 {characters.length}명 · 관계 {visible.length}개
         </span>
         <span className="mx-4 h-16 w-px bg-border" aria-hidden />
-        <span className="text-caption text-fg-weak">
-          인물을 끌어 배치하고, 오른쪽 동그라미에서 다른 인물로 끌면 관계가 생겨요. 인물을 두 번 누르면 카드가 열려요.
+        <div role="group" aria-label="관계도 보기" className="flex rounded-md bg-surface p-2">
+          {(["map", "list"] as const).map((k) => (
+            <button
+              key={k}
+              type="button"
+              aria-pressed={view === k}
+              onClick={() => setView(k)}
+              className={cn(
+                "rounded-sm px-8 py-2 text-caption",
+                view === k ? "bg-bg font-medium text-fg shadow-sm" : "text-fg-weak hover:text-fg",
+              )}
+            >
+              {k === "map" ? "도표" : "목록"}
+            </button>
+          ))}
+        </div>
+        {view === "map" && changeCount > 0 && (
+          <>
+            <label htmlFor="relation-point" className="text-caption text-fg-weak">
+              시점
+            </label>
+            <select
+              id="relation-point"
+              value={pointDocId ?? ""}
+              onChange={(e) => setPointDocId(e.target.value || null)}
+              className="h-28 rounded-md border border-border bg-bg px-8 text-caption text-fg"
+            >
+              <option value="">최신</option>
+              {episodes.map((ep) => (
+                <option key={ep.id} value={ep.id}>
+                  {ep.title}까지
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        <span className="text-caption text-fg-weak max-lg:hidden">
+          {view === "map"
+            ? "인물을 끌어 배치하고, 오른쪽 동그라미에서 다른 인물로 끌면 관계가 생겨요. 두 번 누르면 카드가 열려요."
+            : "줄을 누르면 관계를 고쳐요."}
         </span>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="ml-auto"
-          disabled={characters.length === 0}
-          onClick={() => void onSaveLayout(circleLayout(ids))}
-        >
-          자동 배치
-        </Button>
+        {view === "map" && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="ml-auto"
+            disabled={characters.length === 0}
+            onClick={() => void onSaveLayout(circleLayout(ids))}
+          >
+            자동 배치
+          </Button>
+        )}
       </div>
 
       {characters.length === 0 ? (
@@ -107,11 +181,20 @@ export function RelationMapView({
         </div>
       ) : isLoading ? (
         <p className="p-24 text-body-sm text-fg-weak">불러오는 중…</p>
+      ) : view === "list" ? (
+        <RelationTable
+          relations={visible}
+          nameOf={nameOf}
+          episodeTitleOf={episodeTitleOf}
+          orderOf={orderOf}
+          onEdit={(r) => setForm({ fromId: r.fromId, toId: r.toId, existing: r })}
+        />
       ) : (
         <RelationCanvas
-          nodes={characters.map((c) => ({ id: c.id, name: c.title }))}
+          nodes={nodes}
           relations={visible}
           layout={layout}
+          changeNoteOf={changeNoteOf}
           onMoveNode={(id, pos) => void moveNode(id, pos)}
           onConnect={connect}
           onEditRelation={(r) => setForm({ fromId: r.fromId, toId: r.toId, existing: r })}
@@ -127,6 +210,7 @@ export function RelationMapView({
           fromName={nameOf(form.fromId)}
           toName={nameOf(form.toId)}
           existing={form.existing}
+          episodes={episodes}
           onSubmit={submit}
           onDelete={
             form.existing

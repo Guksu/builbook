@@ -99,6 +99,13 @@
 - **결합** — 헤더 가운데 전환 3단(본문·카드·관계), `WorkspaceViewMode`를 헤더가 정의하고 views가 재수출. 빈 상태에서 "첫 인물 카드 만들기"(템플릿 본문으로 생성).
 - **e2e** — `relation-map.spec.ts` 3개: 빈 상태→첫 카드, 손잡이 드래그→폼→선·라벨·요약·새로고침·재연결 시 고치기·삭제, 노드 드래그 저장·자동 배치 복귀.
 
+### 루프 10 (2026-09-17) — 인물 관계도 후속 4건 (명세 `docs/loops/2026-09-17-relation-map-2.md`)
+- **손잡이 터치** — 보이는 원(반지름 7)은 그대로 두고, 그 위에 반지름 20의 투명 원을 겹쳐 누르기 영역만 넓혔다(약 40px = 손가락 크기). SVG에 `touch-action: none`을 줘 드래그가 스크롤로 새지 않게 했다.
+- **색** — 관계 종류별 색 키 `RELATION_TYPE_COLOR`(가족 green·연인 pink·적 red·동료 blue·스승 purple·라이벌 orange·직접 입력 gray)는 라벨 색 이름과 같아 화면이 `--label-*` 토큰 하나를 공유한다. 선은 `<g class="text-label-*">` + `stroke="currentColor"`, 노드는 인물 카드의 라벨 색을 왼쪽 띠(`fill-label-*`)로. Tailwind가 클래스를 만들도록 문자열 표(`widgets/relation-map/lib/colors.ts`)에 리터럴로 둔다. 라벨 목록이 저장된 적 없는 작품은 `withDefaultLabels`로 기본 라벨을 써야 한다(첫 e2e에서 색 띠가 안 나온 원인).
+- **목록 보기** — 툴바 "도표 | 목록" 전환(`builbook:relation-view:*`에 기억). 표는 인물·종류(색 점)·상대·→·←·최근 변화·메모. 줄을 누르면 같은 폼으로 고친다.
+- **회차별 변화** — `Relation.changes?: { documentId, note }[]`(별도 스토어 없음 — 관계와 함께 지워지고 백업된다). 회차 순서는 바인더 순서의 원고 회차(`features/relation-map/lib/episodes.ts`, 폴더 안 포함·카드 제외). `changeAt(relation, orderOf, pointDocId)`가 시점까지의 마지막 변화를 고른다(지워진 회차의 변화는 무시, `sortChanges`는 뒤로). 관계도 툴바 "시점"(최신 / N화까지)은 변화가 하나라도 있을 때만 보인다. 선 아래에 강조 알약으로 표시(`edgeGeometry.changeSlot`). 연표 패널 아래 "관계 변화" 절(`RelationChangesSection`)은 회차 순으로 나열하고 회차를 누르면 그 회차를 연다.
+- **e2e** — `relation-map.spec.ts` 2개 추가(색·목록·기억, 변화·시점·표·연표).
+
 ## 3. 주의사항
 
 - **헤더 e2e 계약**: 패널은 `getByRole("button", { name: "패널", exact: true })` → `getByRole("menuitemcheckbox", { name: "<패널명>" })`, 미리보기·내보내기·테마는 `getByRole("button", { name: "더 보기" })` → `getByRole("menuitem", …)`. 인스펙터·집중·본문/카드는 그대로 버튼.
@@ -113,6 +120,7 @@
 - **폴더 선택**: 이제 폴더 클릭은 접기가 아니라 선택(연속 보기)이다. 접기는 chevron과 ←/→ 키.
 - **카드 문서는 원고가 아니다**: `kind`가 character/setting이면 회차 분량표·내보내기에서 빠진다. 코르크보드·검색·백업에는 포함된다.
 
+- **라벨 색을 쓰는 새 화면은 `withDefaultLabels`부터**: `Project.labels`는 한 번도 안 건드린 작품에서 `undefined`다. `findLabel(labels, id)`에 그대로 넘기면 null이 나와 색이 사라진다(관계도 첫 e2e에서 겪음).
 - **개발 서버를 죽일 때 같은 명령줄에 서버 시작 문자열을 넣지 말 것**: `(npx next dev -p 3100 &) … pkill -f "next dev -p 31[0]0"`처럼 한 Bash 호출에 두면 pkill이 자기 셸(명령줄에 "next dev -p 3100"이 있음)을 죽인다(exit 144, 두 번 겪음). 시작과 종료는 별도 호출로.
 - **SVG 요소의 role**: Playwright `getByRole`은 `<g role="button" aria-label>`·`<circle role="button">`을 잡는다. 관계도 e2e는 이 이름(`인물 {이름}`, `{이름}에서 관계 잇기`, `관계 A – B: 종류`)에 의존한다.
 - **API 키는 어디에도 남기지 않는다**: 백업 JSON·IndexedDB·로그·e2e 스냅샷에 키가 들어가면 안 된다. e2e는 요청 본문에 키가 없음을 검사한다. 키를 다루는 코드는 `shared/ai-client/keyStore.ts` 한 곳뿐이어야 한다.

@@ -1,4 +1,4 @@
-export type { Relation } from "./model/types";
+export type { Relation, RelationChange } from "./model/types";
 export {
   useRelations,
   relationsKey,
@@ -12,4 +12,9 @@ export {
   findRelationBetween,
   liveRelations,
   countByNode,
+  RELATION_TYPE_COLOR,
+  relationTypeColor,
+  cleanChanges,
+  sortChanges,
+  changeAt,
 } from "./lib/relations";

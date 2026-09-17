@@ -110,3 +110,77 @@ test("노드를 끌어 옮기면 위치가 저장되고, 자동 배치로 되돌
   await page.getByRole("button", { name: "자동 배치" }).click();
   await expect(page.locator("g[data-node-id]").first()).toHaveAttribute("transform", before!);
 });
+
+test("관계 종류별 색·라벨 색 띠가 붙고, 목록 보기로 전환하면 표가 나온다", async ({ page }) => {
+  await createProjectAndOpen(page);
+  await createCharacter(page, "테아르");
+  await createCharacter(page, "루나");
+  // 테아르에 라벨 달기(인스펙터)
+  await page.getByRole("treeitem", { name: "테아르" }).click();
+  await page.keyboard.press("Control+Shift+Digit8");
+  await page.getByLabel("문서 라벨").selectOption({ index: 1 });
+  await page.keyboard.press("Control+Shift+Digit8");
+
+  await openRelations(page);
+  await expect(page.locator("rect[data-label-color]")).toHaveCount(1);
+
+  await dragCenter(
+    page,
+    page.getByRole("button", { name: "테아르에서 관계 잇기" }),
+    page.getByRole("button", { name: "인물 루나", exact: true }),
+  );
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("종류", { exact: true }).selectOption("적");
+  await dialog.getByRole("button", { name: "만들기" }).click();
+  await expect(page.getByRole("button", { name: "관계 테아르 – 루나: 적" })).toHaveClass(/text-label-red/);
+
+  await page.getByRole("group", { name: "관계도 보기" }).getByRole("button", { name: "목록" }).click();
+  const table = page.getByRole("table", { name: "관계 목록" });
+  await expect(table).toBeVisible();
+  await expect(table.getByRole("row").nth(1)).toContainText("테아르");
+  await expect(table.getByRole("row").nth(1)).toContainText("적");
+  await table.getByRole("row").nth(1).click();
+  await expect(page.getByRole("dialog")).toContainText("관계 고치기");
+  await page.getByRole("dialog").getByRole("button", { name: "취소" }).click();
+
+  // 보기 선택은 기억된다
+  await page.reload();
+  await openRelations(page);
+  await expect(page.getByRole("table", { name: "관계 목록" })).toBeVisible();
+});
+
+test("회차별 변화를 적으면 시점 보기·연표에 나타난다", async ({ page }) => {
+  await createProjectAndOpen(page);
+  await createCharacter(page, "테아르");
+  await createCharacter(page, "루나");
+  await openRelations(page);
+  await dragCenter(
+    page,
+    page.getByRole("button", { name: "테아르에서 관계 잇기" }),
+    page.getByRole("button", { name: "인물 루나", exact: true }),
+  );
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("종류", { exact: true }).selectOption("동료");
+  await dialog.getByRole("button", { name: "+ 변화 추가" }).click();
+  await dialog.getByLabel("변화 회차").selectOption({ label: "1화" });
+  await dialog.getByLabel("변화 내용").fill("동맹이 된다");
+  await dialog.getByRole("button", { name: "만들기" }).click();
+
+  const edge = page.getByRole("button", { name: "관계 테아르 – 루나: 동료" });
+  await expect(edge).toContainText("동맹이 된다"); // 최신 시점
+  const point = page.getByLabel("시점");
+  await expect(point).toBeVisible();
+  await point.selectOption({ label: "1화까지" });
+  await expect(edge).toContainText("동맹이 된다");
+
+  // 목록에도 최근 변화가 보인다
+  await page.getByRole("group", { name: "관계도 보기" }).getByRole("button", { name: "목록" }).click();
+  await expect(page.getByRole("table", { name: "관계 목록" })).toContainText("동맹이 된다");
+
+  // 연표 패널의 관계 변화 절
+  await page.keyboard.press("Control+Shift+Digit1");
+  const section = page.getByRole("region", { name: "관계 변화" });
+  await expect(section).toContainText("1화");
+  await expect(section).toContainText("테아르 – 루나");
+  await expect(section).toContainText("동맹이 된다");
+});

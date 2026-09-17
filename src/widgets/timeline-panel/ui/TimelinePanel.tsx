@@ -8,6 +8,7 @@ import {
   useStoryEvents,
   type StoryEvent,
 } from "@entities/story-event";
+import { RelationChangesSection } from "./RelationChangesSection";
 
 export interface TimelinePanelProps {
   projectId: string;
@@ -219,6 +220,8 @@ export function TimelinePanel({
           </li>
         ))}
       </ol>
+
+      <RelationChangesSection projectId={projectId} documents={documents} onOpenDocument={onOpenDocument} />
 
       <ConfirmModal
         open={!!deleteTarget}
