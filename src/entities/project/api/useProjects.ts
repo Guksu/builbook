@@ -1,6 +1,6 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 import {
   STORES,
   dbGetAll,
@@ -28,6 +28,19 @@ export const projectKey = (id: string) => `project:${id}`;
 async function listProjects(): Promise<Project[]> {
   const items = await dbGetAll<Project>(STORES.projects);
   return items.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+// 작품 제목 변경. 작품 목록(대시보드)과 단일 작품(작업실 헤더)이 서로 다른 SWR 키로 읽으므로
+// 두 캐시를 함께 갱신한다. 공백 제목이거나 작품이 없으면 false.
+async function renameProject(id: string, title: string): Promise<boolean> {
+  const next = title.trim();
+  if (!next) return false; // 공백 제목 방어
+  const p = await dbGet<Project>(STORES.projects, id);
+  if (!p) return false;
+  if (p.title === next) return true; // 바뀐 게 없으면 수정 시각도 건드리지 않는다
+  await dbPut(STORES.projects, { ...p, title: next, updatedAt: new Date().toISOString() });
+  await Promise.all([globalMutate(KEY), globalMutate(projectKey(id))]);
+  return true;
 }
 
 // 단일 작품(작업실 화면 등)을 읽고 목표 단어 수를 갱신하는 훅.
@@ -67,6 +80,8 @@ export function useProject(projectId: string) {
   return {
     project: data ?? null,
     updateLabels,
+    // 작품 제목 변경(작업실 헤더). 작품 목록 캐시도 함께 갱신된다.
+    renameProject: (title: string) => renameProject(projectId, title),
     // 작품 목표 단어 수 설정. null이면 목표 해제(undefined 저장).
     updateGoal: (goal: number | null) => updateGoalField("goal", goal),
     // 하루 목표 단어 수(집필 현황 '오늘' 진행률 기준).
@@ -171,6 +186,8 @@ export function useProjects() {
       await dbDelete(STORES.projects, id);
       await mutate();
     },
+    // 작품 제목 변경(대시보드 카드). 작업실이 쓰는 단일 작품 캐시도 함께 갱신된다.
+    renameProject,
     async getProject(id: string) {
       return dbGet<Project>(STORES.projects, id);
     },
