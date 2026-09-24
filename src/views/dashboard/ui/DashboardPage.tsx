@@ -20,7 +20,7 @@ import { BackupModal, BackupReminder } from "@features/backup-restore";
 import { StorageNotice } from "@features/storage-guard";
 
 export function DashboardPage() {
-  const { projects, isLoading, error, createProject, deleteProject } =
+  const { projects, isLoading, error, createProject, deleteProject, renameProject } =
     useProjects();
   const router = useRouter();
   const { toast } = useToast();
@@ -28,10 +28,31 @@ export function DashboardPage() {
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const [renameTarget, setRenameTarget] = useState<Project | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const [backupOpen, setBackupOpen] = useState(false);
   // 동기 in-flight 가드: 상태 업데이트(setBusy)는 비동기라 연속 호출(한글 IME의
   // Enter 더블 fire, 빠른 더블클릭)을 막지 못한다. ref로 즉시 차단해 중복 생성 방지.
   const creatingRef = useRef(false);
+  const renamingRef = useRef(false); // 제목 변경도 같은 이유로 중복 저장을 막는다
+
+  function openRename(p: Project) {
+    setRenameTarget(p);
+    setRenameDraft(p.title);
+  }
+
+  async function handleRename() {
+    if (!renameTarget || renamingRef.current || !renameDraft.trim()) return;
+    renamingRef.current = true;
+    try {
+      await renameProject(renameTarget.id, renameDraft);
+      setRenameTarget(null);
+    } catch {
+      toast("제목을 바꾸지 못했어요.", "error");
+    } finally {
+      renamingRef.current = false;
+    }
+  }
 
   async function handleCreate() {
     if (creatingRef.current || !title.trim()) return;
@@ -95,18 +116,34 @@ export function DashboardPage() {
               onClick={() => router.push(`/projects/${p.id}`)}
               className="group relative"
             >
-              <button
-                type="button"
-                aria-label="작품 삭제"
-                className="absolute right-8 top-8 opacity-0 transition-opacity group-hover:opacity-100 text-fg-weak hover:text-error"
-                onClick={(e) => {
-                  e.stopPropagation(); // 카드 네비게이션 막기
-                  setDeleteTarget(p);
-                }}
-              >
-                ✕
-              </button>
-              <CardHeader>
+              {/* 카드 동작 — 평소엔 숨기고 마우스를 올리거나 키보드로 들어오면 보인다 */}
+              <div className="absolute right-8 top-8 flex items-center gap-8 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                <button
+                  type="button"
+                  aria-label="작품 제목 바꾸기"
+                  title="제목 바꾸기"
+                  className="text-fg-weak hover:text-fg"
+                  onClick={(e) => {
+                    e.stopPropagation(); // 카드 네비게이션 막기
+                    openRename(p);
+                  }}
+                >
+                  <IconPencil />
+                </button>
+                <button
+                  type="button"
+                  aria-label="작품 삭제"
+                  className="text-fg-weak hover:text-error"
+                  onClick={(e) => {
+                    e.stopPropagation(); // 카드 네비게이션 막기
+                    setDeleteTarget(p);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              {/* 오른쪽 여백 — 긴 제목이 연필·✕ 버튼 밑으로 겹치지 않게 */}
+              <CardHeader className="pr-40">
                 <CardTitle>{p.title}</CardTitle>
                 <CardDescription>
                   {new Date(p.updatedAt).toLocaleDateString("ko-KR")} 수정
@@ -148,6 +185,38 @@ export function DashboardPage() {
         />
       </Modal>
 
+      {/* 카드 밖에 둔다 — 포털이어도 React 이벤트는 부모로 번지므로 카드 안이면 클릭이 작업실 이동이 된다 */}
+      <Modal
+        open={!!renameTarget}
+        onClose={() => setRenameTarget(null)}
+        title="작품 제목 바꾸기"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRenameTarget(null)}>
+              취소
+            </Button>
+            <Button onClick={handleRename} disabled={!renameDraft.trim()}>
+              저장
+            </Button>
+          </>
+        }
+      >
+        <label className="mb-6 block text-body-sm text-fg-weak" htmlFor="rename-title">
+          작품 제목
+        </label>
+        <Input
+          id="rename-title"
+          autoFocus
+          value={renameDraft}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => setRenameDraft(e.target.value)}
+          onKeyDown={(e) => {
+            // 한글 등 IME 조합 중 Enter는 '조합 확정'이므로 무시(중복 제출 방지).
+            if (e.key === "Enter" && !e.nativeEvent.isComposing) handleRename();
+          }}
+        />
+      </Modal>
+
       <BackupModal
         open={backupOpen}
         onClose={() => setBackupOpen(false)}
@@ -167,5 +236,18 @@ export function DashboardPage() {
         confirmText="삭제"
       />
     </main>
+  );
+}
+
+function IconPencil() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M11.3 2.3a1.5 1.5 0 0 1 2.1 2.1L5.6 12.2 2.5 13l.8-3.1 8-7.6Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

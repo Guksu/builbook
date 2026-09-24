@@ -77,6 +77,7 @@ export function WorkspacePage() {
       {!focusMode && (
         <WorkspaceHeader
           projectTitle={project?.title}
+          onRenameProject={projectApi.renameProject}
           totalLabel={formatCount(projectTotalWords, unit)}
           viewMode={viewMode}
           onChangeViewMode={panels.setViewMode}

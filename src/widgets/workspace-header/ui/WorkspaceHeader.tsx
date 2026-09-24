@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { cn, ContextMenu, useModLabel } from "@shared/ui";
 
@@ -35,6 +35,8 @@ type HeaderMenu = { kind: "panels" | "more"; x: number; y: number } | null;
 
 interface WorkspaceHeaderProps {
   projectTitle?: string;
+  /** 작품 제목 변경 — 있으면 제목을 눌러 그 자리에서 고칠 수 있다. */
+  onRenameProject?: (title: string) => void;
   /** 작품 전체 분량 표기(예: "12,345자") — 편집 중 문서는 실시간 값으로 치환된 합계. */
   totalLabel: string;
   viewMode: WorkspaceViewMode;
@@ -58,6 +60,7 @@ interface WorkspaceHeaderProps {
  */
 export function WorkspaceHeader({
   projectTitle,
+  onRenameProject,
   totalLabel,
   viewMode,
   onChangeViewMode,
@@ -104,9 +107,7 @@ export function WorkspaceHeader({
         >
           <IconChevronLeft />
         </Link>
-        <p className="truncate text-body-sm font-medium text-fg">
-          {projectTitle ?? "작품"}
-        </p>
+        <ProjectTitle title={projectTitle} onRename={onRenameProject} />
         <span className="shrink-0 text-caption tabular-nums text-fg-muted max-sm:hidden">
           {totalLabel}
         </span>
@@ -421,5 +422,71 @@ function IconFocus() {
       <circle cx="8" cy="8" r="5.5" stroke="currentColor" strokeWidth="1.5" />
       <circle cx="8" cy="8" r="1.75" fill="currentColor" />
     </svg>
+  );
+}
+
+/**
+ * 작품 제목 — 누르면 입력칸으로 바뀐다(바인더 이름 편집과 같은 규칙).
+ * Enter/포커스 아웃=확정, Esc=취소. 한글 IME 조합 중 Enter는 '조합 확정'이라 무시한다.
+ */
+function ProjectTitle({
+  title,
+  onRename,
+}: {
+  title?: string;
+  onRename?: (title: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const cancelled = useRef(false);
+
+  // 작품을 아직 못 읽었거나 수정 경로가 없으면 읽기 전용.
+  if (!title || !onRename) {
+    // 버튼과 같은 안쪽 여백 — 제목이 읽힌 뒤 글자가 옆으로 밀리지 않게.
+    return <p className="truncate px-6 text-body-sm font-medium text-fg">{title ?? "작품"}</p>;
+  }
+
+  if (editing) {
+    return (
+      <input
+        aria-label="작품 제목"
+        autoFocus
+        value={draft}
+        onFocus={(e) => e.currentTarget.select()}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+            e.preventDefault();
+            e.currentTarget.blur(); // blur에서 한 번만 확정
+          } else if (e.key === "Escape") {
+            cancelled.current = true;
+            e.currentTarget.blur();
+          }
+        }}
+        onBlur={() => {
+          setEditing(false);
+          const next = draft.trim();
+          // 취소했거나, 비었거나(제목 없는 작품은 목록에서 찾을 수 없다), 그대로면 저장하지 않는다.
+          if (cancelled.current || !next || next === title) return;
+          onRename(next);
+        }}
+        className="h-28 w-[240px] min-w-0 rounded-md border border-primary bg-bg px-6 text-body-sm font-medium text-fg outline-none"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      title="작품 제목 바꾸기"
+      onClick={() => {
+        cancelled.current = false;
+        setDraft(title);
+        setEditing(true);
+      }}
+      className="min-w-0 truncate rounded-md px-6 py-2 text-left text-body-sm font-medium text-fg transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {title}
+    </button>
   );
 }
