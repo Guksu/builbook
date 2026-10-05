@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useTheme } from "next-themes";
 import { cn, ContextMenu, useModLabel } from "@shared/ui";
 
 /** 가운데 화면 — 본문(에디터) · 카드(코르크보드) · 관계(인물 관계도). */
@@ -18,7 +17,8 @@ export type WorkspacePanelKey =
   | "inspector";
 
 // 헤더에 칩 7개를 늘어놓으면 눈이 갈 곳이 없다(사용자 피드백). 자주 쓰는 인스펙터만 남기고
-// 나머지 패널은 "패널" 메뉴 하나로, 일회성 동작·테마는 "더 보기" 메뉴로 모은다.
+// 나머지 패널은 "패널" 메뉴 하나로, 일회성 동작은 "더 보기" 메뉴로 모은다.
+// 테마 전환은 작품 목록(대시보드)에만 둔다 — 한 번 정하면 잘 바꾸지 않는 설정이다(2026-10).
 const PANEL_MENU: { key: WorkspacePanelKey; label: string }[] = [
   { key: "timeline", label: "연표" },
   { key: "stats", label: "현황" },
@@ -71,8 +71,6 @@ export function WorkspaceHeader({
   goalSlot,
 }: WorkspaceHeaderProps) {
   const [menu, setMenu] = useState<HeaderMenu>(null);
-  const { resolvedTheme, setTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
   const openCount = PANEL_MENU.filter((p) => openPanels[p.key]).length;
   const mod = useModLabel();
   const shortcutHint = (n: number) => `${mod}+Shift+${n}`;
@@ -172,7 +170,7 @@ export function WorkspaceHeader({
 
         <Divider />
 
-        {/* 더 보기 — 미리보기·내보내기·테마 */}
+        {/* 더 보기 — 미리보기·내보내기 */}
         <button
           type="button"
           aria-label="더 보기"
@@ -216,10 +214,6 @@ export function WorkspaceHeader({
           items={[
             { label: "미리보기", disabled: previewDisabled, onSelect: onOpenPreview },
             { label: "내보내기", onSelect: onOpenExport },
-            {
-              label: isDark ? "라이트 모드로 전환" : "다크 모드로 전환",
-              onSelect: () => setTheme(isDark ? "light" : "dark"),
-            },
           ]}
           onClose={() => setMenu(null)}
         />
