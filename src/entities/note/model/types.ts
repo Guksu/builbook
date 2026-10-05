@@ -1,5 +1,5 @@
-// Note(리서치 노트) 엔티티 모델 — 캐릭터·설정 카드.
-// 바인더(문서 트리)와 분리된, 작품 단위의 참고 자료. 스크리브너 캐릭터/설정 시트의 단순화판.
+// Note(리서치 노트) 엔티티 모델 — 캐릭터·설정 메모.
+// 2026-10부터 바인더 인물·설정 카드로 옮겨진다(features/notes-to-cards). 옛 기록·백업 호환을 위해 타입은 남긴다.
 export type NoteCategory = "CHARACTER" | "SETTING";
 
 export interface Note {

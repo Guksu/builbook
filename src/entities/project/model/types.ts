@@ -49,6 +49,8 @@ export interface Project {
   relationLayout?: Record<string, NodePosition>;
   // 관계 종류별 색(종류 이름 → 라벨 색 이름, 선택). 없는 종류는 기본 표를 따른다.
   relationTypeColors?: Record<string, string>;
+  // 리서치 노트를 바인더 카드로 옮겼는가(2026-10, features/notes-to-cards). 옮긴 뒤에는 다시 옮기지 않는다.
+  notesMigrated?: boolean;
   createdAt: string;
   updatedAt: string;
 }
