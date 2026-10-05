@@ -3,7 +3,7 @@
 | 항목 | 내용 |
 |------|------|
 | 날짜 | 2026-10-05 |
-| 상태 | 진행 중 |
+| 상태 | 완료(8/8, PR 병합 대기) |
 | 실행 수단 | 항목마다 PR 하나, 앞 PR 위에 이어서(순서대로 병합하면 충돌 없음) |
 
 ## 1. 목표
@@ -32,7 +32,7 @@
 | 5 | 더 보기의 테마 전환 빼기 | 완료 |
 | 6 | 연표 패널의 "관계 변화" 절 빼기 | 완료 |
 | 7 | 검색: 결과 위치 이동 + 작품 전체 바꾸기 | 완료 |
-| 8 | 휴대폰 상단 바 정리 | 대기 |
+| 8 | 휴대폰 상단 바 정리 | 완료 |
 
 휴대폰 상단 바는 앞 항목들로 상단 바 모양이 정해진 뒤에 한다.
 
@@ -47,3 +47,4 @@
 | 5 | 작업실 "더 보기"에서 다크/라이트 전환 제거(`useTheme` 중복 구현도 사라짐). 테마는 작품 목록 `ThemeToggle`에서만 바꾸고, 고른 테마는 작업실에도 그대로 이어짐(next-themes 전역) | lint 0 · tsc 0 · unit 412 · e2e 93/93 |
 | 6 | 연표(타임라인) 패널 아래 `RelationChangesSection` 제거. 같은 `Relation.changes`가 관계도 목록 "최근 변화" 열과 "시점" 선택에 이미 나온다. 편집 경로(관계 폼)는 그대로 | lint 0 · tsc 0 · unit 412 · e2e 93/93 |
 | 7 | 결과를 누르면 본문 모드로 넘어가 찾기 바를 그 검색어로 엶(`Editor.findRequest`, `FindReplaceBar.initialQuery`, 좁은 화면은 패널 닫기). 작품 전체 바꾸기(`features/search-document` `replaceInContent`·`planProjectReplace`·`replaceAcrossProject`): 텍스트 노드 안에서만(서식 갈린 곳 제외), 대소문자 무시, 바꾸기 전 문서마다 스냅샷, 집필 기록 제외(`saveDocumentContent` `recordWriting:false`). 순서: `flushAllAutosaves`(열린 에디터 남은 저장 끝내기) → 바꾸기 → 문서 캐시 갱신·에디터/스크리브닝 재마운트(`views/workspace/model/useSearchActions`). 저장 전 글 보존 e2e는 기다리기를 끄면 실패하는 것 확인 | lint 0 · tsc 0 · unit 420 · e2e 96/96 |
+| 8 | 좁은 화면(md 미만)에서 패널 메뉴·인스펙터 칩·구분선·집중 버튼을 숨기고 "⋯" 하나로: 패널 토글 5·인스펙터(체크)·목표·집중 모드·미리보기·내보내기(`HeaderMenu.compact`, 열 때 `matchMedia`로 판정). 휴대폰에서 숨던 목표 바 대신 "목표" 항목. 넓은 화면은 그대로. 넘침 e2e는 고치기 전 상단 바에서 217px 넘쳐 실패 확인 | lint 0 · tsc 0 · unit 420 · e2e 97/97 |

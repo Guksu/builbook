@@ -27,7 +27,10 @@ const PANEL_MENU: { key: WorkspacePanelKey; label: string }[] = [
   { key: "ideas", label: "영감" },
 ];
 
-type HeaderMenu = { kind: "panels" | "more"; x: number; y: number } | null;
+// compact: 좁은 화면(md 미만)에서 연 메뉴 — 숨긴 버튼들(패널·인스펙터·목표·집중)까지 "⋯" 하나에 담는다.
+type HeaderMenu = { kind: "panels" | "more"; x: number; y: number; compact: boolean } | null;
+
+const COMPACT_QUERY = "(max-width: 767px)";
 
 interface WorkspaceHeaderProps {
   projectTitle?: string;
@@ -43,6 +46,8 @@ interface WorkspaceHeaderProps {
   previewDisabled?: boolean;
   onOpenExport: () => void;
   onEnterFocus: () => void;
+  /** 목표 창 열기 — 좁은 화면에서는 목표 바가 숨으므로 "⋯" 메뉴에 넣는다. */
+  onOpenGoals?: () => void;
   /** 좁은 화면(md 미만)에서 바인더 드로어를 여닫는다. */
   onToggleBinder?: () => void;
   binderOpen?: boolean;
@@ -66,6 +71,7 @@ export function WorkspaceHeader({
   previewDisabled,
   onOpenExport,
   onEnterFocus,
+  onOpenGoals,
   onToggleBinder,
   binderOpen,
   goalSlot,
@@ -76,8 +82,32 @@ export function WorkspaceHeader({
   const shortcutHint = (n: number) => `${mod}+Shift+${n}`;
   const openMenu = (kind: "panels" | "more") => (e: React.MouseEvent<HTMLButtonElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
-    setMenu({ kind, x: r.right - 200, y: r.bottom + 4 });
+    const compact = window.matchMedia(COMPACT_QUERY).matches;
+    setMenu({ kind, x: r.right - 200, y: r.bottom + 4, compact });
   };
+  // 좁은 화면의 "⋯": 패널 토글·인스펙터·목표·집중을 앞에 두고, 넓은 화면과 같은 미리보기·내보내기를 뒤에.
+  const moreItems = [
+    ...(menu?.compact
+      ? [
+          ...PANEL_MENU.map((p) => ({
+            label: p.label,
+            checked: openPanels[p.key],
+            checkbox: true,
+            onSelect: () => onTogglePanel(p.key),
+          })),
+          {
+            label: "인스펙터",
+            checked: openPanels.inspector,
+            checkbox: true,
+            onSelect: () => onTogglePanel("inspector"),
+          },
+          ...(onOpenGoals ? [{ label: "목표", onSelect: onOpenGoals }] : []),
+          { label: "집중 모드", onSelect: onEnterFocus },
+        ]
+      : []),
+    { label: "미리보기", disabled: previewDisabled, onSelect: onOpenPreview },
+    { label: "내보내기", onSelect: onOpenExport },
+  ];
   return (
     <header className="flex h-48 items-center gap-16 border-b border-border pl-8 pr-12 max-md:gap-8 max-md:overflow-x-auto">
       {/* 좌: 어디에서 얼마나 쓰고 있는지 — 좁은 화면에서는 줄어들지 않고 제목만 자른다 */}
@@ -148,7 +178,7 @@ export function WorkspaceHeader({
           aria-expanded={menu?.kind === "panels"}
           onClick={openMenu("panels")}
           className={cn(
-            "flex h-28 shrink-0 items-center gap-6 rounded-full px-10 text-caption transition-colors",
+            "flex h-28 shrink-0 items-center gap-6 rounded-full px-10 text-caption transition-colors max-md:hidden",
             openCount > 0 ? "bg-primary-weak text-fg" : "text-fg-weak hover:bg-surface hover:text-fg",
           )}
         >
@@ -166,11 +196,12 @@ export function WorkspaceHeader({
           hint={shortcutHint(PANEL_MENU.length + 1)}
           active={openPanels.inspector}
           onClick={() => onTogglePanel("inspector")}
+          className="max-md:hidden"
         />
 
-        <Divider />
+        <Divider className="max-md:hidden" />
 
-        {/* 더 보기 — 미리보기·내보내기 */}
+        {/* 더 보기 — 미리보기·내보내기(좁은 화면에서는 숨긴 버튼들까지) */}
         <button
           type="button"
           aria-label="더 보기"
@@ -184,7 +215,7 @@ export function WorkspaceHeader({
         <button
           type="button"
           onClick={onEnterFocus}
-          className="flex h-32 shrink-0 items-center gap-6 rounded-full border border-border px-12 text-caption text-fg-weak transition-colors hover:border-border-strong hover:bg-surface hover:text-fg"
+          className="flex h-32 shrink-0 items-center gap-6 rounded-full border border-border px-12 text-caption text-fg-weak transition-colors hover:border-border-strong hover:bg-surface hover:text-fg max-md:hidden"
         >
           <IconFocus />
           집중
@@ -211,10 +242,7 @@ export function WorkspaceHeader({
           x={menu.x}
           y={menu.y}
           label="더 보기 메뉴"
-          items={[
-            { label: "미리보기", disabled: previewDisabled, onSelect: onOpenPreview },
-            { label: "내보내기", onSelect: onOpenExport },
-          ]}
+          items={moreItems}
           onClose={() => setMenu(null)}
         />
       )}
@@ -281,11 +309,13 @@ function PanelChip({
   hint,
   active,
   onClick,
+  className,
 }: {
   label: string;
   hint?: string;
   active: boolean;
   onClick: () => void;
+  className?: string;
 }) {
   return (
     <button
@@ -298,6 +328,7 @@ function PanelChip({
         active
           ? "bg-primary-weak text-fg"
           : "text-fg-weak hover:bg-surface hover:text-fg",
+        className,
       )}
     >
       {/* 표시등 — 패널이 열려 있으면 켜진다 */}
@@ -313,8 +344,8 @@ function PanelChip({
   );
 }
 
-function Divider() {
-  return <span aria-hidden className="h-16 w-1 shrink-0 bg-border" />;
+function Divider({ className }: { className?: string }) {
+  return <span aria-hidden className={cn("h-16 w-1 shrink-0 bg-border", className)} />;
 }
 
 function IconMenu() {
