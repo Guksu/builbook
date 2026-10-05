@@ -100,6 +100,7 @@ export function WorkspacePage() {
           previewDisabled={!selected || selected.type !== "DOC"}
           onOpenExport={() => panels.setExportOpen(true)}
           onEnterFocus={() => panels.setFocusMode(true)}
+          onOpenGoals={() => panels.setGoalsOpen(true)}
           onToggleBinder={() => panels.setBinderOpen((v) => !v)}
           binderOpen={panels.binderOpen}
           goalSlot={
