@@ -11,9 +11,8 @@ import { ConsistencyPanel } from "@widgets/consistency-panel";
 import { IdeaPanel } from "@widgets/idea-panel";
 import { CharacterRelationsSummary } from "@widgets/relation-map";
 import { SearchPanel } from "@features/search-document";
-import { TrashPanel } from "@features/trash-document";
 import type { DocumentNode } from "@entities/document";
-import { useToast, cn } from "@shared/ui";
+import { cn } from "@shared/ui";
 import type { DocumentsApi, ProjectApi } from "../model/types";
 import type { WorkspacePanels } from "../model/useWorkspacePanels";
 import type { WorkspaceSelection } from "../model/useWorkspaceSelection";
@@ -52,7 +51,6 @@ export function WorkspaceSidePanels({
   const { selected, setSelectedId } = selection;
   const { openPanels, panelSetters, inspectorTab, setInspectorTab, focusMode, setViewMode } =
     panels;
-  const { toast } = useToast();
   const { project } = projectApi;
 
   return (
@@ -211,31 +209,6 @@ export function WorkspaceSidePanels({
         </aside>
       )}
 
-      {/* 우: 휴지통 — 소프트 삭제 문서 복원 / 영구 삭제 */}
-      {openPanels.trash && !focusMode && (
-        <aside className={cn(SIDE_PANEL, "w-[300px] overflow-hidden")}>
-          <TrashPanel
-            trashedDocuments={docs.trashedDocuments}
-            onRestore={async (docId) => {
-              const node = docs.trashedDocuments.find((d) => d.id === docId);
-              try {
-                await docs.restoreDocument(docId);
-                // 복원한 게 본문 문서면 바로 선택해 보여준다(폴더면 바인더에서 펼치도록 둔다).
-                if (node?.type === "DOC") setSelectedId(docId);
-              } catch {
-                toast("복원에 실패했어요.", "error");
-              }
-            }}
-            onPermanentDelete={async (docId) => {
-              try {
-                await docs.permanentlyDeleteDocument(docId);
-              } catch {
-                toast("영구 삭제에 실패했어요.", "error");
-              }
-            }}
-          />
-        </aside>
-      )}
     </>
   );
 }

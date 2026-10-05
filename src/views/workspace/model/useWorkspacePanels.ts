@@ -12,13 +12,12 @@ import { usePersistedState } from "@shared/ui";
 
 export type { WorkspaceViewMode };
 
-/** 패널 순서 = 단축키 번호(Ctrl/⌘+Shift+1~7)와 헤더 메뉴 순서. */
+/** 패널 순서 = 단축키 번호(Ctrl/⌘+Shift+1~6)와 헤더 메뉴 순서. */
 export const PANEL_KEYS: readonly WorkspacePanelKey[] = [
   "timeline",
   "stats",
   "check",
   "search",
-  "trash",
   "ideas",
   "inspector",
 ];
