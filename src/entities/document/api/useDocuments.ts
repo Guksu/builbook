@@ -38,6 +38,8 @@ export async function saveDocumentContent(
   id: string,
   content: unknown,
   measure: TextMeasure,
+  /** recordWriting=false: 작품 전체 바꾸기처럼 작가가 쓴 게 아닌 변경은 집필 기록에 넣지 않는다. */
+  options: { recordWriting?: boolean } = {},
 ) {
   const doc = await dbGet<DocumentNode>(STORES.documents, id);
   if (!doc) return;
@@ -52,6 +54,7 @@ export async function saveDocumentContent(
     charCountNoSpace: measure.charsNoSpace,
     updatedAt: now(),
   });
+  if (options.recordWriting === false) return;
   try {
     await recordWriting(doc.projectId, delta);
   } catch {

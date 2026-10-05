@@ -16,6 +16,7 @@ import { useWorkspacePanels } from "../model/useWorkspacePanels";
 import { useDocumentActions } from "../model/useDocumentActions";
 import { useWorkspaceShortcuts } from "../model/useWorkspaceShortcuts";
 import { useWorkspaceProgress } from "../model/useWorkspaceProgress";
+import { useSearchActions } from "../model/useSearchActions";
 import { WorkspaceBinderPane } from "./WorkspaceBinderPane";
 import { WorkspaceMain } from "./WorkspaceMain";
 import { WorkspaceSidePanels } from "./WorkspaceSidePanels";
@@ -55,6 +56,15 @@ export function WorkspacePage() {
     reorderSiblings: docs.reorderSiblings,
     mutateDocuments: docs.mutate,
     setSelectedId,
+  });
+
+  const search = useSearchActions({
+    documents,
+    selectedId,
+    setSelectedId,
+    setViewMode: panels.setViewMode,
+    closeSearch: () => panelSetters.search(false),
+    reloadEditors: handleRestored,
   });
 
   const { quickOpen, setQuickOpen } = useWorkspaceShortcuts({
@@ -136,6 +146,7 @@ export function WorkspacePage() {
           liveWords={liveWords}
           unit={unit}
           focusProgress={focusProgress}
+          findRequest={search.findRequest}
         />
 
         <WorkspaceSidePanels
@@ -148,6 +159,8 @@ export function WorkspacePage() {
           liveWords={liveWords}
           projectTotalWords={projectTotalWords}
           onRestored={handleRestored}
+          onSearchSelect={search.openResult}
+          onReplaceAll={search.replaceAll}
         />
       </div>
 

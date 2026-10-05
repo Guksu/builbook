@@ -11,6 +11,16 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 const DEBOUNCE_MS = 800;
 const backupKey = (id: string) => `builbook:doc-backup:${id}`;
 
+// 지금 화면에 있는 에디터들의 "남은 저장 끝내기" 함수 모음. 작품 전체 바꾸기처럼 DB의 본문을
+// 직접 고치는 작업은 먼저 이걸 기다려야 한다 — 안 그러면 0.8초 안에 친 글이 바꾼 결과를 덮거나
+// 반대로 사라진다.
+const flushers = new Set<() => Promise<void>>();
+
+/** 열려 있는 모든 에디터의 예약된 저장을 지금 끝내고, 진행 중인 저장까지 기다린다. */
+export async function flushAllAutosaves(): Promise<void> {
+  await Promise.all([...flushers].map((f) => f()));
+}
+
 export interface DocBackup {
   content: unknown;
   measure: TextMeasure;
@@ -46,14 +56,18 @@ export function useAutosave(documentId: string, projectId: string) {
   statusRef.current = status;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pending = useRef<{ content: unknown; measure: TextMeasure } | null>(null);
+  // 진행 중인 저장 — flushAllAutosaves가 "이미 시작된 저장"까지 기다릴 수 있게 남겨 둔다.
+  const inflight = useRef<Promise<void> | null>(null);
 
   const flush = useCallback(async () => {
     if (!pending.current) return;
     const payload = pending.current;
     pending.current = null;
     setStatus("saving");
+    const save = saveDocumentContent(documentId, payload.content, payload.measure);
+    inflight.current = save.catch(() => {});
     try {
-      await saveDocumentContent(documentId, payload.content, payload.measure);
+      await save;
       setStatus("saved");
       localStorage.removeItem(backupKey(documentId));
       // 문서 목록 캐시 무효화 → 다른 문서로 전환해도 최신 content 반영.
@@ -81,6 +95,20 @@ export function useAutosave(documentId: string, projectId: string) {
     },
     [flush, status],
   );
+
+  // 바깥에서 "지금 다 저장해" 할 수 있게 등록한다(작품 전체 바꾸기).
+  useEffect(() => {
+    const flushNow = async () => {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      await flush();
+      await inflight.current;
+    };
+    flushers.add(flushNow);
+    return () => {
+      flushers.delete(flushNow);
+    };
+  }, [flush]);
 
   // 언마운트 시 마지막 저장 시도.
   useEffect(() => {
