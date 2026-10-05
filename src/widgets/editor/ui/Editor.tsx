@@ -34,6 +34,8 @@ interface EditorProps {
   onRename?: (title: string) => void;
   /** 집중 모드 — 제목·툴바를 숨기고(hover 시 표시) 타이프라이터 스크롤을 켠다(설정 시). */
   focusMode?: boolean;
+  /** 검색 패널에서 결과를 눌러 들어왔을 때: 찾기 바를 이 검색어로 열어 첫 일치를 보여 준다. nonce가 바뀔 때마다 다시 연다. */
+  findRequest?: { query: string; nonce: number } | null;
 }
 
 // Tiptap 에디터 코어. 최소 확장 세트 + 자동저장. 집중 글쓰기 단일 컬럼.
@@ -45,6 +47,7 @@ export function Editor({
   onMeasureChange,
   onRename,
   focusMode = false,
+  findRequest = null,
 }: EditorProps) {
   const { status, schedule } = useAutosave(documentId, projectId);
   const [measure, setMeasure] = useState<TextMeasure>(ZERO_MEASURE);
@@ -54,6 +57,8 @@ export function Editor({
   const { toast } = useToast();
   const style = focusStyle(display);
   const [findOpen, setFindOpen] = useState(false);
+  // 찾기 바를 새 검색어로 다시 띄우기 위한 키·처음 검색어(검색 패널에서 들어왔을 때).
+  const [findSeed, setFindSeed] = useState<{ query: string; key: number }>({ query: "", key: 0 });
   const [helpOpen, setHelpOpen] = useState(false);
   // 값이 바뀔 때마다 제목 편집이 시작된다(F2). 상태 대신 신호로 두면 되돌릴 필요가 없다.
   const [titleEditSignal, setTitleEditSignal] = useState(0);
@@ -152,6 +157,15 @@ export function Editor({
   }, [documentId, editor]);
 
 
+  // 검색 패널 → 이 문서: 찾기 바를 그 검색어로 연다(바를 새로 띄워 첫 일치로 스크롤).
+  const findNonce = findRequest?.nonce;
+  const findQuery = findRequest?.query;
+  useEffect(() => {
+    if (findNonce === undefined || !findQuery) return;
+    setFindSeed({ query: findQuery, key: findNonce });
+    setFindOpen(true);
+  }, [findNonce, findQuery]);
+
   // F2 = 제목 편집. 브라우저 기본 동작이 없는 키라 문서 어디서 눌러도 안전하지만,
   // 다른 입력칸에 글을 치는 중이라면 가만히 둔다.
   useEffect(() => {
@@ -206,7 +220,12 @@ export function Editor({
       )}
 
       {editor && findOpen && (
-        <FindReplaceBar editor={editor} onClose={() => setFindOpen(false)} />
+        <FindReplaceBar
+          key={findSeed.key}
+          editor={editor}
+          initialQuery={findSeed.query}
+          onClose={() => setFindOpen(false)}
+        />
       )}
 
       {displayOpen && (

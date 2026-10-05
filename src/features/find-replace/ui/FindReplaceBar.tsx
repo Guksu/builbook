@@ -15,14 +15,16 @@ export interface FindReplaceBarProps {
   editor: Editor;
   /** 닫기 — 닫히면 하이라이트도 사라진다 */
   onClose: () => void;
+  /** 처음 채워 둘 검색어 — 검색 패널에서 결과를 눌러 들어왔을 때 그 위치를 바로 보여 준다. */
+  initialQuery?: string;
 }
 
 /**
  * 본문 위에 접혔다 펴지는 찾기·바꾸기 바.
  * 입문 작가가 멈칫하지 않도록 기본은 '찾기' 한 줄이고, 바꾸기 칸은 늘 같은 자리에 함께 둔다.
  */
-export function FindReplaceBar({ editor, onClose }: FindReplaceBarProps) {
-  const [query, setQuery] = useState("");
+export function FindReplaceBar({ editor, onClose, initialQuery = "" }: FindReplaceBarProps) {
+  const [query, setQuery] = useState(initialQuery);
   const [replacement, setReplacement] = useState("");
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [matches, setMatches] = useState<DocMatch[]>([]);
