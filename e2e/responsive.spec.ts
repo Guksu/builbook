@@ -29,7 +29,7 @@ test("휴대폰 폭: 인스펙터를 열면 오버레이로 뜨고 다시 누르
   await createProjectAndOpen(page);
   const chip = page.getByRole("button", { name: "인스펙터" });
   await chip.click();
-  await expect(page.getByLabel("분량 단위")).toBeVisible();
+  await expect(page.getByRole("region", { name: "작품 목표" })).toBeVisible();
   await chip.click();
-  await expect(page.getByLabel("분량 단위")).toBeHidden();
+  await expect(page.getByRole("region", { name: "작품 목표" })).toBeHidden();
 });
