@@ -14,10 +14,21 @@ interface GoalBarProps {
 
 /**
  * 헤더의 목표 바 — 스크리브너 Project Targets를 한 줄로 접은 것.
- * 작품·오늘 진행률을 얇은 막대 두 개로, 마감이 있으면 "하루 N자"까지. 목표가 하나도 없으면 안 그린다.
+ * 작품·오늘 진행률을 얇은 막대 두 개로, 마감이 있으면 "하루 N자"까지. 누르면 목표 창이 열린다.
+ * 목표가 하나도 없으면 "목표 정하기" 버튼만 둔다 — 목표를 정하는 입구가 상단 바에도 있어야 한다.
  */
 export function GoalBar({ project, today, pace, unit, onClick }: GoalBarProps) {
-  if (!project.hasGoal && !today.hasGoal) return null;
+  if (!project.hasGoal && !today.hasGoal) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="shrink-0 rounded-md px-8 py-4 text-caption text-fg-muted transition-colors hover:bg-surface hover:text-fg max-md:hidden"
+      >
+        목표 정하기
+      </button>
+    );
+  }
   const parts: string[] = [];
   if (project.hasGoal) parts.push(`작품 ${project.reached ? "달성" : `${project.percent}%`}`);
   if (today.hasGoal) parts.push(`오늘 ${today.reached ? "달성" : `${today.percent}%`}`);
@@ -32,7 +43,7 @@ export function GoalBar({ project, today, pace, unit, onClick }: GoalBarProps) {
     <button
       type="button"
       onClick={onClick}
-      title="집필 현황 열기"
+      title="목표 보기·바꾸기"
       aria-label={`목표 진행: ${parts.join(", ")}`}
       className="flex min-w-0 shrink-0 items-center gap-8 rounded-md px-8 py-4 text-caption text-fg-weak transition-colors hover:bg-surface hover:text-fg max-md:hidden"
     >

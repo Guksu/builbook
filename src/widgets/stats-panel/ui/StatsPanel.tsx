@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Input, ProgressBar, cn } from "@shared/ui";
+import { ProgressBar, cn } from "@shared/ui";
 import type { DocumentNode } from "@entities/document";
 import {
   averagePerActiveDay,
@@ -17,10 +17,9 @@ import {
 } from "@entities/writing-log";
 import { computeProgress } from "@features/writing-goals";
 import { useCountUnit } from "@features/count-unit";
-import { formatCount, unitSuffix } from "@shared/lib";
+import { formatCount } from "@shared/lib";
 import {
   DEFAULT_EPISODE_GOAL,
-  EPISODE_PRESETS,
   buildEpisodeStats,
   episodeStatusLabel,
   summarizeEpisodes,
@@ -32,14 +31,14 @@ export interface StatsPanelProps {
   documents: readonly DocumentNode[];
   /** 하루 목표 분량(사용자 설정 단위, 미설정 가능). */
   dailyGoal?: number;
-  /** 회차 목표 분량(공백 포함 글자 수, 미설정 시 기본 5,500자). */
+  /** 회차 목표 분량(분량 단위 설정 기준, 미설정 시 기본 5,500). */
   episodeGoal?: number;
   /** 작품 전체 목표 분량 — 완성 예상일 계산에 쓴다. */
   projectGoal?: number;
   /** 작품 전체 현재 분량(실시간, 사용자 설정 단위). */
   projectWords: number;
-  onSaveDailyGoal: (goal: number | null) => void;
-  onSaveEpisodeGoal: (goal: number | null) => void;
+  /** 목표 창 열기 — 하루·회차 목표는 목표 창 한 곳에서 정한다. */
+  onOpenGoals: () => void;
   /** 회차 표에서 회차를 클릭했을 때 — 해당 문서를 에디터에 연다. */
   onSelectDocument?: (id: string) => void;
 }
@@ -52,19 +51,6 @@ const STATUS_STYLE: Record<EpisodeStatus, string> = {
   long: "text-error",
 };
 
-// 숫자 목표 입력 커밋 — 빈 값이면 해제(null), 0 이상 정수만 저장.
-function commitGoal(raw: string, current: number | undefined, onSave: (g: number | null) => void) {
-  const trimmed = raw.trim();
-  if (trimmed === "") {
-    if (current != null) onSave(null);
-    return;
-  }
-  const n = Number(trimmed);
-  if (!Number.isFinite(n) || n < 0) return;
-  const next = Math.floor(n);
-  if (next !== (current ?? -1)) onSave(next);
-}
-
 /**
  * 집필 현황 — 오늘 쓴 양·연속 집필일·최근 14일 추이·회차별 분량을 한 화면에.
  * 연재는 "매일 얼마씩 쌓았는가"와 "한 편이 몇 자인가"로 굴러가므로 이 둘을 나란히 둔다.
@@ -76,12 +62,11 @@ export function StatsPanel({
   episodeGoal,
   projectGoal,
   projectWords,
-  onSaveDailyGoal,
-  onSaveEpisodeGoal,
+  onOpenGoals,
   onSelectDocument,
 }: StatsPanelProps) {
   const { logs, isLoading } = useWritingLogs(projectId);
-  const [unit, setUnit] = useCountUnit();
+  const [unit] = useCountUnit();
   const today = dateKey(new Date());
 
   const todayWords = writtenOn(logs, today, unit);
@@ -126,22 +111,9 @@ export function StatsPanel({
             aria-label="오늘 목표 진행률"
           />
         )}
-        <Input
-          type="number"
-          min={0}
-          inputMode="numeric"
-          aria-label="하루 목표 분량"
-          defaultValue={dailyGoal && dailyGoal > 0 ? String(dailyGoal) : ""}
-          placeholder={`하루 목표 분량 (${unitSuffix(unit)}, 선택)`}
-          className="h-32 text-body-sm"
-          onBlur={(e) => commitGoal(e.target.value, dailyGoal, onSaveDailyGoal)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
-        />
+        <GoalLink onClick={onOpenGoals}>
+          {todayProgress.hasGoal ? "하루 목표 바꾸기" : "하루 목표 정하기"}
+        </GoalLink>
       </section>
 
       {/* 연속 집필일 */}
@@ -224,46 +196,13 @@ export function StatsPanel({
             {summary.count}편 · 평균 {formatCount(summary.averageChars, unit)}
           </p>
         </div>
-        <Input
-          type="number"
-          min={0}
-          inputMode="numeric"
-          aria-label="회차 목표 분량"
-          defaultValue={episodeGoal && episodeGoal > 0 ? String(episodeGoal) : ""}
-          placeholder={`회차 목표 분량 (기본 ${formatCount(DEFAULT_EPISODE_GOAL, "chars")}, 단위: ${unitSuffix(unit)})`}
-          className="h-32 text-body-sm"
-          onBlur={(e) => commitGoal(e.target.value, episodeGoal, onSaveEpisodeGoal)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              (e.target as HTMLInputElement).blur();
-            }
-          }}
-        />
-
-        {/* 플랫폼 프리셋 — 누르면 목표와 분량 단위를 함께 맞춘다. 근거는 title로. */}
-        <ul aria-label="회차 분량 프리셋" className="flex flex-wrap gap-4">
-          {EPISODE_PRESETS.map((p) => (
-            <li key={p.id}>
-              <button
-                type="button"
-                title={p.source}
-                onClick={() => {
-                  if (p.unit !== unit) setUnit(p.unit);
-                  if (p.goal !== episodeGoal) onSaveEpisodeGoal(p.goal);
-                }}
-                className={cn(
-                  "rounded-full border px-8 py-2 text-caption transition-colors",
-                  episodeGoal === p.goal && unit === p.unit
-                    ? "border-primary bg-primary-weak text-fg"
-                    : "border-border text-fg-weak hover:border-border-strong hover:text-fg",
-                )}
-              >
-                {p.label}
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="flex items-baseline justify-between text-body-sm">
+          <span className="text-fg-weak">
+            회차 목표 {formatCount(goalChars, unit)}
+            {episodeGoal && episodeGoal > 0 ? "" : " (기본)"}
+          </span>
+          <GoalLink onClick={onOpenGoals}>바꾸기</GoalLink>
+        </div>
 
         {episodes.length === 0 ? (
           <p className="text-body-sm text-fg-weak">아직 회차가 없어요.</p>
@@ -295,5 +234,17 @@ export function StatsPanel({
         )}
       </section>
     </div>
+  );
+}
+
+function GoalLink({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="self-start rounded-md text-caption text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {children}
+    </button>
   );
 }

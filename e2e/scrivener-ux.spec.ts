@@ -40,8 +40,9 @@ test("작품 목표와 마감일을 넣으면 헤더에 목표 바와 하루 분
   await createProjectAndOpen(page);
   await expect(page.getByRole("button", { name: /^목표 진행/ })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "인스펙터" }).click();
-  const goal = page.getByLabel("작품 목표 분량");
+  // 목표가 없으면 상단 바에 "목표 정하기"가 있고, 누르면 목표 창이 열린다
+  await page.getByRole("button", { name: "목표 정하기" }).click();
+  const goal = page.getByRole("dialog", { name: "목표" }).getByLabel("작품 목표 분량");
   await goal.fill("1000");
   await goal.blur();
   await expect(page.getByRole("button", { name: /^목표 진행: 작품 0%/ })).toBeVisible();
