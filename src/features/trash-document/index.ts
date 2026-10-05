@@ -1,1 +1,1 @@
-export { TrashPanel } from "./ui/TrashPanel";
+export { TrashSection } from "./ui/TrashSection";

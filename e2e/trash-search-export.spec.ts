@@ -35,9 +35,9 @@ test("문서 삭제 → 휴지통에 나타남 → 복원 → 바인더 복귀",
   // 바인더에서 사라진다
   await expect(page.locator("nav").getByText("복원될 문서")).toHaveCount(0);
 
-  // 휴지통을 열면 삭제된 문서가 보인다
-  await page.getByRole("button", { name: "패널", exact: true }).click();
-  await page.getByRole("menuitemcheckbox", { name: "휴지통" }).click();
+  // 바인더 맨 아래 휴지통 줄에 개수가 보이고, 펼치면 삭제된 문서가 보인다
+  await expect(page.getByRole("region", { name: "휴지통" })).toContainText("휴지통1");
+  await page.getByRole("button", { name: "휴지통 펼치기" }).click(); // 바인더 맨 아래
   const trashList = page.getByRole("list", { name: "휴지통 목록" });
   await expect(trashList.getByText("복원될 문서")).toBeVisible();
 

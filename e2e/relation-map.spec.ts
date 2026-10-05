@@ -117,9 +117,9 @@ test("관계 종류별 색·라벨 색 띠가 붙고, 목록 보기로 전환하
   await createCharacter(page, "루나");
   // 테아르에 라벨 달기(인스펙터)
   await page.getByRole("treeitem", { name: "테아르" }).click();
-  await page.keyboard.press("Control+Shift+Digit7");
+  await page.keyboard.press("Control+Shift+Digit6");
   await page.getByLabel("문서 라벨").selectOption({ index: 1 });
-  await page.keyboard.press("Control+Shift+Digit7");
+  await page.keyboard.press("Control+Shift+Digit6");
 
   await openRelations(page);
   await expect(page.locator("rect[data-label-color]")).toHaveCount(1);
@@ -272,7 +272,7 @@ test("노드 폭은 이름 길이를 따르고, 흑백 이미지도 내려받으
 
   // 인스펙터 요약
   await page.getByRole("treeitem", { name: "루나" }).click();
-  await page.keyboard.press("Control+Shift+Digit7");
+  await page.keyboard.press("Control+Shift+Digit6");
   const summary = page.getByRole("region", { name: "이 인물의 관계" });
   await expect(summary).toContainText("기사단장 로렌스");
   await expect(summary).toContainText("스승");
