@@ -1,7 +1,7 @@
 "use client";
 
 // 작업실 화면의 '무엇이 열려 있나' 상태 모음.
-// 우측 패널 9종(표시등 매핑 포함) · 보기 모드(본문↔카드) · 집중 모드(ESC 해제) ·
+// 우측 패널(표시등 매핑 포함) · 보기 모드(본문↔카드) · 집중 모드(ESC 해제) ·
 // 좁은 화면 바인더 드로어 · 인스펙터 탭 · 코르크보드 필터를 한 훅으로 묶는다.
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -12,13 +12,12 @@ import { usePersistedState } from "@shared/ui";
 
 export type { WorkspaceViewMode };
 
-/** 패널 순서 = 단축키 번호(Ctrl/⌘+Shift+1~8)와 헤더 메뉴 순서. */
+/** 패널 순서 = 단축키 번호(Ctrl/⌘+Shift+1~7)와 헤더 메뉴 순서. */
 export const PANEL_KEYS: readonly WorkspacePanelKey[] = [
   "timeline",
   "stats",
   "check",
   "search",
-  "notes",
   "trash",
   "ideas",
   "inspector",

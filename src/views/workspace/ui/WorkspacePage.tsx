@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { WorkspaceHeader, GoalBar } from "@widgets/workspace-header";
 import { useCountUnit } from "@features/count-unit";
 import { useTabGuard } from "@features/tab-guard";
+import { useNotesMigration } from "@features/notes-to-cards";
 import { useDocuments } from "@entities/document";
 import { useProject } from "@entities/project";
 import { formatCount, pickCount } from "@shared/lib";
@@ -26,6 +27,8 @@ export function WorkspacePage() {
   const { documents, isLoading, error } = docs;
   const projectApi = useProject(id);
   const { project } = projectApi;
+  // 옛 리서치 노트가 있으면 바인더 카드로 옮긴다(한 번만).
+  useNotesMigration(id);
   const [unit] = useCountUnit();
 
   const selection = useWorkspaceSelection(id, documents);

@@ -5,7 +5,6 @@
 
 import { Inspector } from "@widgets/inspector";
 import { SnapshotPanel } from "@widgets/snapshot-panel";
-import { NotesPanel } from "@widgets/notes-panel";
 import { StatsPanel } from "@widgets/stats-panel";
 import { TimelinePanel } from "@widgets/timeline-panel";
 import { ConsistencyPanel } from "@widgets/consistency-panel";
@@ -138,13 +137,6 @@ export function WorkspaceSidePanels({
               )}
             </div>
           )}
-        </aside>
-      )}
-
-      {/* 우: 리서치 노트 (캐릭터·설정) — 바인더와 분리된 작품 단위 참고 자료 */}
-      {openPanels.notes && !focusMode && (
-        <aside className={cn(SIDE_PANEL, "w-[300px]")}>
-          <NotesPanel projectId={projectId} />
         </aside>
       )}
 

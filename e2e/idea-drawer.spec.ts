@@ -13,7 +13,7 @@ async function createProjectAndOpen(page: Page, title = "영감 테스트") {
 }
 
 async function openIdeas(page: Page) {
-  await page.keyboard.press("Control+Shift+Digit7");
+  await page.keyboard.press("Control+Shift+Digit6");
   await expect(page.getByRole("heading", { name: "영감 서랍" })).toBeVisible();
 }
 

@@ -28,9 +28,9 @@ test("Ctrl+Shift+2로 현황 패널을 열고 닫으며, 열린 상태는 새로
   await expect(page.getByRole("heading", { name: "집필 현황" })).toHaveCount(0);
 });
 
-test("Ctrl+Shift+8은 인스펙터, 메뉴에는 단축키가 표기된다", async ({ page }) => {
+test("Ctrl+Shift+7은 인스펙터, 메뉴에는 단축키가 표기된다", async ({ page }) => {
   await createProjectAndOpen(page);
-  await page.keyboard.press("Control+Shift+Digit8");
+  await page.keyboard.press("Control+Shift+Digit7");
   await expect(page.getByLabel("분량 단위")).toBeVisible();
   await page.getByRole("button", { name: "패널", exact: true }).click();
   await expect(page.getByRole("menuitemcheckbox", { name: "연표" })).toContainText("Shift+1");

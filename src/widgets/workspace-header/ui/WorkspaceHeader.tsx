@@ -14,7 +14,6 @@ export type WorkspacePanelKey =
   | "stats"
   | "check"
   | "search"
-  | "notes"
   | "trash"
   | "ideas"
   | "inspector";
@@ -26,7 +25,6 @@ const PANEL_MENU: { key: WorkspacePanelKey; label: string }[] = [
   { key: "stats", label: "현황" },
   { key: "check", label: "점검" },
   { key: "search", label: "검색" },
-  { key: "notes", label: "리서치" },
   { key: "trash", label: "휴지통" },
   { key: "ideas", label: "영감" },
 ];

@@ -109,7 +109,7 @@ export function BackupModal({ open, onClose, projectCount }: BackupModalProps) {
       <section className="mb-24">
         <h3 className="mb-4 text-body font-medium text-fg">백업 파일 만들기</h3>
         <p className="mb-12 text-body-sm text-fg-weak">
-          작품·문서·스냅샷·리서치 노트 전부를 JSON 파일 하나로 저장해요.
+          작품·문서·스냅샷·집필 기록 등 전부를 JSON 파일 하나로 저장해요.
           {status && status.level !== "empty" && (
             <span className={cn("ml-4", status.level === "ok" ? "text-fg-weak" : "text-error")}>
               {status.message}
