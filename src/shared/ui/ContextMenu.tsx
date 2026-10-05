@@ -125,18 +125,19 @@ export function ContextMenu({ x, y, items, onClose, label }: ContextMenuProps) {
               {item.checked ? "✓" : ""}
             </span>
           )}
-          {item.hint && (
-            <span aria-hidden className="ml-auto pl-12 text-caption tabular-nums text-fg-muted">
-              {item.hint}
-            </span>
-          )}
           {item.dotClass && (
             <span
               aria-hidden
               className={cn("h-8 w-8 shrink-0 rounded-full", item.dotClass)}
             />
           )}
-          <span className="truncate">{item.label}</span>
+          {/* 이름이 먼저, 보조 표기는 오른쪽 끝 — 반대로 두면 이름이 밀려 "리…"처럼 잘린다. */}
+          <span className="min-w-0 flex-1 truncate">{item.label}</span>
+          {item.hint && (
+            <span aria-hidden className="shrink-0 pl-12 text-caption tabular-nums text-fg-muted">
+              {item.hint}
+            </span>
+          )}
         </button>
       ))}
     </div>,
