@@ -41,7 +41,7 @@ describe("applyDelta", () => {
     const next = applyDelta(undefined, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: { words: 120, chars: 360 },
+      delta: { words: 120, chars: 360, charsNoSpace: 300 },
       now: "2026-07-29T10:00:00.000Z",
     });
     expect(next).toMatchObject({
@@ -50,6 +50,8 @@ describe("applyDelta", () => {
       written: 120,
       netChars: 360,
       writtenChars: 360,
+      netCharsNoSpace: 300,
+      writtenCharsNoSpace: 300,
     });
   });
 
@@ -57,44 +59,48 @@ describe("applyDelta", () => {
     const first = applyDelta(undefined, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: { words: 100, chars: 300 },
+      delta: { words: 100, chars: 300, charsNoSpace: 250 },
       now: "t1",
     });
     const second = applyDelta(first, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: { words: 50, chars: 150 },
+      delta: { words: 50, chars: 150, charsNoSpace: 120 },
       now: "t2",
     });
     expect(second.written).toBe(150);
+    expect(second.writtenCharsNoSpace).toBe(370);
   });
 
   it("지운 만큼은 net만 깎고 written은 유지한다", () => {
     const first = applyDelta(undefined, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: { words: 200, chars: 600 },
+      delta: { words: 200, chars: 600, charsNoSpace: 500 },
       now: "t1",
     });
     const after = applyDelta(first, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: { words: -80, chars: -240 },
+      delta: { words: -80, chars: -240, charsNoSpace: -200 },
       now: "t2",
     });
     expect(after.net).toBe(120);
     expect(after.written).toBe(200);
+    expect(after.netCharsNoSpace).toBe(300);
+    expect(after.writtenCharsNoSpace).toBe(500);
   });
 
   it("NaN 델타는 0으로 방어한다", () => {
     const next = applyDelta(undefined, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: { words: Number.NaN, chars: Number.NaN },
+      delta: { words: Number.NaN, chars: Number.NaN, charsNoSpace: Number.NaN },
       now: "t",
     });
     expect(next.written).toBe(0);
     expect(next.writtenChars).toBe(0);
+    expect(next.writtenCharsNoSpace).toBe(0);
   });
 
   it("옛 기록(글자 수 없음)에 더해도 글자 수가 생긴다", () => {
@@ -109,10 +115,31 @@ describe("applyDelta", () => {
     const next = applyDelta(legacy, {
       projectId: "p1",
       date: "2026-07-29",
-      delta: { words: 5, chars: 20 },
+      delta: { words: 5, chars: 20, charsNoSpace: 16 },
       now: "t1",
     });
     expect(next).toMatchObject({ written: 15, writtenChars: 20, netChars: 20 });
+  });
+
+  it("공백 제외 수치가 없는 그날 기록(2026-10 이전)은 공백 포함 값에서 이어 간다", () => {
+    const before = {
+      id: "p1:2026-10-05",
+      projectId: "p1",
+      date: "2026-10-05",
+      net: 100,
+      written: 100,
+      netChars: 400,
+      writtenChars: 420,
+      updatedAt: "t0",
+    };
+    const next = applyDelta(before, {
+      projectId: "p1",
+      date: "2026-10-05",
+      delta: { words: 3, chars: 12, charsNoSpace: 9 },
+      now: "t1",
+    });
+    // 0부터 다시 세면 같은 날 숫자가 420 → 9로 줄어든 것처럼 보인다
+    expect(next).toMatchObject({ writtenCharsNoSpace: 429, netCharsNoSpace: 409, writtenChars: 432 });
   });
 });
 
@@ -125,6 +152,15 @@ describe("writtenValue", () => {
     expect(writtenValue({ ...legacy, writtenChars: 30 }, "chars")).toBe(30);
     expect(writtenValue(legacy, "chars")).toBe(7);
     expect(writtenValue(legacy, "charsNoSpace")).toBe(7);
+  });
+  it("공백 제외 단위는 writtenCharsNoSpace, 없으면 공백 포함 값으로 대체", () => {
+    expect(writtenValue({ ...legacy, writtenChars: 30, writtenCharsNoSpace: 24 }, "charsNoSpace")).toBe(24);
+    expect(writtenValue({ ...legacy, writtenChars: 30, writtenCharsNoSpace: 24 }, "chars")).toBe(30);
+    expect(writtenValue({ ...legacy, writtenChars: 30 }, "charsNoSpace")).toBe(30);
+  });
+  it("단위를 넘기지 않으면 기본 단위(공백 제외)로 꺼낸다", () => {
+    const l = { ...legacy, date: "2026-10-05", writtenChars: 30, writtenCharsNoSpace: 24 };
+    expect(writtenOn([l], "2026-10-05")).toBe(24);
   });
 });
 

@@ -86,7 +86,7 @@ export function useProject(projectId: string) {
     updateGoal: (goal: number | null) => updateGoalField("goal", goal),
     // 하루 목표 단어 수(집필 현황 '오늘' 진행률 기준).
     updateDailyGoal: (goal: number | null) => updateGoalField("dailyGoal", goal),
-    // 회차 목표 분량(공백 포함 글자 수).
+    // 회차 목표 분량(분량 단위 설정 기준 숫자).
     updateEpisodeGoal: (goal: number | null) => updateGoalField("episodeGoal", goal),
     // 컴파일 프리셋 목록 통째 교체.
     async updateCompilePresets(presets: CompilePreset[]) {

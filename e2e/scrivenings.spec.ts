@@ -70,8 +70,8 @@ test("연속 보기에서 고친 내용이 그 회차에 저장된다", async ({
   await section(page, "추격전").locator(".prose-editor").click();
   await page.keyboard.type("추격이 시작됐다.");
 
-  // 자동저장이 끝나면 헤더 합계가 따라 올라간다(= 저장 완료 신호).
-  await expect(main(page).getByText("문서 2개 · 9자")).toBeVisible();
+  // 자동저장이 끝나면 헤더 합계가 따라 올라간다(= 저장 완료 신호). 기본 단위 = 공백 제외 글자 수.
+  await expect(main(page).getByText("문서 2개 · 8자")).toBeVisible();
 
   await page.reload();
 

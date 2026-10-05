@@ -43,7 +43,11 @@ export async function saveDocumentContent(
   if (!doc) return;
   // 저장 직전 값과의 차이가 곧 "방금 쓴 분량" — 일별 집필 기록의 유일한 입력이다.
   const before = measureDocument(doc);
-  const delta = { words: measure.words - before.words, chars: measure.chars - before.chars };
+  const delta = {
+    words: measure.words - before.words,
+    chars: measure.chars - before.chars,
+    charsNoSpace: measure.charsNoSpace - before.charsNoSpace,
+  };
   await dbPut(STORES.documents, {
     ...doc,
     content,

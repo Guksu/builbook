@@ -3,7 +3,7 @@
 // 쓴 글이 어제로 기록돼 연속 집필일이 끊긴 것처럼 보인다.
 
 import type { WritingLog } from "../model/types";
-import type { CountUnit } from "@shared/lib";
+import { DEFAULT_COUNT_UNIT, type CountUnit } from "@shared/lib";
 
 export function dateKey(d: Date): string {
   const y = d.getFullYear();
@@ -25,13 +25,14 @@ export function shiftDateKey(key: string, days: number): string {
 export interface WritingDelta {
   words: number;
   chars: number; // 공백 포함 글자 수
+  charsNoSpace: number; // 공백 제외 글자 수
 }
 
 const safeInt = (n: number) => (Number.isFinite(n) ? Math.trunc(n) : 0);
 
 /**
  * 저장 시점의 변화량을 그날 기록에 더한다(없으면 새로 만든다).
- * 단어·글자 두 수치를 함께 쌓는다 — 양수만 written에, net은 지운 만큼 깎인다.
+ * 단어·글자(공백 포함/제외) 세 수치를 함께 쌓는다 — 양수만 written에, net은 지운 만큼 깎인다.
  */
 export function applyDelta(
   existing: WritingLog | undefined,
@@ -39,6 +40,7 @@ export function applyDelta(
 ): WritingLog {
   const words = safeInt(input.delta.words);
   const chars = safeInt(input.delta.chars);
+  const charsNoSpace = safeInt(input.delta.charsNoSpace);
   const base: WritingLog = existing ?? {
     id: logId(input.projectId, input.date),
     projectId: input.projectId,
@@ -47,6 +49,8 @@ export function applyDelta(
     written: 0,
     netChars: 0,
     writtenChars: 0,
+    netCharsNoSpace: 0,
+    writtenCharsNoSpace: 0,
     updatedAt: input.now,
   };
   return {
@@ -55,16 +59,23 @@ export function applyDelta(
     written: base.written + Math.max(0, words),
     netChars: (base.netChars ?? 0) + chars,
     writtenChars: (base.writtenChars ?? 0) + Math.max(0, chars),
+    // 공백 제외 수치가 없는 그날 기록(2026-10 이전에 만든 기록)은 공백 포함 값에서 이어 간다.
+    // 0에서 시작하면 같은 날 숫자가 갑자기 줄어든 것처럼 보인다(읽을 때의 대체 규칙과 같다).
+    netCharsNoSpace: (base.netCharsNoSpace ?? base.netChars ?? 0) + charsNoSpace,
+    writtenCharsNoSpace:
+      (base.writtenCharsNoSpace ?? base.writtenChars ?? 0) + Math.max(0, charsNoSpace),
     updatedAt: input.now,
   };
 }
 
 /**
- * 그날 새로 쓴 분량을 단위에 맞게 꺼낸다. 글자 수 도입 이전 기록(writtenChars 없음)은
- * 단어 수를 그대로 돌려준다 — 정확하진 않지만 "썼다/안 썼다"와 상대 크기는 보존된다.
+ * 그날 새로 쓴 분량을 단위에 맞게 꺼낸다. 옛 기록은 있는 값 중 가장 가까운 것으로 대신한다 —
+ * 공백 제외 수치가 없으면(2026-10 이전) 공백 포함 값, 글자 수가 없으면(2026-09 이전) 단어 수.
+ * 정확하진 않지만 "썼다/안 썼다"와 상대 크기는 보존된다.
  */
 export function writtenValue(log: WritingLog, unit: CountUnit): number {
   if (unit === "words") return log.written;
+  if (unit === "charsNoSpace") return log.writtenCharsNoSpace ?? log.writtenChars ?? log.written;
   return log.writtenChars ?? log.written;
 }
 
@@ -115,7 +126,7 @@ export function buildSeries(
   logs: readonly WritingLog[],
   todayKey: string,
   days: number,
-  unit: CountUnit = "chars",
+  unit: CountUnit = DEFAULT_COUNT_UNIT,
 ): DayPoint[] {
   const map = byDate(logs);
   const out: DayPoint[] = [];
@@ -130,13 +141,13 @@ export function buildSeries(
 export function writtenOn(
   logs: readonly WritingLog[],
   dateKeyValue: string,
-  unit: CountUnit = "chars",
+  unit: CountUnit = DEFAULT_COUNT_UNIT,
 ): number {
   const log = byDate(logs).get(dateKeyValue);
   return log ? writtenValue(log, unit) : 0;
 }
 
-export function totalWritten(logs: readonly WritingLog[], unit: CountUnit = "chars"): number {
+export function totalWritten(logs: readonly WritingLog[], unit: CountUnit = DEFAULT_COUNT_UNIT): number {
   return logs.reduce((sum, l) => sum + Math.max(0, writtenValue(l, unit)), 0);
 }
 
@@ -147,14 +158,14 @@ export function activeDays(logs: readonly WritingLog[]): number {
 
 export function averagePerActiveDay(
   logs: readonly WritingLog[],
-  unit: CountUnit = "chars",
+  unit: CountUnit = DEFAULT_COUNT_UNIT,
 ): number {
   const days = activeDays(logs);
   return days ? Math.round(totalWritten(logs, unit) / days) : 0;
 }
 
 /** 가장 많이 쓴 날. 기록이 없으면 null. */
-export function bestDay(logs: readonly WritingLog[], unit: CountUnit = "chars"): DayPoint | null {
+export function bestDay(logs: readonly WritingLog[], unit: CountUnit = DEFAULT_COUNT_UNIT): DayPoint | null {
   let best: DayPoint | null = null;
   for (const l of logs) {
     const v = writtenValue(l, unit);

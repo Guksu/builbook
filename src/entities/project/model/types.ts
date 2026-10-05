@@ -32,7 +32,7 @@ export interface Project {
   goal?: number;
   // 하루 목표 단어 수(선택). 집필 현황의 '오늘' 진행률 기준.
   dailyGoal?: number;
-  // 회차 한 편의 목표 분량(공백 포함 글자 수, 선택). 연재 플랫폼 기준 5,500자 등.
+  // 회차 한 편의 목표 분량(분량 단위 설정 기준 숫자, 선택). 기본 5,500자 등.
   episodeGoal?: number;
   // 마감일(로컬 YYYY-MM-DD, 선택). 작품 목표와 함께 "하루 N자" 페이스를 계산한다.
   deadline?: string;

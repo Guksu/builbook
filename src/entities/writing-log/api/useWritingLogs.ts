@@ -12,7 +12,8 @@ export const writingLogsKey = (projectId: string) => `writingLogs:${projectId}`;
  * 자동저장 경로에서 호출되므로 실패해도 원고 저장을 방해하지 않는다(호출부에서 catch).
  */
 export async function recordWriting(projectId: string, delta: WritingDelta): Promise<void> {
-  if (!projectId || (!delta.words && !delta.chars)) return; // 변화 없는 저장은 기록하지 않는다
+  // 변화 없는 저장은 기록하지 않는다(공백 하나를 글자로 바꾸면 공백 제외 수치만 바뀔 수 있다).
+  if (!projectId || (!delta.words && !delta.chars && !delta.charsNoSpace)) return;
   const date = dateKey(new Date());
   const id = logId(projectId, date);
   const existing = await dbGet<WritingLog>(STORES.writingLogs, id);

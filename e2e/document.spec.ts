@@ -32,9 +32,9 @@ test("문서 생성 → 집필 → 자동저장 → 새로고침 후 내용 유�
   await editor.click();
   await page.keyboard.type("어두운 밤, 이야기는 시작되었다.");
 
-  // 분량이 실시간 반영된다 (기본 단위 = 공백 포함 글자 수: 18자)
+  // 분량이 실시간 반영된다 (기본 단위 = 공백 제외 글자 수: 15자, 공백 포함이면 18자)
   // 상단 바에도 작품 합계 "N자"가 있으므로 에디터(main) 안의 것만 본다.
-  await expect(page.locator("main").getByText(/\d자$/)).toContainText("18자");
+  await expect(page.locator("main").getByText(/\d자$/)).toContainText("15자");
 
   // 자동저장(debounce 800ms) flush 대기 후 새로고침
   await page.waitForTimeout(1500);

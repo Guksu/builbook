@@ -11,7 +11,7 @@ import {
   type CountUnit,
 } from "@shared/lib";
 
-/** 회차 목표 분량 기본값(공백 포함 글자 수). 사용자가 작품별로 바꿀 수 있다. */
+/** 회차 목표 분량 기본값(분량 단위 설정 기준 — 기본 단위는 공백 제외 글자 수). 작품별로 바꿀 수 있다. */
 export const DEFAULT_EPISODE_GOAL = 5500;
 
 /**
@@ -39,8 +39,8 @@ export const EPISODE_PRESETS: readonly EpisodePreset[] = [
     id: "default-5500",
     label: "기본 5,500자",
     goal: DEFAULT_EPISODE_GOAL,
-    unit: "chars",
-    source: "공백 포함. 이 앱의 기본값(5,000~5,500자 관행의 위쪽).",
+    unit: "charsNoSpace",
+    source: "공백 제외. 이 앱의 기본 목표와 기본 분량 단위(2026-10부터 공백 제외).",
   },
   {
     id: "novelpia-3000",
@@ -62,7 +62,7 @@ export interface EpisodeStat {
   title: string;
   /** 바인더 순서 기준 회차 번호(1부터). 폴더는 세지 않는다. */
   episodeNo: number;
-  /** 사용자 설정 단위 기준 분량(기본: 공백 포함 글자 수). */
+  /** 사용자 설정 단위 기준 분량(기본: 공백 제외 글자 수). */
   chars: number;
   words: number;
   /** 목표 대비 %(정수). 목표가 없으면 0. */

@@ -14,5 +14,8 @@ export interface WritingLog {
   /** 글자 수(공백 포함) 기준 순증감·새로 쓴 분량. 2026-09 이전 기록엔 없다(그때는 단어 수만). */
   netChars?: number;
   writtenChars?: number;
+  /** 글자 수(공백 제외) 기준 순증감·새로 쓴 분량. 2026-10 이전 기록엔 없다(그때는 공백 포함만). */
+  netCharsNoSpace?: number;
+  writtenCharsNoSpace?: number;
   updatedAt: string;
 }

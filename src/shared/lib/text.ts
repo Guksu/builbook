@@ -44,14 +44,14 @@ export function countChars(text: string): number {
   return text.replace(/\s/g, "").length;
 }
 
-// 공백 포함 글자 수 — 연재 플랫폼이 회차 분량을 세는 기준(예: 5,500자).
+// 공백 포함 글자 수 — 여러 연재 플랫폼이 회차 분량을 세는 기준(예: 5,000자).
 export function countCharsWithSpaces(text: string): number {
   return text.replace(/\r\n/g, "\n").length;
 }
 
 // ── 분량 단위 ──────────────────────────────────────────────────────────────
 // 한국 웹소설 플랫폼은 회차 분량을 '글자 수'로 센다(공백 포함이 흔하고, 노벨피아처럼 공백
-// 제외인 곳도 있다). 그래서 앱의 기본 단위는 공백 포함 글자 수이고, 사용자가 바꿀 수 있다.
+// 제외인 곳도 있다). 앱의 기본 단위는 공백 제외 글자 수이고(2026-10, 사용자 결정), 사용자가 바꿀 수 있다.
 export type CountUnit = "chars" | "charsNoSpace" | "words";
 
 export interface TextMeasure {
@@ -60,11 +60,12 @@ export interface TextMeasure {
   charsNoSpace: number; // 공백 제외 글자 수
 }
 
-export const DEFAULT_COUNT_UNIT: CountUnit = "chars";
+export const DEFAULT_COUNT_UNIT: CountUnit = "charsNoSpace";
 
+// 기본값(공백 제외)을 맨 위에 둔다 — 분량 단위 선택 목록의 순서다.
 export const COUNT_UNITS: readonly { value: CountUnit; label: string; suffix: string }[] = [
-  { value: "chars", label: "글자 수 (공백 포함)", suffix: "자" },
   { value: "charsNoSpace", label: "글자 수 (공백 제외)", suffix: "자" },
+  { value: "chars", label: "글자 수 (공백 포함)", suffix: "자" },
   { value: "words", label: "단어 수", suffix: "단어" },
 ];
 

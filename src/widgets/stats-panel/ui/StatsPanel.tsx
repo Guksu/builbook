@@ -32,7 +32,7 @@ export interface StatsPanelProps {
   documents: readonly DocumentNode[];
   /** 하루 목표 분량(사용자 설정 단위, 미설정 가능). */
   dailyGoal?: number;
-  /** 회차 목표 분량(공백 포함 글자 수, 미설정 시 기본 5,500자). */
+  /** 회차 목표 분량(분량 단위 설정 기준, 미설정 시 기본 5,500자). */
   episodeGoal?: number;
   /** 작품 전체 목표 분량 — 완성 예상일 계산에 쓴다. */
   projectGoal?: number;
