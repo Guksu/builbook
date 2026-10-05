@@ -14,6 +14,7 @@ import { buildTemplateContent, defaultTitleForKind, type DocumentNode } from "@e
 import { ProgressBar, cn } from "@shared/ui";
 import { formatCount, type CountUnit } from "@shared/lib";
 import type { DocumentsApi, ProjectApi } from "../model/types";
+import type { FindRequest } from "../model/useSearchActions";
 import type { WorkspacePanels } from "../model/useWorkspacePanels";
 import type { WorkspaceSelection } from "../model/useWorkspaceSelection";
 
@@ -36,6 +37,8 @@ interface WorkspaceMainProps {
   liveWords: number;
   unit: CountUnit;
   focusProgress: GoalProgress;
+  /** 검색 패널에서 연 문서라면 찾기 바를 그 검색어로 연다. */
+  findRequest: FindRequest | null;
 }
 
 export function WorkspaceMain({
@@ -55,6 +58,7 @@ export function WorkspaceMain({
   liveWords,
   unit,
   focusProgress,
+  findRequest,
 }: WorkspaceMainProps) {
   const { selected, selectedId, setSelectedId, setLiveMeasure } = selection;
   const {
@@ -151,12 +155,13 @@ export function WorkspaceMain({
           onMeasureChange={setLiveMeasure}
           onRename={(t) => docs.renameDocument(selected.id, t)}
           focusMode={focusMode}
+          findRequest={findRequest?.docId === selected.id ? findRequest : null}
         />
       )}
       {/* 폴더를 고르면 그 아래 회차를 한 장으로 이어 본다(스크리브너 Scrivenings) */}
       {selected && selected.type === "FOLDER" && viewMode === "editor" && (
         <Scrivenings
-          key={selected.id}
+          key={`${selected.id}:${reloadToken}`}
           folder={selected}
           documents={documents}
           projectId={projectId}

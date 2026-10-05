@@ -35,6 +35,10 @@ interface WorkspaceSidePanelsProps {
   projectTotalWords: number;
   /** 스냅샷 복원 완료 콜백(문서 캐시 갱신 + 에디터 재마운트). */
   onRestored: () => void | Promise<void>;
+  /** 검색 결과 열기 — 문서를 열고 그 위치를 보여 준다. */
+  onSearchSelect: (docId: string, query: string) => void;
+  /** 작품 전체 바꾸기. */
+  onReplaceAll: (query: string, replacement: string) => Promise<void>;
 }
 
 export function WorkspaceSidePanels({
@@ -47,9 +51,11 @@ export function WorkspaceSidePanels({
   liveWords,
   projectTotalWords,
   onRestored,
+  onSearchSelect,
+  onReplaceAll,
 }: WorkspaceSidePanelsProps) {
   const { selected, setSelectedId } = selection;
-  const { openPanels, panelSetters, inspectorTab, setInspectorTab, focusMode, setViewMode } =
+  const { openPanels, inspectorTab, setInspectorTab, focusMode, setViewMode } =
     panels;
   const { project } = projectApi;
 
@@ -183,10 +189,8 @@ export function WorkspaceSidePanels({
         <aside className={cn(SIDE_PANEL, "w-[300px] overflow-hidden")}>
           <SearchPanel
             documents={documents}
-            onSelect={(docId) => {
-              setSelectedId(docId);
-              panelSetters.search(false);
-            }}
+            onSelect={onSearchSelect}
+            onReplaceAll={onReplaceAll}
           />
         </aside>
       )}

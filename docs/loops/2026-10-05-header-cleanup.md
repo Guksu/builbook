@@ -31,7 +31,7 @@
 | 4 | 휴지통 패널 → 바인더 맨 아래 | 완료 |
 | 5 | 더 보기의 테마 전환 빼기 | 완료 |
 | 6 | 연표 패널의 "관계 변화" 절 빼기 | 완료 |
-| 7 | 검색: 결과 위치 이동 + 작품 전체 바꾸기 | 대기 |
+| 7 | 검색: 결과 위치 이동 + 작품 전체 바꾸기 | 완료 |
 | 8 | 휴대폰 상단 바 정리 | 대기 |
 
 휴대폰 상단 바는 앞 항목들로 상단 바 모양이 정해진 뒤에 한다.
@@ -46,3 +46,4 @@
 | 4 | 휴지통을 바인더 맨 아래 접힌 줄("휴지통 · N", `features/trash-document` `TrashSection`, 펼치기/접기)로. 복원·영구 삭제·확인창 그대로, 복원 핸들러는 `WorkspaceBinderPane`으로. 패널 메뉴에서 휴지통 제거 → 패널 번호 연표1·현황2·점검3·검색4·영감5·인스펙터6 | lint 0 · tsc 0 · unit 412 · e2e 92/92 |
 | 5 | 작업실 "더 보기"에서 다크/라이트 전환 제거(`useTheme` 중복 구현도 사라짐). 테마는 작품 목록 `ThemeToggle`에서만 바꾸고, 고른 테마는 작업실에도 그대로 이어짐(next-themes 전역) | lint 0 · tsc 0 · unit 412 · e2e 93/93 |
 | 6 | 연표(타임라인) 패널 아래 `RelationChangesSection` 제거. 같은 `Relation.changes`가 관계도 목록 "최근 변화" 열과 "시점" 선택에 이미 나온다. 편집 경로(관계 폼)는 그대로 | lint 0 · tsc 0 · unit 412 · e2e 93/93 |
+| 7 | 결과를 누르면 본문 모드로 넘어가 찾기 바를 그 검색어로 엶(`Editor.findRequest`, `FindReplaceBar.initialQuery`, 좁은 화면은 패널 닫기). 작품 전체 바꾸기(`features/search-document` `replaceInContent`·`planProjectReplace`·`replaceAcrossProject`): 텍스트 노드 안에서만(서식 갈린 곳 제외), 대소문자 무시, 바꾸기 전 문서마다 스냅샷, 집필 기록 제외(`saveDocumentContent` `recordWriting:false`). 순서: `flushAllAutosaves`(열린 에디터 남은 저장 끝내기) → 바꾸기 → 문서 캐시 갱신·에디터/스크리브닝 재마운트(`views/workspace/model/useSearchActions`). 저장 전 글 보존 e2e는 기다리기를 끄면 실패하는 것 확인 | lint 0 · tsc 0 · unit 420 · e2e 96/96 |
