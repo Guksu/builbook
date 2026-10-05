@@ -177,12 +177,10 @@ test("회차별 변화를 적으면 시점 보기·연표에 나타난다", asyn
   await page.getByRole("group", { name: "관계도 보기" }).getByRole("button", { name: "목록" }).click();
   await expect(page.getByRole("table", { name: "관계 목록" })).toContainText("동맹이 된다");
 
-  // 연표 패널의 관계 변화 절
+  // 연표 패널에는 관계 변화를 다시 싣지 않는다(관계도 목록·시점에 이미 있다, 2026-10)
   await page.keyboard.press("Control+Shift+Digit1");
-  const section = page.getByRole("region", { name: "관계 변화" });
-  await expect(section).toContainText("1화");
-  await expect(section).toContainText("테아르 – 루나");
-  await expect(section).toContainText("동맹이 된다");
+  await expect(page.getByRole("heading", { name: "타임라인" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "관계 변화" })).toHaveCount(0);
 });
 
 test("종류 색을 고르면 같은 종류의 선이 모두 바뀌고, 이미지로 내려받을 수 있다", async ({ page }) => {
