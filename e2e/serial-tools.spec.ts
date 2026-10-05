@@ -73,8 +73,12 @@ test("하루 목표를 정하면 오늘 진행률 바가 나타난다", async ({
   await page.getByRole("menuitemcheckbox", { name: "현황" }).click();
   await expect(page.getByRole("progressbar", { name: "오늘 목표 진행률" })).toHaveCount(0);
 
-  await page.getByLabel("하루 목표 분량").fill("100");
-  await page.getByLabel("하루 목표 분량").blur();
+  // 하루 목표는 목표 창에서 정한다(현황 패널의 링크로 연다)
+  await page.getByRole("button", { name: "하루 목표 정하기" }).click();
+  const dialog = page.getByRole("dialog", { name: "목표" });
+  await dialog.getByLabel("하루 목표 분량").fill("100");
+  await dialog.getByLabel("하루 목표 분량").blur();
+  await dialog.getByRole("button", { name: "닫기" }).click();
   await expect(page.getByRole("progressbar", { name: "오늘 목표 진행률" })).toBeVisible();
 });
 

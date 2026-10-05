@@ -98,7 +98,7 @@ export function WorkspacePage() {
               today={todayProgress}
               pace={pace}
               unit={unit}
-              onClick={() => panelSetters.stats(true)}
+              onClick={() => panels.setGoalsOpen(true)}
             />
           }
         />
@@ -158,6 +158,8 @@ export function WorkspacePage() {
         projectApi={projectApi}
         quickOpen={quickOpen}
         setQuickOpen={setQuickOpen}
+        projectTotal={projectTotalWords}
+        todayWritten={todayProgress.current}
       />
     </div>
   );

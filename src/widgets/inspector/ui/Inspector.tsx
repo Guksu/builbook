@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Button, ConfirmModal, Input, Textarea, cn } from "@shared/ui";
+import { Button, ConfirmModal, Input, ProgressBar, Textarea, cn } from "@shared/ui";
 import { GoalMeter, computeProgress, paceToDeadline } from "@features/writing-goals";
 import { dateKey } from "@entities/writing-log";
 import { formatCount } from "@shared/lib";
 import { useCountUnit } from "@features/count-unit";
-import { CountUnitSelect } from "@features/count-unit";
 import {
   DOC_STATUS_ORDER,
   docStatusLabel,
@@ -41,16 +40,15 @@ interface InspectorProps {
   // 문서 목표 카운터
   currentWords: number;
   onSaveDocGoal: (id: string, goal: number | null) => void;
-  // 작품 전체 목표 카운터
+  // 작품 전체 목표 — 여기서는 보여 주기만 하고, 바꾸기는 목표 창(onOpenGoals)에서 한다.
   projectTotalWords: number;
   projectGoal: number | null | undefined;
-  onSaveProjectGoal: (goal: number | null) => void;
   /** 마감일(YYYY-MM-DD) — 작품 목표와 함께 하루 필요 분량을 계산한다. */
   deadline?: string;
-  onSaveDeadline: (deadline: string | null) => void;
+  onOpenGoals: () => void;
 }
 
-// 인스펙터: 목표 카운터(문서·작품) + 시놉시스·상태·라벨·메모(모두 blur/선택 즉시 저장).
+// 인스펙터: 작품 목표 요약 + 문서 목표·시놉시스·상태·라벨·메모(모두 blur/선택 즉시 저장).
 export function Inspector({
   doc,
   onSaveSynopsis,
@@ -64,9 +62,8 @@ export function Inspector({
   onSaveDocGoal,
   projectTotalWords,
   projectGoal,
-  onSaveProjectGoal,
   deadline,
-  onSaveDeadline,
+  onOpenGoals,
 }: InspectorProps) {
   const labelList = withDefaultLabels(labels);
   const [unit] = useCountUnit();
@@ -75,33 +72,25 @@ export function Inspector({
 
   return (
     <div className="flex flex-col gap-16 text-body-sm">
-      {/* 분량 단위 — 헤더·목표·현황 숫자가 모두 이 설정을 따른다 */}
-      <CountUnitSelect />
-      <div className="h-px bg-border" />
-      {/* 작품 전체 목표 — 문서 선택과 무관하게 항상 표시 */}
-      <GoalMeter
-        id="project-goal"
-        label="작품 전체"
-        inputLabel="작품 목표 분량"
-        current={projectTotalWords}
-        goal={projectGoal}
-        onSave={onSaveProjectGoal}
-      />
-      {/* 마감일 — 스크리브너 Project Targets의 deadline. 목표가 있어야 페이스가 나온다. */}
-      <div className="flex flex-col gap-6">
-        <label htmlFor="deadline" className="text-fg-weak">
-          마감일
-        </label>
-        <Input
-          id="deadline"
-          type="date"
-          aria-label="마감일"
-          value={deadline ?? ""}
-          onChange={(e) => onSaveDeadline(e.target.value || null)}
-          className="h-32 text-body-sm"
-        />
+      {/* 작품 전체 목표 요약 — 문서 선택과 무관하게 항상 표시. 정하기·바꾸기는 목표 창 한 곳에서. */}
+      <section aria-label="작품 목표" className="flex flex-col gap-6">
+        <div className="flex items-baseline justify-between">
+          <span className="text-fg-weak">작품 전체</span>
+          <span className="tabular-nums text-fg">
+            {projectProgress.hasGoal
+              ? `${projectProgress.current.toLocaleString("ko-KR")} / ${formatCount(projectProgress.goal, unit)}`
+              : formatCount(projectProgress.current, unit)}
+          </span>
+        </div>
+        {projectProgress.hasGoal && (
+          <ProgressBar
+            value={projectProgress.clampedPercent}
+            reached={projectProgress.reached}
+            aria-label="작품 전체 진행률"
+          />
+        )}
         {pace && projectProgress.hasGoal && (
-          <p className="text-caption text-fg-weak" aria-label="마감 페이스">
+          <p className="text-caption text-fg-weak">
             {projectProgress.reached
               ? "목표를 이미 채웠어요."
               : pace.overdue
@@ -109,10 +98,14 @@ export function Inspector({
                 : `${pace.daysLeft}일 남음 · 하루 ${formatCount(pace.perDay, unit)}씩`}
           </p>
         )}
-        {deadline && !projectProgress.hasGoal && (
-          <p className="text-caption text-fg-weak">작품 목표를 넣으면 하루 분량이 계산돼요.</p>
-        )}
-      </div>
+        <button
+          type="button"
+          onClick={onOpenGoals}
+          className="self-start rounded-md text-caption text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {projectProgress.hasGoal || deadline ? "목표 바꾸기" : "목표 정하기"}
+        </button>
+      </section>
 
       {doc ? (
         <>

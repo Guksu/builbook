@@ -50,6 +50,9 @@ export interface WorkspacePanels {
   setPreviewOpen: Dispatch<SetStateAction<boolean>>;
   exportOpen: boolean;
   setExportOpen: Dispatch<SetStateAction<boolean>>;
+  /** 목표 창(작품·마감·하루·회차 목표를 한 곳에서). */
+  goalsOpen: boolean;
+  setGoalsOpen: Dispatch<SetStateAction<boolean>>;
   cardLabelFilter: CardLabelFilter;
   setCardLabelFilter: (next: CardLabelFilter) => void;
   cardSize: CardSize;
@@ -61,6 +64,7 @@ export function useWorkspacePanels(projectId: string): WorkspacePanels {
   const [binderOpen, setBinderOpen] = useState(false);
   const [inspectorTab, setInspectorTab] = useState<InspectorTab>("info");
   const [exportOpen, setExportOpen] = useState(false);
+  const [goalsOpen, setGoalsOpen] = useState(false);
   // 열린 패널은 작품별로 기억한다 — 어제 열어 둔 현황·인스펙터가 오늘 들어와도 그대로.
   const [openPanels, setOpenPanels] = usePersistedState<Record<WorkspacePanelKey, boolean>>(
     `builbook:open-panels:${projectId}`,
@@ -126,6 +130,8 @@ export function useWorkspacePanels(projectId: string): WorkspacePanels {
     setPreviewOpen,
     exportOpen,
     setExportOpen,
+    goalsOpen,
+    setGoalsOpen,
     cardLabelFilter,
     setCardLabelFilter,
     cardSize,

@@ -107,9 +107,8 @@ export function WorkspaceSidePanels({
               onSaveDocGoal={docs.updateGoal}
               projectTotalWords={projectTotalWords}
               projectGoal={project?.goal}
-              onSaveProjectGoal={projectApi.updateGoal}
               deadline={project?.deadline}
-              onSaveDeadline={projectApi.updateDeadline}
+              onOpenGoals={() => panels.setGoalsOpen(true)}
             />
             {selected && selected.type === "DOC" && selected.kind === "character" && (
               <CharacterRelationsSummary
@@ -175,8 +174,7 @@ export function WorkspaceSidePanels({
             episodeGoal={project?.episodeGoal}
             projectGoal={project?.goal}
             projectWords={projectTotalWords}
-            onSaveDailyGoal={projectApi.updateDailyGoal}
-            onSaveEpisodeGoal={projectApi.updateEpisodeGoal}
+            onOpenGoals={() => panels.setGoalsOpen(true)}
             onSelectDocument={setSelectedId}
           />
         </aside>
