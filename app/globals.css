@@ -162,7 +162,10 @@
   font-size: var(--editor-font-size, var(--font-size-body, 16px));
   line-height: var(--editor-line-height, var(--line-height-relaxed, 1.8));
 }
-.prose-editor > * + * {
+/* 문단과 문단 사이에는 간격을 두지 않는다 — Enter 한 번은 바로 다음 줄(연재처 화면과 같은 모양, 2026-10).
+   제목·인용·목록 같은 다른 블록과의 사이에만 간격을 둔다. */
+.prose-editor > :not(p) + *,
+.prose-editor > * + :not(p) {
   margin-top: var(--space-12);
 }
 .prose-editor h1 {

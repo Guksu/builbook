@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useRef, useState } from "react";
 import type { JSONContent } from "@tiptap/react";
+import { PlatformClipboard } from "@features/platform-clipboard";
 import { useAutosave, SaveStatusBadge } from "@features/autosave-document";
 import { useCountUnit } from "@features/count-unit";
 import { measureDocument, type DocumentNode } from "@entities/document";
@@ -36,7 +37,7 @@ export function ScriveningSection({ doc, projectId, onOpen }: ScriveningSectionP
   const initial = useRef<JSONContent>((doc.content as JSONContent | null) ?? EMPTY_DOC);
 
   const editor = useEditor({
-    extensions: [StarterKit, Placeholder.configure({ placeholder: PLACEHOLDER })],
+    extensions: [StarterKit, Placeholder.configure({ placeholder: PLACEHOLDER }), PlatformClipboard],
     content: initial.current,
     immediatelyRender: false, // SSR hydration 안전
     editorProps: {
