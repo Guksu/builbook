@@ -11,6 +11,7 @@ import { useToast, cn } from "@shared/ui";
 import { measureText, pickCount, formatCount, ZERO_MEASURE, type TextMeasure } from "@shared/lib";
 import { useCountUnit } from "@features/count-unit";
 import { FindHighlight, FindReplaceBar } from "@features/find-replace";
+import { PlatformClipboard } from "@features/platform-clipboard";
 import { publishSelectionText } from "@features/editor-selection";
 import type { JSONContent } from "@tiptap/react";
 import { EditorShortcuts } from "../lib/editorShortcuts";
@@ -71,6 +72,7 @@ export function Editor({
       StarterKit,
       Placeholder.configure({ placeholder: PLACEHOLDER }),
       FindHighlight,
+      PlatformClipboard,
       EditorShortcuts.configure({ onFind: openFind }),
     ],
     content: initialContent ?? EMPTY_DOC,

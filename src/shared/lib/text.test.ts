@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   extractPlainText,
+  toPlainLines,
+  splitPlainLines,
   countWords,
   countChars,
   countCharsWithSpaces,
@@ -109,5 +111,55 @@ describe("countCharsWithSpaces", () => {
   });
   it("빈 문자열은 0", () => {
     expect(countCharsWithSpaces("")).toBe(0);
+  });
+});
+
+describe("toPlainLines — 연재처 줄 규칙(문단 하나 = 한 줄, 빈 문단 = 빈 줄 하나)", () => {
+  const p = (text?: string) => (text ? { type: "paragraph", content: [{ type: "text", text }] } : { type: "paragraph" });
+  const doc = (...content: unknown[]) => ({ type: "doc", content });
+
+  it("Enter 한 번(문단 경계)은 줄바꿈 하나 — 빈 줄이 끼지 않는다", () => {
+    expect(toPlainLines(doc(p("첫 줄."), p("둘째 줄.")))).toBe("첫 줄.\n둘째 줄.");
+  });
+
+  it("빈 문단(Enter 두 번)은 빈 줄 하나로 남긴다", () => {
+    expect(toPlainLines(doc(p("가"), p(), p("나")))).toBe("가\n\n나");
+    expect(toPlainLines(doc(p("가"), p(), p(), p("나")))).toBe("가\n\n\n나");
+  });
+
+  it("Shift+Enter(hardBreak)도 줄바꿈 하나, 굵게 등 서식은 글자만 남긴다", () => {
+    const para = {
+      type: "paragraph",
+      content: [
+        { type: "text", text: "앞" },
+        { type: "hardBreak" },
+        { type: "text", text: "뒤", marks: [{ type: "bold" }] },
+      ],
+    };
+    expect(toPlainLines(doc(para))).toBe("앞\n뒤");
+  });
+
+  it("제목·인용·목록 안의 문단도 한 줄씩, 구분선은 빈 줄", () => {
+    const text = toPlainLines(
+      doc(
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "제목" }] },
+        { type: "blockquote", content: [p("인용")] },
+        { type: "horizontalRule" },
+        { type: "bulletList", content: [{ type: "listItem", content: [p("항목")] }] },
+      ),
+    );
+    expect(text).toBe("제목\n인용\n\n항목");
+  });
+
+  it("노드 배열(복사한 조각)도 받는다", () => {
+    expect(toPlainLines([p("가"), p("나")])).toBe("가\n나");
+    expect(toPlainLines(null)).toBe("");
+  });
+});
+
+describe("splitPlainLines", () => {
+  it("줄바꿈 하나마다 나누고 빈 줄을 지우지 않는다(CRLF 포함)", () => {
+    expect(splitPlainLines("가\n나\n\n다")).toEqual(["가", "나", "", "다"]);
+    expect(splitPlainLines("가\r\n나\r다")).toEqual(["가", "나", "다"]);
   });
 });

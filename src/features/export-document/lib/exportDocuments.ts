@@ -1,9 +1,8 @@
 // 내보내기 변환 — 순수 함수(브라우저/DB 비종속). ProseMirror JSON → txt/markdown.
-// 평문 추출은 @shared/lib의 단일 출처(extractPlainText)를 재사용한다.
+// 본문은 연재처 줄 규칙(plainBody: 문단 하나 = 한 줄, 빈 문단 = 빈 줄 하나)으로 만든다.
 
 import type { DocumentNode } from "@entities/document";
-import { extractPlainText } from "@shared/lib";
-import { DEFAULT_COMPILE, SEPARATOR_TEXT, compileManuscript, type CompileOptions } from "./compile";
+import { DEFAULT_COMPILE, SEPARATOR_TEXT, compileManuscript, plainBody, type CompileOptions } from "./compile";
 
 // 마크다운 헤딩 최대 깊이(h6). 트리가 깊어도 ###### 이상은 만들지 않는다.
 const MAX_HEADING = 6;
@@ -16,13 +15,13 @@ export function safeFileName(name: string): string {
 
 // 단일 문서 → 평문(제목 + 본문). 본문이 비면 제목만.
 export function documentToPlainText(doc: DocumentNode): string {
-  const body = extractPlainText(doc.content);
+  const body = plainBody(doc.content);
   return body ? `${doc.title}\n\n${body}\n` : `${doc.title}\n`;
 }
 
 // 단일 문서 → 마크다운(제목 h1 + 본문).
 export function documentToMarkdown(doc: DocumentNode): string {
-  const body = extractPlainText(doc.content);
+  const body = plainBody(doc.content);
   return body ? `# ${doc.title}\n\n${body}\n` : `# ${doc.title}\n`;
 }
 

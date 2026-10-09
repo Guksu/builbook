@@ -3,7 +3,7 @@
 
 import type { DocumentNode } from "@entities/document";
 import { collectSubtreeIds, flattenTree, isManuscript, selectActiveDocuments } from "@entities/document";
-import { extractPlainText } from "@shared/lib";
+import { toPlainLines } from "@shared/lib";
 
 export type EpisodeSeparator = "none" | "blank" | "stars";
 
@@ -29,6 +29,14 @@ export const DEFAULT_COMPILE: CompileOptions = {
 };
 
 export const SEPARATOR_TEXT = "* * *";
+
+/**
+ * 내보내기 본문 — 연재처 줄 규칙(문단 하나 = 한 줄, 빈 문단 = 빈 줄 하나). 앞뒤 빈 줄만 자른다.
+ * 분량·검색용 extractPlainText는 빈 줄을 접어서 장면 전환 빈 줄이 TXT에서 사라졌다(2026-10 수정).
+ */
+export function plainBody(content: unknown): string {
+  return toPlainLines(content).replace(/^\n+|\n+$/g, "");
+}
 
 export interface CompiledSection {
   kind: "project" | "folder" | "episode";
@@ -90,7 +98,7 @@ export function compileManuscript(
     out.push({
       kind: "episode",
       title: opts.includeTitles ? node.title : "",
-      body: extractPlainText(node.content),
+      body: plainBody(node.content),
       depth: depth + 1,
       episodeNo: episodeNoById.get(node.id),
       separatorBefore: seenEpisode && opts.separator !== "none",

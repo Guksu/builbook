@@ -89,3 +89,20 @@ describe("작품 전체 변환", () => {
     expect(txt).not.toContain("휴지통");
   });
 });
+
+describe("TXT 줄 규칙 — 연재처 기준(문단 하나 = 한 줄, 빈 문단 = 빈 줄 하나)", () => {
+  const lines = (...texts: string[]) => ({
+    type: "doc",
+    content: texts.map((t) => (t ? { type: "paragraph", content: [{ type: "text", text: t }] } : { type: "paragraph" })),
+  });
+
+  it("문단 사이는 줄바꿈 하나, 빈 줄(장면 전환)은 그대로 하나, 앞뒤 빈 줄은 자른다", () => {
+    const d = doc({ id: "1화", content: lines("", "첫 줄.", "둘째 줄.", "", "장면 전환 뒤.", "") });
+    expect(documentToPlainText(d)).toBe("1화\n\n첫 줄.\n둘째 줄.\n\n장면 전환 뒤.\n");
+  });
+
+  it("작품 전체 TXT도 회차 본문 안의 빈 줄을 지우지 않는다", () => {
+    const docs = [doc({ id: "1화", content: lines("가", "", "나") })];
+    expect(projectToPlainText("작품", docs)).toContain("1화\n\n가\n\n나");
+  });
+});
